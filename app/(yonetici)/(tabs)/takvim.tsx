@@ -1,0 +1,290 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenBackground } from '../../../src/components/ScreenBackground';
+import { AppModal } from '../../../src/components/AppModal';
+import { Button } from '../../../src/components/Button';
+import { TextField } from '../../../src/components/TextField';
+import { LoadingState, ErrorState } from '../../../src/components/StateViews';
+import { Toast, useToast } from '../../../src/components/Toast';
+import { addAntrenman, getTakvim, TESIS_LISTESI } from '../../../src/data/takvimRepo';
+import type { TakvimBlok, TakvimGun } from '../../../src/data/types';
+import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+
+const BUGUN_INDEX = 1;
+
+export default function TakvimScreen() {
+  const colors = useColors();
+  const styles = createStyles(colors);
+  const [gunler, setGunler] = useState<TakvimGun[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState(BUGUN_INDEX);
+  const [selectedTesis, setSelectedTesis] = useState<string | null>(null);
+  const { toastMessage, showToast } = useToast();
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [grup, setGrup] = useState('');
+  const [antrenor, setAntrenor] = useState('');
+  const [tesis, setTesis] = useState(TESIS_LISTESI[0]);
+  const [saat1, setSaat1] = useState('16:00');
+  const [saat2, setSaat2] = useState('17:30');
+  const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] = useState<TakvimBlok | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setGunler(await getTakvim());
+    } catch {
+      setError('Takvim yüklenemedi.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const gun = gunler[selectedDay];
+  const bloklar = useMemo(() => {
+    if (!gun) return [];
+    return selectedTesis ? gun.bloklar.filter((b) => b.tesis === selectedTesis) : gun.bloklar;
+  }, [gun, selectedTesis]);
+
+  async function onKaydetAntrenman() {
+    if (!grup || !antrenor) {
+      showToast('Grup ve antrenör bilgisi gerekli');
+      return;
+    }
+    setSaving(true);
+    setConflict(null);
+    try {
+      const result = await addAntrenman({ gunIndex: selectedDay, grup, antrenor, tesis, saat1, saat2 });
+      if (result.conflict) {
+        setConflict(result.conflict);
+        return;
+      }
+      await load();
+      setAddOpen(false);
+      setGrup('');
+      setAntrenor('');
+      showToast('Antrenman eklendi');
+    } catch {
+      showToast('Antrenman eklenemedi, tekrar dene');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ScreenBackground>
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Takvim</Text>
+            <Text style={styles.subtitle}>20 – 26 Temmuz</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <Pressable style={styles.todayBtn} onPress={() => setSelectedDay(BUGUN_INDEX)}>
+              <Text style={styles.todayBtnText}>Bugün</Text>
+            </Pressable>
+            <Pressable
+              style={styles.addBtn}
+              onPress={() => {
+                setConflict(null);
+                setAddOpen(true);
+              }}
+            >
+              <Text style={styles.addBtnText}>+</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {loading && <LoadingState label="Takvim yükleniyor…" />}
+        {!loading && error && <ErrorState message={error} onRetry={load} />}
+
+        {!loading && !error && (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayStripScroll} contentContainerStyle={styles.dayStrip}>
+              {gunler.map((g, i) => {
+                const active = i === selectedDay;
+                return (
+                  <Pressable key={g.tarih} style={[styles.dayCell, active && styles.dayCellActive]} onPress={() => setSelectedDay(i)}>
+                    <Text style={[styles.dayCellDow, active && styles.dayCellDowActive]}>{g.gunAdi}</Text>
+                    <Text style={[styles.dayCellNum, active && styles.dayCellNumActive]}>{g.gunNo}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tesisScroll} contentContainerStyle={styles.tesisRow}>
+              <Pressable style={[styles.tesisChip, !selectedTesis && styles.tesisChipActive]} onPress={() => setSelectedTesis(null)}>
+                <Text style={[styles.tesisChipText, !selectedTesis && styles.tesisChipTextActive]}>Tüm Tesisler</Text>
+              </Pressable>
+              {TESIS_LISTESI.map((t) => (
+                <Pressable key={t} style={[styles.tesisChip, selectedTesis === t && styles.tesisChipActive]} onPress={() => setSelectedTesis(t)}>
+                  <Text style={[styles.tesisChipText, selectedTesis === t && styles.tesisChipTextActive]}>{t}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <ScrollView contentContainerStyle={styles.scroll}>
+              <View style={styles.dayHeaderRow}>
+                <Text style={styles.dayHeaderLabel}>{gun?.tarih.toUpperCase()}</Text>
+                <Text style={styles.dayHeaderCount}>{bloklar.length} antrenman</Text>
+              </View>
+
+              {bloklar.length === 0 ? (
+                <View style={styles.emptyBox}>
+                  <Text style={styles.emptyBoxIcon}>📅</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emptyBoxTitle}>Planlı antrenman yok</Text>
+                    <Text style={styles.emptyBoxSubtitle}>"+" ile yeni antrenman ekleyebilirsiniz</Text>
+                  </View>
+                </View>
+              ) : (
+                bloklar.map((b) => (
+                  <View key={b.id} style={styles.blokRow}>
+                    <View style={styles.blokTimeCol}>
+                      <Text style={styles.blokTime1}>{b.saat1}</Text>
+                      <Text style={styles.blokTime2}>{b.saat2}</Text>
+                    </View>
+                    <View style={[styles.blokCard, b.live && styles.blokCardLive]}>
+                      <View style={styles.blokTitleRow}>
+                        <Text style={styles.blokTitle}>{b.baslik}</Text>
+                        {b.live && (
+                          <View style={styles.liveBadge}>
+                            <Text style={styles.liveBadgeText}>● Şu an</Text>
+                          </View>
+                        )}
+                        {b.bireysel && (
+                          <View style={styles.bireyselBadge}>
+                            <Text style={styles.bireyselBadgeText}>Bireysel</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.blokAlt}>{b.alt} · {b.tesis}</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </>
+        )}
+      </SafeAreaView>
+
+      <AppModal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
+        <Pressable style={styles.addBackdrop} onPress={() => setAddOpen(false)}>
+          <Pressable style={styles.addSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.addTitle}>Antrenman Ekle</Text>
+            <ScrollView contentContainerStyle={{ gap: spacing.sm }} keyboardShouldPersistTaps="handled">
+              <TextField label="Grup" value={grup} onChangeText={setGrup} placeholder="Örn. U16 Basketbol" />
+              <TextField label="Antrenör" value={antrenor} onChangeText={setAntrenor} placeholder="Örn. Emre Hoca" />
+
+              <Text style={styles.fieldLabel}>TESİS</Text>
+              <View style={styles.tesisPickRow}>
+                {TESIS_LISTESI.map((t) => (
+                  <Pressable key={t} style={[styles.tesisPickChip, tesis === t && styles.tesisPickChipActive]} onPress={() => setTesis(t)}>
+                    <Text style={[styles.tesisPickChipText, tesis === t && styles.tesisPickChipTextActive]}>{t}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.saatRow}>
+                <View style={{ flex: 1 }}>
+                  <TextField label="Başlangıç" value={saat1} onChangeText={setSaat1} placeholder="16:00" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <TextField label="Bitiş" value={saat2} onChangeText={setSaat2} placeholder="17:30" />
+                </View>
+              </View>
+
+              {conflict && (
+                <View style={styles.conflictBox}>
+                  <Text style={styles.conflictText}>
+                    {tesis} bu saatte dolu — <Text style={styles.conflictBold}>{conflict.saat1}–{conflict.saat2} {conflict.baslik}</Text> ile çakışıyor. Farklı tesis veya saat seçin.
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ height: spacing.xs }} />
+              <Button label="Antrenmanı Kaydet" onPress={onKaydetAntrenman} loading={saving} />
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </AppModal>
+
+      <Toast message={toastMessage} />
+    </ScreenBackground>
+  );
+}
+
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+  flex: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.lg, paddingBottom: 0 },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 3 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  todayBtn: { paddingVertical: 11, paddingHorizontal: 13, borderRadius: 14, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft },
+  todayBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
+  addBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  addBtnText: { fontFamily: fontFamily.archivoBold, fontSize: 18, color: colors.accentOnDark },
+  dayStripScroll: { flexGrow: 0, marginTop: spacing.md },
+  dayStrip: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.lg },
+  dayCell: { width: 46, alignItems: 'center', gap: 3, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder },
+  dayCellActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  dayCellDow: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textFaint },
+  dayCellDowActive: { color: colors.accentOnDark },
+  dayCellNum: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
+  dayCellNumActive: { color: colors.accentOnDark },
+  tesisScroll: { flexGrow: 0, marginTop: spacing.sm },
+  tesisRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg, paddingVertical: 2 },
+  tesisChip: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: radius.pill, backgroundColor: colors.navySurfaceAlt, borderWidth: 1, borderColor: colors.navyBorderSoft },
+  tesisChipActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentTint },
+  tesisChipText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFainter },
+  tesisChipTextActive: { color: colors.accent },
+  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
+  dayHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dayHeaderLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  dayHeaderCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
+  emptyBox: {
+    marginTop: spacing.sm, borderRadius: radius.xxl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong,
+    backgroundColor: colors.navySheet, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+  },
+  emptyBoxIcon: { fontSize: 22 },
+  emptyBoxTitle: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.white },
+  emptyBoxSubtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  blokRow: { flexDirection: 'row', gap: spacing.sm },
+  blokTimeCol: { width: 44, alignItems: 'flex-end', gap: 2, paddingTop: spacing.sm },
+  blokTime1: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
+  blokTime2: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textFaint },
+  blokCard: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 13 },
+  blokCardLive: { borderColor: colors.accentBorder, backgroundColor: 'rgba(46,230,168,0.06)' },
+  blokTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  blokTitle: { flex: 1, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  liveBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentTint },
+  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.accent },
+  bireyselBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentTint },
+  bireyselBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.accent },
+  blokAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 4 },
+  addBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
+  addSheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
+  addTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.md, marginBottom: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  tesisPickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tesisPickChip: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
+  tesisPickChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  tesisPickChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  tesisPickChipTextActive: { color: colors.accent },
+  saatRow: { flexDirection: 'row', gap: spacing.sm },
+  conflictBox: { borderRadius: 14, backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.dangerBorder, padding: 13 },
+  conflictText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.dangerSoft, lineHeight: 18 },
+  conflictBold: { color: colors.white, fontFamily: fontFamily.manropeExtra },
+  });
+}
