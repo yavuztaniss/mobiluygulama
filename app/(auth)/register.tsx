@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'expo-router';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { TextField } from '../../src/components/TextField';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { useAuth } from '../../src/context/AuthContext';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
-import type { AppRole } from '../../src/types/database';
+import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../src/theme';
 
-const ROLE_OPTIONS: { value: AppRole; label: string }[] = [
-  { value: 'veli', label: 'Veli' },
-  { value: 'antrenor', label: 'Antrenör' },
-  { value: 'yonetici', label: 'Yönetici' },
-];
+// Kayıt ekranından rol seçimi kaldırıldı: herkes 'veli' olarak kaydolur.
+// Antrenör/Yönetici hesapları kulüp tarafından (Supabase'de elle veya ileride bir
+// yönetici paneliyle) açılmalı — aksi halde herkes kendini "Yönetici" yapabilir.
+const SELF_SIGNUP_ROLE = 'veli' as const;
 
 export default function RegisterScreen() {
   const { signUp } = useAuth();
@@ -22,7 +20,6 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [role, setRole] = useState<AppRole>('veli');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,7 +39,7 @@ export default function RegisterScreen() {
       return;
     }
     setLoading(true);
-    const { error: signUpError } = await signUp({ email: email.trim(), password, ad: ad.trim(), role });
+    const { error: signUpError } = await signUp({ email: email.trim(), password, ad: ad.trim(), role: SELF_SIGNUP_ROLE });
     setLoading(false);
     if (signUpError) {
       setError(signUpError);
@@ -72,22 +69,7 @@ export default function RegisterScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Kayıt Ol</Text>
-          <Text style={styles.subtitle}>Rolünü seç ve hesabını oluştur.</Text>
-
-          <View style={styles.segment}>
-            {ROLE_OPTIONS.map((opt) => {
-              const active = opt.value === role;
-              return (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => setRole(opt.value)}
-                  style={[styles.segmentItem, active && styles.segmentItemActive]}
-                >
-                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{opt.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text style={styles.subtitle}>Veli hesabını oluştur.</Text>
 
           <View style={styles.form}>
             <TextField label="Ad Soyad" value={ad} onChangeText={setAd} placeholder="Adın Soyadın" />
@@ -135,30 +117,6 @@ function createStyles(colors: AppColors) {
       fontSize: fontSize.base,
       color: colors.textMuted,
       marginBottom: spacing.lg,
-    },
-    segment: {
-      flexDirection: 'row',
-      backgroundColor: colors.navySurface,
-      borderRadius: radius.md,
-      padding: 4,
-      marginBottom: spacing.lg,
-    },
-    segmentItem: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: radius.md - 4,
-      alignItems: 'center',
-    },
-    segmentItemActive: {
-      backgroundColor: colors.accent,
-    },
-    segmentText: {
-      fontFamily: fontFamily.manropeSemi,
-      fontSize: fontSize.base,
-      color: colors.textMuted,
-    },
-    segmentTextActive: {
-      color: colors.accentOnDark,
     },
     form: { gap: spacing.lg },
     error: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.danger },

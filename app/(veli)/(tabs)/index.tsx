@@ -12,7 +12,7 @@ import { getAnaSayfa, getBildirimler } from '../../../src/data/veliRepo';
 import type { AnaSayfaOzet, Bildirim } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
-const DUYURU_ICON: Record<string, string> = { kamp: '🏕️', servis: '🚌', basari: '🏆' };
+const DUYURU_ICON: Record<string, string> = { kamp: '🏕️', servis: '🚌', basari: '🏆', genel: '📣' };
 
 export default function VeliAnaSayfa() {
   const colors = useColors();

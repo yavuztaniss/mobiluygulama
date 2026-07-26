@@ -9,6 +9,7 @@ import { Button } from '../../../src/components/Button';
 import { useChildLabel } from '../../../src/components/ChildSwitcher';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
+import { useChild } from '../../../src/context/ChildContext';
 import { getEtkinlikSonuclari, getEtkinlikler, setKatilimDurumu } from '../../../src/data/veliRepo';
 import type { Etkinlik, EtkinlikSonuc } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
@@ -19,6 +20,7 @@ export default function EtkinliklerScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const childLabel = useChildLabel();
+  const { selectedChildId } = useChild();
   const [sekme, setSekme] = useState<Sekme>('yaklasan');
   const [etkinlikler, setEtkinlikler] = useState<Etkinlik[]>([]);
   const [sonuclar, setSonuclar] = useState<EtkinlikSonuc[]>([]);
@@ -33,7 +35,7 @@ export default function EtkinliklerScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [e, s] = await Promise.all([getEtkinlikler(), getEtkinlikSonuclari()]);
+      const [e, s] = await Promise.all([getEtkinlikler(selectedChildId), getEtkinlikSonuclari()]);
       setEtkinlikler(e);
       setSonuclar(s);
     } catch {
@@ -41,15 +43,15 @@ export default function EtkinliklerScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedChildId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   async function onKatilim(id: string, durum: 'katilir' | 'katilmaz') {
-    await setKatilimDurumu(id, durum);
-    setEtkinlikler(await getEtkinlikler());
+    await setKatilimDurumu(id, selectedChildId, durum);
+    setEtkinlikler(await getEtkinlikler(selectedChildId));
   }
 
   function submitKamp() {

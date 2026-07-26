@@ -5,7 +5,7 @@ export interface KulupDuyurusu {
   baslik: string;
   aciklama: string;
   zaman: string;
-  tur: 'kamp' | 'servis' | 'basari';
+  tur: 'kamp' | 'servis' | 'basari' | 'genel';
 }
 
 export interface AnaSayfaOzet {
@@ -23,7 +23,7 @@ export interface AnaSayfaOzet {
   };
   sonYoklama: { title: string; sub: string; pct: number; katildi: boolean };
   aidat: { durum: 'bekliyor' | 'gecikti' | 'odendi'; tutar: string; sonOdeme: string; taksit: string };
-  duyurular: { id: string; baslik: string; aciklama: string; zaman: string; tur: 'kamp' | 'servis' | 'basari' }[];
+  duyurular: { id: string; baslik: string; aciklama: string; zaman: string; tur: 'kamp' | 'servis' | 'basari' | 'genel' }[];
 }
 
 export interface YoklamaGun {

@@ -1,15 +1,9 @@
 import type { GelisimNotu, OdemeKaydi, Sporcu, SporcuDetay, YoklamaGunu } from '../types';
 
-export const MOCK_SPORCULAR: Sporcu[] = [
-  { id: 's1', init: 'MA', ad: 'Mert Aydın', grup: 'U14 Basketbol', brans: 'Basketbol', odemeDurumu: 'gecikmis', veliAd: 'Serkan Aydın', veliTelefon: '0532 417 88 21', veliYakinlik: 'Baba' },
-  { id: 's2', init: 'AK', ad: 'Ali Kaya', grup: 'U12 Yüzme', brans: 'Yüzme', odemeDurumu: 'guncel', veliAd: 'Fatma Kaya', veliTelefon: '0533 221 44 09', veliYakinlik: 'Anne' },
-  { id: 's3', init: 'ZK', ad: 'Zeynep Kaya', grup: 'U10 Jimnastik', brans: 'Jimnastik', odemeDurumu: 'guncel', veliAd: 'Fatma Kaya', veliTelefon: '0533 221 44 09', veliYakinlik: 'Anne' },
-  { id: 's4', init: 'BT', ad: 'Berk Tan', grup: 'U14 Basketbol', brans: 'Basketbol', odemeDurumu: 'gecikmis', veliAd: 'Hakan Tan', veliTelefon: '0535 620 11 47', veliYakinlik: 'Baba' },
-  { id: 's5', init: 'EY', ad: 'Ece Yıldız', grup: 'U12 Voleybol', brans: 'Voleybol', odemeDurumu: 'guncel', veliAd: 'Derya Yıldız', veliTelefon: '0536 802 93 15', veliYakinlik: 'Anne' },
-  { id: 's6', init: 'CD', ad: 'Cem Demir', grup: 'U10 Yüzme', brans: 'Yüzme', odemeDurumu: 'guncel', veliAd: 'Onur Demir', veliTelefon: '0532 774 20 63', veliYakinlik: 'Baba' },
-  { id: 's7', init: 'DA', ad: 'Defne Arslan', grup: 'U11 Basketbol', brans: 'Basketbol', odemeDurumu: 'gecikmis', veliAd: 'Seda Arslan', veliTelefon: '0538 411 96 27', veliYakinlik: 'Anne' },
-  { id: 's8', init: 'KT', ad: 'Kerem Tunç', grup: 'U12 Yüzme', brans: 'Yüzme', odemeDurumu: 'guncel', veliAd: 'Murat Tunç', veliTelefon: '0533 908 55 12', veliYakinlik: 'Baba' },
-];
+// Sporcu roster'ının kendisi Faz 1'de gerçek `sporcular` tablosuna taşındı
+// (bkz. src/data/sporcularRepo.ts) — burada kalan sabit fixture'lar (yoklama
+// takvimi, ödeme geçmişi, gelişim notları) her sporcu için ortak/paylaşımlı
+// gösterim verisi, Faz 2/3'te gerçek tabloya taşınacak.
 
 const CAL_DAYS: YoklamaGunu[] = [
   { gun: 1, durum: 'katildi' }, { gun: 2, durum: 'katildi' }, { gun: 3, durum: 'gelmedi' },

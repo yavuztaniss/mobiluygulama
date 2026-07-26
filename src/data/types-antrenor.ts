@@ -44,6 +44,7 @@ export interface VeliBildirimi {
 export interface GelisimBeceriSatiri {
   ad: string;
   seviye: number;
+  beceriId: string;
 }
 
 export interface GelisimKaydi {

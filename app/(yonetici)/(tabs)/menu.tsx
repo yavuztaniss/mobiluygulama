@@ -44,21 +44,25 @@ export default function MenuScreen() {
             <Text style={styles.profileName}>{profile?.ad || 'Yönetici'}</Text>
             <Text style={styles.profileRole}>Yönetici · Karşıyaka Spor Okulu</Text>
 
-            <View style={styles.rolDivider} />
-            <View style={styles.rolHeaderRow}>
-              <Text style={styles.rolLabel}>HESAP DEĞİŞTİR</Text>
-              <Text style={styles.rolCount}>2 rol tanımlı</Text>
-            </View>
-            <View style={styles.rolRow}>
-              <View style={[styles.rolCard, styles.rolCardActive]}>
-                <Text style={styles.rolCardTitle}>Yönetici</Text>
-                <Text style={styles.rolCardSubActive}>Aktif oturum</Text>
-              </View>
-              <Pressable style={styles.rolCard} onPress={onRolAntrenor} disabled={gecisYapiliyor}>
-                <Text style={styles.rolCardTitleMuted}>Antrenör</Text>
-                <Text style={styles.rolCardSub}>{gecisYapiliyor ? 'Geçiliyor…' : 'Geçiş yap'}</Text>
-              </Pressable>
-            </View>
+            {__DEV__ && (
+              <>
+                <View style={styles.rolDivider} />
+                <View style={styles.rolHeaderRow}>
+                  <Text style={styles.rolLabel}>HESAP DEĞİŞTİR (DEV)</Text>
+                  <Text style={styles.rolCount}>test amaçlı</Text>
+                </View>
+                <View style={styles.rolRow}>
+                  <View style={[styles.rolCard, styles.rolCardActive]}>
+                    <Text style={styles.rolCardTitle}>Yönetici</Text>
+                    <Text style={styles.rolCardSubActive}>Aktif oturum</Text>
+                  </View>
+                  <Pressable style={styles.rolCard} onPress={onRolAntrenor} disabled={gecisYapiliyor}>
+                    <Text style={styles.rolCardTitleMuted}>Antrenör</Text>
+                    <Text style={styles.rolCardSub}>{gecisYapiliyor ? 'Geçiliyor…' : 'Geçiş yap'}</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </Card>
 
           <View style={styles.list}>

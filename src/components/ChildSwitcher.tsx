@@ -1,14 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CHILDREN, useChild, type ChildId } from '../context/ChildContext';
+import { useChild } from '../context/ChildContext';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../theme';
 
 export function ChildSwitcherPills({ onAddChild }: { onAddChild?: () => void }) {
   const colors = useColors();
   const styles = createStyles(colors);
-  const { selectedChildId, selectChild } = useChild();
+  const { children, selectedChildId, selectChild } = useChild();
   return (
     <View style={styles.pillRow}>
-      {Object.values(CHILDREN).map((c) => {
+      {children.map((c) => {
         const active = c.id === selectedChildId;
         return (
           <Pressable key={c.id} style={[styles.pill, active && styles.pillActive]} onPress={() => selectChild(c.id)}>
@@ -34,10 +34,10 @@ export function ChildSwitcherPills({ onAddChild }: { onAddChild?: () => void }) 
 export function ChildSwitcherCompact() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const { selectedChildId, selectChild } = useChild();
+  const { children, selectedChildId, selectChild } = useChild();
   return (
     <View style={styles.compactRow}>
-      {Object.values(CHILDREN).map((c) => {
+      {children.map((c) => {
         const active = c.id === selectedChildId;
         return (
           <Pressable
@@ -55,6 +55,7 @@ export function ChildSwitcherCompact() {
 
 export function useChildLabel() {
   const { selectedChild } = useChild();
+  if (!selectedChild) return '';
   return `${selectedChild.ad} · ${selectedChild.brans}`;
 }
 

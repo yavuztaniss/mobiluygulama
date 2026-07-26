@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { TextField } from '../../src/components/TextField';
-import { publishEtkinlik } from '../../src/data/etkinlikRepo';
+import { Toast, useToast } from '../../src/components/Toast';
+import { getGruplar, publishEtkinlik } from '../../src/data/etkinlikRepo';
 import type { EtkinlikTuru } from '../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
 
@@ -13,17 +14,19 @@ const TURLER: { value: EtkinlikTuru; label: string; baslikLabel: string; placeho
   { value: 'turnuva', label: 'Turnuva', baslikLabel: 'TURNUVA ADI', placeholder: 'Örn. Ege Kupası U12' },
   { value: 'kamp', label: 'Kamp', baslikLabel: 'KAMP ADI', placeholder: 'Örn. Foça Yaz Kampı' },
 ];
-const GRUPLAR = ['U10', 'U12', 'U14'];
 const TESISLER = ['Salon 1', 'Salon 2', 'Dış tesis'];
+const TARIH_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function EtkinlikOlusturScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { toastMessage, showToast } = useToast();
+  const [gruplar, setGruplar] = useState<{ id: string; ad: string }[]>([]);
   const [tur, setTur] = useState<EtkinlikTuru>('mac');
   const [baslik, setBaslik] = useState('');
   const [tarih, setTarih] = useState('');
   const [saat, setSaat] = useState('');
-  const [grup, setGrup] = useState('U12');
+  const [grupId, setGrupId] = useState<string | null>(null);
   const [tesis, setTesis] = useState('Salon 1');
   const [lcv, setLcv] = useState(true);
   const [ucretli, setUcretli] = useState(false);
@@ -32,15 +35,32 @@ export default function EtkinlikOlusturScreen() {
   const [done, setDone] = useState(false);
   const [ozet, setOzet] = useState('');
 
+  const loadGruplar = useCallback(async () => {
+    try {
+      setGruplar(await getGruplar());
+    } catch {
+      showToast('Gruplar yüklenemedi');
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    loadGruplar();
+  }, [loadGruplar]);
+
   const turMeta = TURLER.find((t) => t.value === tur)!;
   const canPublish = baslik.trim().length > 0;
+  const grupAdi = grupId ? gruplar.find((g) => g.id === grupId)?.ad ?? 'Grup' : 'Tüm Gruplar';
 
   async function onPublish() {
     if (!canPublish || publishing) return;
+    if (!TARIH_REGEX.test(tarih)) {
+      showToast('Tarih YYYY-AA-GG formatında olmalı (örn. 2026-07-25)');
+      return;
+    }
     setPublishing(true);
     try {
-      await publishEtkinlik({ tur, baslik, grup, tesis, tarih: tarih || '—', saat: saat || '—', lcv, ucretli, tutar: ucretli ? tutar : undefined });
-      setOzet(`${turMeta.label} · ${baslik} · ${grup} · ${tarih || '—'} ${saat}`.trim());
+      await publishEtkinlik({ tur, baslik, grupId, tesis, tarih, saat: saat || '—', lcv, ucretli, tutar: ucretli ? tutar : undefined });
+      setOzet(`${turMeta.label} · ${baslik} · ${grupAdi} · ${tarih} ${saat}`.trim());
       setDone(true);
     } finally {
       setPublishing(false);
@@ -52,7 +72,7 @@ export default function EtkinlikOlusturScreen() {
     setBaslik('');
     setTarih('');
     setSaat('');
-    setGrup('U12');
+    setGrupId(null);
     setTesis('Salon 1');
     setLcv(true);
     setUcretli(false);
@@ -108,7 +128,7 @@ export default function EtkinlikOlusturScreen() {
 
             <View style={styles.rowGap}>
               <View style={{ flex: 1 }}>
-                <TextField label="TARİH" value={tarih} onChangeText={setTarih} placeholder="25 Temmuz" />
+                <TextField label="TARİH" value={tarih} onChangeText={setTarih} placeholder="2026-07-25" />
               </View>
               <View style={{ flex: 1 }}>
                 <TextField label="SAAT" value={saat} onChangeText={setSaat} placeholder="11:00" />
@@ -117,9 +137,14 @@ export default function EtkinlikOlusturScreen() {
 
             <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>GRUP</Text>
             <View style={styles.chipRow}>
-              {GRUPLAR.map((g) => (
-                <Pressable key={g} style={[styles.smallChip, grup === g && styles.smallChipActive]} onPress={() => setGrup(g)}>
-                  <Text style={[styles.smallChipText, grup === g && styles.smallChipTextActive]}>{g}</Text>
+              <Pressable style={[styles.smallChip, grupId === null && styles.smallChipActive]} onPress={() => setGrupId(null)}>
+                <Text style={[styles.smallChipText, grupId === null && styles.smallChipTextActive]}>Tüm Gruplar</Text>
+              </Pressable>
+            </View>
+            <View style={[styles.chipRow, { flexWrap: 'wrap', marginTop: spacing.xs }]}>
+              {gruplar.map((g) => (
+                <Pressable key={g.id} style={[styles.smallChip, { flex: 0 }, grupId === g.id && styles.smallChipActive]} onPress={() => setGrupId(g.id)}>
+                  <Text style={[styles.smallChipText, grupId === g.id && styles.smallChipTextActive]}>{g.ad}</Text>
                 </Pressable>
               ))}
             </View>
@@ -163,6 +188,7 @@ export default function EtkinlikOlusturScreen() {
           </ScrollView>
         )}
       </SafeAreaView>
+      <Toast message={toastMessage} />
     </ScreenBackground>
   );
 }

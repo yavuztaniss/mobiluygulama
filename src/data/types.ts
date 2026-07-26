@@ -259,6 +259,8 @@ export interface DuyuruHedefi {
   veliSayisi: number;
 }
 
+export type DuyuruTuru = 'kamp' | 'servis' | 'basari' | 'genel';
+
 export interface DuyuruTaslak {
   baslik: string;
   mesaj: string;

@@ -81,7 +81,7 @@ export default function FinansScreen() {
     if (!seciliSporcu) return;
     setSaving(true);
     try {
-      await recordPayment({ sporcuAd: seciliSporcu.ad, aciklama: 'Temmuz aidatı', tutar, yontem });
+      await recordPayment({ sporcuId: seciliSporcu.id, aciklama: 'Temmuz aidatı', tutar, yontem });
       await load();
       setPaySheetOpen(false);
       showToast(seciliSporcu.ad + ' için ödeme kaydedildi · veliye makbuz bildirimi gönderildi');

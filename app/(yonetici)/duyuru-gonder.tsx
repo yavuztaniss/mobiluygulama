@@ -6,14 +6,22 @@ import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
 import { Toast, useToast } from '../../src/components/Toast';
 import { duyuruGonder, duyuruHedefSayisi, getDuyuruHedefleri, getDuyuruTaslak } from '../../src/data/yoneticiRepo';
-import type { DuyuruHedefi } from '../../src/data/types';
+import type { DuyuruHedefi, DuyuruTuru } from '../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
+
+const TURLER: { value: DuyuruTuru; label: string }[] = [
+  { value: 'genel', label: 'Genel' },
+  { value: 'kamp', label: 'Kamp' },
+  { value: 'servis', label: 'Servis' },
+  { value: 'basari', label: 'Başarı' },
+];
 
 export default function DuyuruGonderScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const [hedefler, setHedefler] = useState<DuyuruHedefi[]>([]);
   const [seciliHedefler, setSeciliHedefler] = useState<string[]>(['tum']);
+  const [tur, setTur] = useState<DuyuruTuru>('genel');
   const [baslik, setBaslik] = useState('');
   const [mesaj, setMesaj] = useState('');
   const [smsIle, setSmsIle] = useState(true);
@@ -49,7 +57,7 @@ export default function DuyuruGonderScreen() {
     });
   }
 
-  const veliSayisi = duyuruHedefSayisi(seciliHedefler);
+  const veliSayisi = duyuruHedefSayisi(hedefler, seciliHedefler);
 
   async function onGonder() {
     if (!baslik.trim() || !mesaj.trim()) {
@@ -58,7 +66,7 @@ export default function DuyuruGonderScreen() {
     }
     setGonderiliyor(true);
     try {
-      const sonuc = await duyuruGonder({ hedefIds: seciliHedefler, baslik: baslik.trim(), mesaj: mesaj.trim(), smsIle });
+      const sonuc = await duyuruGonder({ hedefIds: seciliHedefler, baslik: baslik.trim(), mesaj: mesaj.trim(), tur, smsIle });
       showToast(`Duyuru ${sonuc.veliSayisi} veliye gönderildi ✓ ${sonuc.smsIle ? '(bildirim + SMS)' : '(bildirim)'}`);
     } finally {
       setGonderiliyor(false);
@@ -90,6 +98,18 @@ export default function DuyuruGonderScreen() {
                 return (
                   <Pressable key={h.id} style={[styles.chip, on && styles.chipActive]} onPress={() => onPickHedef(h.id)}>
                     <Text style={[styles.chipText, on && styles.chipTextActive]}>{h.ad}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.fieldLabel}>TÜR</Text>
+            <View style={styles.chipRow}>
+              {TURLER.map((t) => {
+                const on = t.value === tur;
+                return (
+                  <Pressable key={t.value} style={[styles.chip, on && styles.chipActive]} onPress={() => setTur(t.value)}>
+                    <Text style={[styles.chipText, on && styles.chipTextActive]}>{t.label}</Text>
                   </Pressable>
                 );
               })}

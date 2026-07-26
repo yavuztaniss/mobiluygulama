@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
-import { getKadro, getKadroYayinDurumu, kadroKilidiAc, kadroYayinla, lcvKatilanlariEkle, toggleKadroSecim } from '../../../src/data/antrenorRepo';
+import { getKadro, getKadroBaslik, getKadroYayinDurumu, kadroKilidiAc, kadroYayinla, lcvKatilanlariEkle, toggleKadroSecim } from '../../../src/data/antrenorRepo';
 import type { KadroSatiri } from '../../../src/data/types-antrenor';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
@@ -22,6 +22,7 @@ export default function MacKadrosuScreen() {
   const styles = createStyles(colors);
   const LCV_META = getLcvMeta(colors);
   const [kadro, setKadro] = useState<KadroSatiri[]>([]);
+  const [baslik, setBaslik] = useState<{ rakip: string; tarihSaat: string } | null>(null);
   const [yayinlandi, setYayinlandi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +33,10 @@ export default function MacKadrosuScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [k, y] = await Promise.all([getKadro(), getKadroYayinDurumu()]);
+      const [k, y, b] = await Promise.all([getKadro(), getKadroYayinDurumu(), getKadroBaslik()]);
       setKadro(k);
       setYayinlandi(y);
+      setBaslik(b);
     } catch {
       setError('Kadro yüklenemedi.');
     } finally {
@@ -91,7 +93,7 @@ export default function MacKadrosuScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Maç Kadrosu</Text>
-            <Text style={styles.headerSub}>Bornova U12 ile · Cmt 25 Temmuz · 11:00</Text>
+            <Text style={styles.headerSub}>{baslik ? `${baslik.rakip} ile · ${baslik.tarihSaat}` : 'Yaklaşan maç yok'}</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countPillText}>{secilenSayisi}/12</Text>

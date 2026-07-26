@@ -8,7 +8,7 @@ import { getTumDuyurular } from '../../../src/data/veliRepo';
 import type { KulupDuyurusu } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
 
-const DUYURU_ICON: Record<KulupDuyurusu['tur'], string> = { kamp: '🏕️', servis: '🚌', basari: '🏆' };
+const DUYURU_ICON: Record<KulupDuyurusu['tur'], string> = { kamp: '🏕️', servis: '🚌', basari: '🏆', genel: '📣' };
 
 export default function TumDuyurularScreen() {
   const colors = useColors();

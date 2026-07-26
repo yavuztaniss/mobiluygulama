@@ -22,7 +22,7 @@ export default function GelisimScreen() {
   const styles = createStyles(colors);
   const params = useLocalSearchParams<{ sporcuId?: string }>();
   const [sporcular, setSporcular] = useState<Sporcu[]>([]);
-  const [seciliId, setSeciliId] = useState<string>(params.sporcuId || 'ali');
+  const [seciliId, setSeciliId] = useState<string>(params.sporcuId || '');
   const [kayit, setKayit] = useState<GelisimKaydi | null>(null);
   const [not, setNot] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,9 @@ export default function GelisimScreen() {
 
   const loadSporcular = useCallback(async () => {
     try {
-      setSporcular(await getSporcular());
+      const s = await getSporcular();
+      setSporcular(s);
+      setSeciliId((prev) => (prev ? prev : (s[0]?.id ?? '')));
     } catch {
       setError('Sporcular yüklenemedi.');
     }
@@ -57,17 +59,17 @@ export default function GelisimScreen() {
   }, [loadSporcular]);
 
   useEffect(() => {
-    loadKayit(seciliId);
+    if (seciliId) loadKayit(seciliId);
   }, [seciliId, loadKayit]);
 
   const seciliSporcu = sporcular.find((s) => s.id === seciliId);
 
-  async function onSeviyeSec(beceriIndex: number, seviye: number) {
+  async function onSeviyeSec(beceriId: string, seviye: number) {
     if (kayit?.gonderildi) {
       showToast('Kayıt kilitli — "Düzenle"ye dokunun');
       return;
     }
-    await setGelisimSeviye(seciliId, beceriIndex, seviye);
+    await setGelisimSeviye(seciliId, beceriId, seviye);
     setKayit(await getGelisimKaydi(seciliId));
   }
 
@@ -133,14 +135,14 @@ export default function GelisimScreen() {
             <Text style={styles.fieldLabel}>BECERİLER · {seciliSporcu?.ad.split(' ')[0]}</Text>
             <View style={styles.skillCard}>
               {kayit.beceriler.map((b, bi) => (
-                <View key={b.ad} style={[styles.skillRow, bi === kayit.beceriler.length - 1 && { borderBottomWidth: 0 }]}>
+                <View key={b.beceriId} style={[styles.skillRow, bi === kayit.beceriler.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.skillName}>{b.ad}</Text>
                     <Text style={styles.skillLvl}>{LEVELS[b.seviye - 1]}</Text>
                   </View>
                   <View style={styles.segRow}>
                     {[1, 2, 3, 4, 5].map((lvl) => (
-                      <Pressable key={lvl} onPress={() => onSeviyeSec(bi, lvl)}>
+                      <Pressable key={lvl} onPress={() => onSeviyeSec(b.beceriId, lvl)}>
                         <View style={[styles.segBar, { backgroundColor: lvl <= b.seviye ? colors.accent : colors.navyBorder }]} />
                       </Pressable>
                     ))}
