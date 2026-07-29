@@ -8,10 +8,31 @@
 --    kurgusal demo verisidir.
 --
 -- ÖN KOŞULLAR (sırayla):
---   1) kurulum/01_sema.sql   çalıştırılmış olmalı
---   2) kurulum/02_katalog.sql çalıştırılmış olmalı
+--   1) kurulum/01_sema.sql            çalıştırılmış olmalı
+--   2) kurulum/02_katalog.sql         çalıştırılmış olmalı
 --      (brans + beceri satırları buradaki kayıtların FK hedefidir)
---   3) ⚠ AŞAĞIDAKİ E-POSTAYA SAHİP BİR SUPABASE AUTH KULLANICISI ZATEN VAR OLMALI
+--   3) kurulum/03_kulup_olustur.sql   çalıştırılmış olmalı (kulüp + merkez şube)
+--   4) kurulum/04_ilk_yonetici.sql    çalıştırılmış olmalı
+--   5) ⚠ AŞAĞIDAKİ E-POSTAYA SAHİP BİR SUPABASE AUTH KULLANICISI ZATEN VAR OLMALI
+--
+-- =============================================================================
+-- ÇOK KİRACILILIK — bu dosya nasıl çalışıyor (0021/0022 sonrası)
+-- =============================================================================
+--   0021 ile 41 tablonun kulup_id kolonu NOT NULL oldu ve varsayılanı
+--   private.current_kulup_id() — yani "oturumu açan kullanıcının kulübü".
+--   Bu dosya SQL Editor'da `postgres` rolüyle koşar, orada auth.uid() NULL'dur
+--   ve varsayılan da NULL üretirdi → ilk insert 23502 ile dururdu.
+--
+--   ÇÖZÜM (aşağıdaki BÖLÜM 0): dosyanın başında OTURUM BAĞLAMI kuruluyor.
+--   Demo hesabının uuid'si request.jwt.claims'e yazılınca auth.uid() dolar,
+--   current_kulup_id() o hesabın kulübünü döndürür ve TÜM insert'lerin kulup_id
+--   varsayılanı kendiliğinden dolar — aşağıdaki ~100 insert'te tek karakter
+--   değişmedi.
+--
+--   Şube id'leri: '1000...0001' (Merkez) 03_kulup_olustur.sql tarafından zaten
+--   oluşturulmuş olabilir; aşağıdaki insert `on conflict do nothing` ile geçer,
+--   diğer iki şube demoya özeldir.
+-- =============================================================================
 --
 -- =============================================================================
 -- ⚠⚠ KRİTİK — DEMO HESABI E-POSTASI ⚠⚠
@@ -65,6 +86,41 @@
 --
 -- Kaynak migration'lar bölüm başlıklarında belirtilmiştir (0004 → 0014).
 -- =============================================================================
+
+
+-- =============================================================================
+-- BÖLÜM 0 — OTURUM BAĞLAMI (çok kiracılılık için ZORUNLU)
+-- =============================================================================
+-- Demo hesabının uuid'si oturum değişkenine yazılıyor; böylece auth.uid() dolu
+-- olur ve aşağıdaki tüm insert'lerde kulup_id varsayılanı
+-- (private.current_kulup_id()) demo kulübünü döndürür.
+--
+-- Hesap yoksa ya da bir kulübe bağlı değilse dosya BURADA, açıklayıcı bir
+-- hatayla durur — 100 satır ilerledikten sonra anlaşılmaz bir NOT NULL
+-- ihlaliyle patlamak yerine.
+do $$
+declare
+  v_uid   uuid;
+  v_kulup uuid;
+begin
+  select u.id, p.kulup_id into v_uid, v_kulup
+    from auth.users u
+    left join public.profiles p on p.id = u.id
+   where u.email = 'yavuzttaniss@gmail.com';
+
+  if v_uid is null then
+    raise exception 'Demo hesabı bulunamadı (yavuzttaniss@gmail.com). Önce Supabase > Authentication > Users üzerinden hesabı oluşturun, sonra bu dosyayı çalıştırın.';
+  end if;
+  if v_kulup is null then
+    raise exception 'Demo hesabının profili bir kulübe bağlı değil. Önce kurulum/03_kulup_olustur.sql ve kurulum/04_ilk_yonetici.sql çalıştırılmalı.';
+  end if;
+
+  perform set_config('request.jwt.claims',
+                     json_build_object('sub', v_uid, 'role', 'authenticated')::text,
+                     false);   -- false = oturum boyunca geçerli (transaction'a bağlı değil)
+
+  raise notice 'Demo oturum bağlamı kuruldu — kulüp: %', v_kulup;
+end $$;
 
 
 -- =============================================================================

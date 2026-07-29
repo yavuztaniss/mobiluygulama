@@ -1,37 +1,68 @@
 -- =============================================================================
--- 02_katalog.sql — Başlangıç kataloğu (her kulüpte gerekli çekirdek veri)
+-- 02_katalog.sql — PLATFORM KATALOĞU (tüm kulüplerde ortak, kulüpten bağımsız)
 -- =============================================================================
 --
--- Bu dosya, 01_sema.sql çalıştırıldıktan SONRA çalıştırılır ve yeni kurulan HER
--- kulüpte bulunması gereken, kulüptan bağımsız başlangıç verisini yükler.
--- Karşıyaka Spor Okulu'na (ya da başka herhangi bir kulübe) özgü hiçbir kayıt
--- burada YOKTUR — onlar demo/karsiyaka_demo.sql dosyasındadır.
+-- Bu dosya 01_sema.sql'den SONRA, kulüp kaydı açılmadan ÖNCE çalıştırılır ve
+-- sistemin tamamında ortak olan seçilebilir havuzları yükler: branşlar, hizmet
+-- türleri ve beceri başlıkları. Karşıyaka Spor Okulu'na (ya da başka herhangi
+-- bir kulübe) özgü hiçbir kayıt burada YOKTUR — onlar demo/karsiyaka_demo.sql
+-- dosyasındadır.
 --
--- Kaynak migration'lar: 0004 (brans, hizmet_turu), 0007 (aidat_plani),
--- 0008 (beceri), 0015 (kurum_ayarlari), 0019 (mobil_ozellik).
+-- Kaynak migration'lar: 0004 (brans, hizmet_turu), 0008 (beceri).
+--
+-- =============================================================================
+-- ⚠ ÇOK KİRACILILIKTA NE DEĞİŞTİ (0021 + 0022 sonrası)
+-- =============================================================================
+-- 0021 tüm tablolara kulup_id ekledi ve tabloları ikiye ayırdı:
+--
+--   · KİRACI TABLOLARI (41) — kulup_id NOT NULL. Bir kulübe AİT kayıtlardır:
+--     sube, kurum_ayarlari, mobil_ozellik, aidat_plani, sporcular, ...
+--     Bunlar kulüp kaydı AÇILMADAN eklenemez (23502 NOT NULL ihlali), bu yüzden
+--     ESKİ 02_katalog.sql'de bulunan mobil_ozellik / kurum_ayarlari / merkez şube
+--     bölümleri BU DOSYADAN ÇIKARILDI ve 03_kulup_olustur.sql'e taşındı.
+--
+--   · PLATFORM KATALOĞU (3) — brans, hizmet_turu, beceri. kulup_id NULLABLE:
+--       kulup_id IS NULL  → platform kataloğu: HER kulüp okur, HİÇBİR kulüp
+--                           değiştiremez veya silemez (0021 ŞABLON-B: okuma ile
+--                           yazma ayrı restrictive politikalara bölünmüştür).
+--       kulup_id DOLU     → o kulübe özel satır; kulüp panelden kendi branşını
+--                           veya becerisini ekleyince böyle kaydedilir.
+--
+-- Aşağıdaki insert'ler kulup_id yazmaz. Kolonun varsayılanı
+-- `private.current_kulup_id()`; bu dosya SQL Editor'da `postgres` rolüyle koştuğu
+-- için auth.uid() NULL'dur, fonksiyon NULL döner ve satırlar tam da istendiği gibi
+-- PLATFORM KATALOĞU olarak (kulup_id = NULL) yazılır. Yani dosyada tek karakter
+-- değişmeden çok kiracılı davranış elde edilir.
+--
+-- ⚠ Bu dosyayı kulüp panelinden veya bir kullanıcı oturumuyla ÇALIŞTIRMAYIN:
+--   o durumda auth.uid() dolu olur ve satırlar o kulübe özel yazılır.
+--
+-- =============================================================================
+-- ÇALIŞTIRMA SIRASI
+--   1) kurulum/01_sema.sql
+--   2) kurulum/02_katalog.sql          <-- bu dosya
+--   3) kurulum/03_kulup_olustur.sql    kulüp + şube + ayarlar + bayraklar
+--   4) İLK YÖNETİCİNİN HESABINI AÇIN (uygulamadan "Kayıt Ol" ya da
+--      Supabase > Authentication > Users > "Add user")
+--   5) kurulum/04_ilk_yonetici.sql
+--   6) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
 --
 -- IDEMPOTENT: her insert `on conflict ... do nothing` ile yazılmıştır, dosya
--- birden fazla kez çalıştırılabilir; var olan satırlar EZİLMEZ (yani kulüp
--- panelden bir bayrağı kapattıysa bu dosyayı tekrar çalıştırmak onu geri açmaz).
---
--- ÇALIŞTIRMA SIRASI:
---   1) kurulum/01_sema.sql
---   2) kurulum/02_katalog.sql   <-- bu dosya
---   3) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
+-- birden fazla kez çalıştırılabilir; var olan satırlar EZİLMEZ.
 --
 -- SABİT UUID UYARISI: brans ve beceri satırlarının id'leri BİLİNÇLİ olarak
--- sabittir. Demo verisi ve olası ileri seed'ler bu id'lere doğrudan referans
+-- sabittir. Demo verisi ve 03_kulup_olustur.sql bu id'lere doğrudan referans
 -- verir; değiştirmeyin.
 -- =============================================================================
 
 
 -- -----------------------------------------------------------------------------
 -- 1) BRANŞLAR  (kaynak: 0004_kurum_ve_sporcular.sql)
---    Kulübün sunabileceği spor branşlarının ana kataloğu. Bir kulübün hangi
+--    Kulüplerin sunabileceği spor branşlarının ortak kataloğu. Bir kulübün hangi
 --    branşları AÇTIĞI ayrı bir tabloda tutulur (kurum_brans_secimi) — burada
 --    yalnızca seçilebilir havuz tanımlanır.
---    Kulüp buraya kendi branşını ekleyebilir; yeni satırlar gen_random_uuid()
---    ile id alır, aşağıdaki sabit id'lere dokunmaya gerek yoktur.
+--    Kulüp buraya kendi branşını panelden ekleyebilir; o satır kulup_id'si dolu
+--    olarak yazılır ve yalnızca o kulüpte görünür.
 -- -----------------------------------------------------------------------------
 insert into brans (id, ad, ikon) values
   ('20000000-0000-0000-0000-000000000001', 'Futbol', '⚽'),
@@ -63,9 +94,13 @@ on conflict (id) do nothing;
 --
 --    DİKKAT: migration'larda YALNIZCA Basketbol branşı için beceri tanımlıydı.
 --    Diğer branşlarda gelişim ekranı boş beceri listesiyle açılır — kulüp kendi
---    branşları için buraya satır ekleyerek doldurmalıdır. Örnek desen:
---      insert into beceri (ad, brans_id, sira) values
---        ('Pas Tekniği', '20000000-0000-0000-0000-000000000001', 0);
+--    branşları için panelden satır eklemelidir (o satırlar kulübe özel olur).
+--    Platform kataloğuna yeni bir beceri eklemek isteniyorsa buraya, postgres
+--    rolüyle, aynı desende yazılır:
+--      insert into beceri (id, ad, brans_id, sira) values
+--        ('70000000-0000-0000-0000-00000000000X', 'Pas Tekniği',
+--         '20000000-0000-0000-0000-000000000001', 0)
+--      on conflict (id) do nothing;
 -- -----------------------------------------------------------------------------
 insert into beceri (id, ad, brans_id, sira) values
   ('70000000-0000-0000-0000-000000000001', 'Şut Tekniği', '20000000-0000-0000-0000-000000000002', 0),
@@ -76,91 +111,32 @@ on conflict (id) do nothing;
 
 
 -- -----------------------------------------------------------------------------
--- 4) MOBİL ÖZELLİK BAYRAKLARI  (kaynak: 0019_mobil_ozellik.sql)
---    Web panelden aç/kapa yapılan, mobil uygulamanın açılışta okuduğu bayraklar.
---    Bayrak SETİ sabittir — yeni bayrak eklemek mobil tarafta karşılığı olan kod
---    gerektirdiği için ayrı bir migration ile gelir; panel yalnızca aktif/pasif
---    değiştirir. Çekirdek akışlar (ana sayfa, yoklama, ödemeler, duyurular,
---    profil) bilinçli olarak bayraklanmamıştır.
---
---    Tüm bayraklar yeni kurulumda AÇIK gelir; kulüp kullanmadığı modülü panelden
---    kapatır. (Mobil taraf tabloyu okuyamazsa fail-open davranır: her şey açık.)
+-- DOĞRULAMA — satırların PLATFORM kataloğu olarak yazıldığını kanıtlar.
+-- kulup_id'si dolu bir satır çıkarsa dosya yanlış bağlamda (bir kullanıcı
+-- oturumuyla) çalıştırılmış demektir; o satırlar yalnızca o kulüpte görünür.
 -- -----------------------------------------------------------------------------
-insert into mobil_ozellik (anahtar, ad, aciklama, aktif) values
-  ('mesajlar',      'Mesajlaşma',    'Veli ↔ antrenör mesajlaşma sekmeleri', true),
-  ('magaza',        'Mağaza',        'Veli tarafındaki mağaza sekmesi ve sipariş akışı', true),
-  ('servis',        'Servis Takibi', 'Veli tarafındaki servis sekmesi', true),
-  ('bireysel_ders', 'Bireysel Ders', 'Veli bireysel ders kartı + antrenör takvim/kazanç ekranları', true),
-  ('etkinlikler',   'Etkinlikler',   'Veli tarafındaki etkinlikler/maç takvimi ekranı', true)
-on conflict (anahtar) do nothing;
+do $$
+declare
+  v_kacak int;
+begin
+  select count(*) into v_kacak from (
+    select 1 from brans       where kulup_id is not null
+    union all select 1 from hizmet_turu where kulup_id is not null
+    union all select 1 from beceri      where kulup_id is not null
+  ) x;
 
-
--- -----------------------------------------------------------------------------
--- 5) KURUM AYARLARI — tekil (singleton) satır  (kaynak: 0015_muhasebeci_rolu_kurum_ayarlari.sql)
---    Tablo `id boolean primary key default true check (id)` ile tanımlıdır:
---    yalnızca TEK satır var olabilir. Panel > Ayarlar > Genel bu satırı günceller.
---
---    NOT: 0015'te bu satır kolon varsayılanlarıyla (`values (true)`) ekleniyordu;
---    kulup_adi'nın şema varsayılanı 'Karşıyaka Spor Okulu' olduğu için yeni bir
---    müşteride yanlış isim görünürdü. Burada bilinçli olarak NÖTR bir yer tutucu
---    yazılıyor — kulüp ilk girişte panelden kendi bilgilerini doldurur.
---    telefon / eposta / adres kasıtlı olarak boş (null) bırakıldı.
--- -----------------------------------------------------------------------------
-insert into kurum_ayarlari (id, kulup_adi, para_birimi) values
-  (true, 'Spor Kulübü', 'TRY')
-on conflict (id) do nothing;
-
-
--- -----------------------------------------------------------------------------
--- 6) MERKEZ ŞUBE — ZORUNLU
---
---    Kulübün en az bir şubesi OLMAK ZORUNDA: grup, sporcular, aidat_plani,
---    servis_rota, urun, basvuru ve profiles tablolarının tamamı sube'ye FK ile
---    bağlı. Ayrıca mobil uygulama bugün tek şube varsayımıyla çalışıyor ve bu
---    id'yi koda gömülü tutuyor:
---
---      app/src/data/kurumRepo.ts → MERKEZ_SUBE_ID = '10000000-...-000000000001'
---
---    Bu satır olmadan Kurum Branşları ekranı yalnızca boş dönmez, branş açmaya
---    çalışıldığında FK ihlaliyle (23503) YAZMA HATASI verir. Bu yüzden burada
---    varsayılan olarak oluşturuluyor — `ad` değerini kulübe göre değiştirin
---    (panelden de değiştirilebilir).
---
---    Çoklu şube desteği geldiğinde bu sabit id kaldırılacak.
--- -----------------------------------------------------------------------------
-insert into sube (id, ad, alt_bilgi) values
-  ('10000000-0000-0000-0000-000000000001', 'Merkez', null)
-on conflict (id) do nothing;
-
-
--- -----------------------------------------------------------------------------
--- 7) AİDAT PLANLARI — İSTEĞE BAĞLI ŞABLON  (kaynak: 0007_odeme.sql)
---
---    ⚠ Bu bölüm VARSAYILAN OLARAK ÇALIŞMAZ (yorumdadır). Her kulüp kendi aidat
---      planlarını panelden tanımlar. Aşağıdaki satırlar yalnızca "bir plan kaydı
---      neye benzer" sorusunu gösteren örnektir.
---
---    NEDEN YORUMDA: bu tutarlar Karşıyaka'nın gerçek fiyatları ve `beklenen`
---    değerleri o kulübün sporcu sayısından türetilmiş ciro hedefleridir. Açık
---    bırakılsaydı yeni bir müşteri, panelin Muhasebe > Aidatlar ve Mali Rapor
---    ekranlarında kendisine ait olmayan 4 plan ve ~114.550 TL'lik sahte bir
---    tahsilat beklentisi görürdü.
---
---    Kolonlar:
---      ad       : planın adı (ör. "Basketbol Aylık")
---      alt      : listede ikinci satırda görünen açıklama
---      fiyat    : sporcu başına aylık tutar
---      beklenen : o plandan ay içinde beklenen toplam tahsilat (raporlama için)
---      sube_id  : plan şubeye özelse doldurulur; null = tüm kulüp
--- -----------------------------------------------------------------------------
--- insert into aidat_plani (ad, alt, fiyat, beklenen, sube_id) values
---   ('Basketbol Aylık', 'U12-U14 · haftada 3 gün', 1250, 43750, null);
+  if v_kacak > 0 then
+    raise warning 'Katalogda kulübe özel % satır var. Bu dosya postgres rolüyle (SQL Editor) çalıştırılmalıydı; kulup_id dolu satırlar yalnızca o kulüpte görünür.', v_kacak;
+  else
+    raise notice 'Platform kataloğu hazır: brans/hizmet_turu/beceri satırlarının tamamı kulup_id = NULL.';
+  end if;
+end $$;
 
 
 -- =============================================================================
--- Katalog sonu. Bir sonraki adım:
---   • Gerçek müşteri kurulumu  → kurulum/03_ilk_yonetici.sql (ZORUNLU — o dosya
---     olmadan panele girebilecek hiçbir hesap oluşmaz, kurulum kilitli kalır).
---   • Demo / satış ortamı      → önce 03_ilk_yonetici.sql, sonra
---     demo/karsiyaka_demo.sql.
+-- Katalog sonu. Bir sonraki adım ZORUNLU:
+--   kurulum/03_kulup_olustur.sql — kulüp kaydını, merkez şubesini, kurum
+--   ayarlarını ve mobil özellik bayraklarını oluşturur. O dosya çalıştırılmadan
+--   hiçbir kullanıcı hesabı açılamaz: handle_new_user() sistemde kulüp yoksa
+--   açık bir exception atar.
 -- =============================================================================
