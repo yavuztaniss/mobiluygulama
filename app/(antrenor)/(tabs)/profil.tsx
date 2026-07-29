@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
@@ -16,19 +16,15 @@ import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt
 export default function AntrenorProfilScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const { signOut } = useAuth();
+  const { signOut, refreshProfile } = useAuth();
   const [profil, setProfil] = useState<AntrenorProfil | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
-  const [prefYoklama, setPrefYoklama] = useState(true);
-  const [prefIzin, setPrefIzin] = useState(true);
-  const [prefMesaj, setPrefMesaj] = useState(true);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editAd, setEditAd] = useState('');
   const [editTelefon, setEditTelefon] = useState('');
-  const [editEposta, setEditEposta] = useState('');
   const [kaydediliyor, setKaydediliyor] = useState(false);
 
   const load = useCallback(async () => {
@@ -51,7 +47,6 @@ export default function AntrenorProfilScreen() {
     if (!profil) return;
     setEditAd(profil.ad);
     setEditTelefon(profil.telefon);
-    setEditEposta(profil.eposta);
     setEditOpen(true);
   }
 
@@ -62,10 +57,12 @@ export default function AntrenorProfilScreen() {
     }
     setKaydediliyor(true);
     try {
-      await updateAntrenorProfil({ ad: editAd.trim(), telefon: editTelefon.trim(), eposta: editEposta.trim() });
-      await load();
+      await updateAntrenorProfil({ ad: editAd.trim(), telefon: editTelefon.trim() });
+      await Promise.all([load(), refreshProfile()]);
       setEditOpen(false);
       showToast('Profil güncellendi');
+    } catch {
+      showToast('Profil güncellenemedi.');
     } finally {
       setKaydediliyor(false);
     }
@@ -90,7 +87,7 @@ export default function AntrenorProfilScreen() {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.name}>{profil.ad}</Text>
                 <Text style={styles.role}>{profil.rol}</Text>
-                <Text style={styles.contact}>{profil.telefon} · {profil.eposta}</Text>
+                <Text style={styles.contact}>{[profil.telefon, profil.eposta].filter(Boolean).join(' · ') || '—'}</Text>
               </View>
               <Pressable onPress={openEdit}>
                 <Text style={styles.editLink}>Düzenle</Text>
@@ -99,12 +96,16 @@ export default function AntrenorProfilScreen() {
 
             <Text style={styles.sectionLabel}>GRUPLARIM</Text>
             <Card style={{ gap: 0 }}>
-              {profil.gruplar.map((g, i) => (
-                <View key={g.ad} style={[styles.groupRow, i === profil.gruplar.length - 1 && { borderBottomWidth: 0 }]}>
-                  <Text style={styles.groupName}>{g.ad}</Text>
-                  <Text style={styles.groupCount}>{g.sporcuSayisi} sporcu</Text>
-                </View>
-              ))}
+              {profil.gruplar.length === 0 ? (
+                <Text style={styles.emptyGroupText}>Henüz bağlı sporcu grubu yok</Text>
+              ) : (
+                profil.gruplar.map((g, i) => (
+                  <View key={g.ad} style={[styles.groupRow, i === profil.gruplar.length - 1 && { borderBottomWidth: 0 }]}>
+                    <Text style={styles.groupName}>{g.ad}</Text>
+                    <Text style={styles.groupCount}>{g.sporcuSayisi} sporcu</Text>
+                  </View>
+                ))
+              )}
             </Card>
 
             <Text style={styles.sectionLabel}>GÖRÜNÜM</Text>
@@ -112,17 +113,12 @@ export default function AntrenorProfilScreen() {
               <ThemePreferencePicker />
             </Card>
 
-            <Text style={styles.sectionLabel}>BİLDİRİM TERCİHLERİ</Text>
-            <Card style={{ gap: 0 }}>
-              <PrefRow label="Yoklama hatırlatmaları" sub="Antrenman saatinde bildir" value={prefYoklama} onChange={setPrefYoklama} />
-              <PrefRow label="Veli izin bildirimleri" sub="Yeni izin geldiğinde bildir" value={prefIzin} onChange={setPrefIzin} />
-              <PrefRow label="Mesaj bildirimleri" sub="Yeni mesaj geldiğinde bildir" value={prefMesaj} onChange={setPrefMesaj} last />
-            </Card>
+            {/* "Bildirim tercihleri" anahtarları kaldırıldı — push bildirim altyapısı olmadığından
+                hiçbir yere kaydedilmeyen, etkisiz sahte ayarlardı. */}
 
             <View style={styles.signOutWrap}>
               <Button label="Çıkış Yap" variant="secondary" onPress={signOut} />
             </View>
-            <Text style={styles.versionText}>Sürüm 2.4.1 · KVKK aydınlatma metni</Text>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -141,10 +137,7 @@ export default function AntrenorProfilScreen() {
                 <Text style={styles.fieldLabel}>TELEFON</Text>
                 <TextInput value={editTelefon} onChangeText={setEditTelefon} keyboardType="phone-pad" placeholderTextColor={colors.textDim} style={styles.input} />
               </View>
-              <View>
-                <Text style={styles.fieldLabel}>E-POSTA</Text>
-                <TextInput value={editEposta} onChangeText={setEditEposta} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textDim} style={styles.input} />
-              </View>
+              {/* E-posta düzenlenemez — giriş (auth) e-postasıdır, profiles tablosunda tutulmaz. */}
             </View>
             <Pressable style={styles.saveBtn} onPress={onSaveEdit} disabled={kaydediliyor}>
               <Text style={styles.saveBtnText}>{kaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}</Text>
@@ -155,32 +148,6 @@ export default function AntrenorProfilScreen() {
 
       <Toast message={toastMessage} />
     </ScreenBackground>
-  );
-}
-
-function PrefRow({
-  label,
-  sub,
-  value,
-  onChange,
-  last,
-}: {
-  label: string;
-  sub: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-  last?: boolean;
-}) {
-  const colors = useColors();
-  const styles = createStyles(colors);
-  return (
-    <View style={[styles.prefRow, last && { borderBottomWidth: 0 }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.prefLabel}>{label}</Text>
-        <Text style={styles.prefSub}>{sub}</Text>
-      </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
-    </View>
   );
 }
 
@@ -200,11 +167,8 @@ function createStyles(colors: AppColors) {
   groupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   groupName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   groupCount: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  prefRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  prefLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  prefSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  emptyGroupText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, paddingVertical: 12 },
   signOutWrap: { marginTop: spacing.md },
-  versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.sm },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },

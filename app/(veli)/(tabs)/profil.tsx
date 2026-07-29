@@ -10,9 +10,9 @@ import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePi
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
-import { getKayitliKartlar, getVeliProfil, setOdemeYontemi, updateVeliProfil } from '../../../src/data/veliRepo';
+import { getVeliProfil, updateVeliProfil } from '../../../src/data/veliRepo';
 import type { VeliProfil } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function ProfilScreen() {
   const colors = useColors();
@@ -29,12 +29,7 @@ export default function ProfilScreen() {
   const [editOpen, setEditOpen] = useState(false);
   const [editAd, setEditAd] = useState('');
   const [editTelefon, setEditTelefon] = useState('');
-  const [editEposta, setEditEposta] = useState('');
   const [kaydediliyor, setKaydediliyor] = useState(false);
-
-  const [kartSheetOpen, setKartSheetOpen] = useState(false);
-  const [kartlar, setKartlar] = useState<string[]>([]);
-  const [kartDegistiriliyor, setKartDegistiriliyor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,7 +51,6 @@ export default function ProfilScreen() {
     if (!profil) return;
     setEditAd(profil.ad);
     setEditTelefon(profil.telefon);
-    setEditEposta(profil.eposta);
     setEditOpen(true);
   }
 
@@ -67,29 +61,15 @@ export default function ProfilScreen() {
     }
     setKaydediliyor(true);
     try {
-      await updateVeliProfil({ ad: editAd.trim(), telefon: editTelefon.trim(), eposta: editEposta.trim() });
-      await load();
+      // E-posta oturuma bağlı (auth) — buradan yalnızca profiles.ad/telefon güncellenir.
+      const guncel = await updateVeliProfil({ ad: editAd.trim(), telefon: editTelefon.trim() });
+      setProfil(guncel);
       setEditOpen(false);
       showToast('Profil güncellendi');
+    } catch {
+      showToast('Profil güncellenemedi — tekrar deneyin.');
     } finally {
       setKaydediliyor(false);
-    }
-  }
-
-  async function openKartSheet() {
-    setKartSheetOpen(true);
-    setKartlar(await getKayitliKartlar());
-  }
-
-  async function onSecKart(kart: string) {
-    setKartDegistiriliyor(kart);
-    try {
-      await setOdemeYontemi(kart);
-      await load();
-      setKartSheetOpen(false);
-      showToast('Varsayılan ödeme yöntemi güncellendi');
-    } finally {
-      setKartDegistiriliyor(null);
     }
   }
 
@@ -110,8 +90,8 @@ export default function ProfilScreen() {
                 </Text>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.profileName}>{profil.ad}</Text>
-                <Text style={styles.profileSub}>{profil.telefon} · {profil.eposta}</Text>
+                <Text style={styles.profileName}>{profil.ad || 'Veli'}</Text>
+                <Text style={styles.profileSub}>{[profil.telefon, profil.eposta].filter(Boolean).join(' · ') || '—'}</Text>
               </View>
               <Pressable onPress={openEdit}>
                 <Text style={styles.editLink}>Düzenle</Text>
@@ -127,12 +107,7 @@ export default function ProfilScreen() {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.childName}>{c.ad}</Text>
-                    <Text style={styles.childBrans}>{c.brans}</Text>
-                  </View>
-                  <View style={[styles.docBadge, c.belgeDurum === 'eksik' && styles.docBadgeWarn]}>
-                    <Text style={[styles.docBadgeText, c.belgeDurum === 'eksik' && styles.docBadgeTextWarn]}>
-                      {c.belgeDurum === 'tam' ? '✓ BELGELER TAM' : 'BELGE EKSİK'}
-                    </Text>
+                    <Text style={styles.childBrans}>{c.brans || '—'}</Text>
                   </View>
                 </View>
               ))}
@@ -140,26 +115,6 @@ export default function ProfilScreen() {
                 <Text style={styles.addChildText}>+ Sporcu Ekle</Text>
               </Pressable>
             </View>
-
-            <Text style={styles.sectionLabel}>BELGELER</Text>
-            <Card style={{ gap: 0 }}>
-              {profil.belgeler.map((d) => (
-                <View key={d.id} style={styles.docRow}>
-                  <View style={styles.docIcon}>
-                    <Text>📄</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.docName}>{d.ad}</Text>
-                    <Text style={[styles.docStatus, d.aksiyonGerekli && { color: colors.warning }]}>{d.durum}</Text>
-                  </View>
-                  {d.aksiyonGerekli && (
-                    <Pressable style={styles.renewBtn} onPress={() => showToast('Belge yenileme talebi gönderildi')}>
-                      <Text style={styles.renewBtnText}>Yenile</Text>
-                    </Pressable>
-                  )}
-                </View>
-              ))}
-            </Card>
 
             <Text style={styles.sectionLabel}>GÖRÜNÜM</Text>
             <Card>
@@ -171,20 +126,6 @@ export default function ProfilScreen() {
               <PrefRow label="Yoklama Bildirimleri" sub="Antrenmana katılım/gelmedi" value={prefYok} onChange={setPrefYok} />
               <PrefRow label="Ödeme Hatırlatmaları" sub="Aidat son ödeme tarihi" value={prefOdeme} onChange={setPrefOdeme} />
               <PrefRow label="Kulüp Duyuruları" sub="Genel duyuru ve kampanyalar" value={prefDuyuru} onChange={setPrefDuyuru} last />
-            </Card>
-
-            <Text style={styles.sectionLabel}>ÖDEME YÖNTEMİ</Text>
-            <Card style={styles.payRow}>
-              <View style={styles.payIcon}>
-                <Text>💳</Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.payTitle}>{profil.odemeYontemi}</Text>
-                <Text style={styles.paySub}>Aidat ve mağaza ödemelerinde varsayılan</Text>
-              </View>
-              <Pressable onPress={openKartSheet}>
-                <Text style={styles.editLink}>Değiştir</Text>
-              </Pressable>
             </Card>
 
             <View style={styles.signOutWrap}>
@@ -209,39 +150,11 @@ export default function ProfilScreen() {
                 <Text style={styles.fieldLabel}>TELEFON</Text>
                 <TextInput value={editTelefon} onChangeText={setEditTelefon} keyboardType="phone-pad" placeholderTextColor={colors.textDim} style={styles.input} />
               </View>
-              <View>
-                <Text style={styles.fieldLabel}>E-POSTA</Text>
-                <TextInput value={editEposta} onChangeText={setEditEposta} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textDim} style={styles.input} />
-              </View>
+              <Text style={styles.sheetNote}>E-posta adresi hesabınıza bağlıdır, buradan değiştirilemez.</Text>
             </View>
             <Pressable style={styles.saveBtn} onPress={onSaveEdit} disabled={kaydediliyor}>
               <Text style={styles.saveBtnText}>{kaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
-      </AppModal>
-
-      <AppModal visible={kartSheetOpen} transparent animationType="slide" onRequestClose={() => setKartSheetOpen(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setKartSheetOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Ödeme Yöntemi Seç</Text>
-            <View style={{ gap: spacing.xs, marginTop: spacing.sm }}>
-              {kartlar.map((k) => {
-                const secili = k === profil?.odemeYontemi;
-                return (
-                  <Pressable key={k} style={[styles.kartRow, secili && styles.kartRowActive]} onPress={() => onSecKart(k)} disabled={!!kartDegistiriliyor}>
-                    <Text style={{ fontSize: 16 }}>💳</Text>
-                    <Text style={styles.kartText}>{k}</Text>
-                    {kartDegistiriliyor === k ? (
-                      <Text style={styles.kartLoading}>Seçiliyor…</Text>
-                    ) : secili ? (
-                      <Text style={styles.kartCheck}>✓</Text>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
           </Pressable>
         </Pressable>
       </AppModal>
@@ -294,39 +207,21 @@ function createStyles(colors: AppColors) {
   childAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
   childName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   childBrans: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
-  docBadge: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 9, borderRadius: radius.pill },
-  docBadgeWarn: { backgroundColor: colors.warningSoft },
-  docBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent },
-  docBadgeTextWarn: { color: colors.warning },
   addChildRow: { borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, padding: 13, alignItems: 'center' },
   addChildText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  docRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  docIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  docName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  docStatus: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
-  renewBtn: { backgroundColor: colors.warning, paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill },
-  renewBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.onAccent },
   prefRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   prefLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   prefSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
-  payRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  payIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.warningSoft, alignItems: 'center', justifyContent: 'center' },
-  payTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  paySub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   signOutWrap: { marginTop: spacing.md },
   versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.sm },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
+  sheetNote: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim },
   fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
   input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
-  kartRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, padding: 13 },
-  kartRowActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-  kartText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  kartCheck: { color: colors.accent, fontSize: 16 },
-  kartLoading: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent },
   });
 }

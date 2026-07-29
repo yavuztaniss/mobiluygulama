@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { ChildId } from '../context/ChildContext';
-import { ANA_SAYFA, BILDIRIMLER, IZIN_SEBEPLERI, VELI_PROFIL } from './mock/veli';
+import { IZIN_SEBEPLERI } from './mock/veli';
 import type {
   AnaSayfaOzet,
   Bildirim,
@@ -18,16 +18,17 @@ import type {
 } from './types-veli';
 import type { OdemeYontemi } from './types';
 
-const DELAY_MS = 300;
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), DELAY_MS));
-}
-
 function formatTL(n: number): string {
   return '₺' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 function parseTutar(s: string): number {
   return parseInt(s.replace(/[^\d]/g, ''), 10) || 0;
+}
+function todayStr(): string {
+  // toISOString() UTC'ye çevirdiği için UTC+3'te 00:00-03:00 arası bir önceki günü
+  // verir (bkz. antrenorRepo.todayStr / bireyselRepo.toISO) — yerel bileşenlerden kur.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function formatDateTR(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
@@ -48,8 +49,10 @@ function zamanEtiketi(createdAt: string): string {
 function initialsOf(ad: string): string {
   return ad.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
 }
+// Kayıtlı kart bilgisi tutulmuyor — yöntem etiketi yalnızca `odeme.yontem` kolonundaki
+// gerçek değeri anlatır, sahte kart numarası ("•••• 4521") gösterilmez.
 const YONTEM_ETIKET: Record<OdemeYontemi, string> = {
-  kart: 'Kredi kartı •••• 4521',
+  kart: 'Kart',
   havale: 'Havale / EFT',
   elden: 'Elden',
 };
@@ -126,21 +129,81 @@ export async function getOdemeOzet(sporcuId: ChildId): Promise<OdemeOzet> {
 const BOS_ANA_SAYFA: AnaSayfaOzet = {
   bugunAntrenman: { var: false, branch: '', title: '', saat1: '', saat2: '', venue: '', coach: '', coachInit: '', coachRole: '' },
   sonYoklama: { title: '', sub: '', pct: 0, katildi: false },
-  aidat: { durum: 'odendi', tutar: '₺0', sonOdeme: '', taksit: '₺0' },
+  aidat: { durum: 'odendi', tutar: '₺0', kapsam: '', sonOdeme: '', taksit: '₺0' },
   duyurular: [],
 };
 
+// Ana sayfa özeti artık tamamen gerçek tablolardan: bugünkü antrenman `antrenman`
+// (grup_id + bugünün tarihi), son yoklama `yoklama`⋈`antrenman`, antrenör
+// `sporcu_antrenor`⋈`profiles`, aidat `odeme`, duyurular `duyuru`.
 export async function getAnaSayfa(childId: ChildId): Promise<AnaSayfaOzet> {
-  // Aynı yarış durumu (bkz. getOdemeOzet yorumu): selectedChildId henüz gelmediyse
-  // ANA_SAYFA[''] undefined döner, spread ile bozuk bir nesne oluşmasın diye erken çıkılıyor.
-  if (!childId || !ANA_SAYFA[childId]) return BOS_ANA_SAYFA;
+  // Aynı yarış durumu (bkz. getOdemeOzet yorumu): selectedChildId henüz gelmediyse erken çık.
+  // devSignInAs'in sahte 'dev-*' id'leri de uuid olmadığından sorguya sokulmaz.
+  if (!childId || childId.startsWith('dev-')) return BOS_ANA_SAYFA;
 
-  const base = ANA_SAYFA[childId];
-  const [odeme, duyurular] = await Promise.all([getOdemeOzet(childId), getTumDuyurular()]);
+  const [{ data: sporcuRow }, odeme, duyurular] = await Promise.all([
+    supabase.from('sporcular').select('grup_id, brans:brans(ad), grup:grup(ad)').eq('id', childId).maybeSingle(),
+    getOdemeOzet(childId),
+    getTumDuyurular(),
+  ]);
+  const sporcu = sporcuRow as unknown as { grup_id: string | null; brans: { ad: string } | null; grup: { ad: string } | null } | null;
+  const aidat = { durum: odeme.durum, tutar: odeme.tutar, kapsam: odeme.kapsam, sonOdeme: odeme.sonOdeme, taksit: odeme.taksit };
+  const ilkDuyurular = duyurular.slice(0, 3);
+
+  const grupId = sporcu?.grup_id ?? null;
+  if (!grupId) return { ...BOS_ANA_SAYFA, aidat, duyurular: ilkDuyurular };
+
+  const bugun = todayStr();
+  const [{ data: bugunRow }, { data: sonrakiRows }, { data: antrenorRow }, { data: yoklamaRows }] = await Promise.all([
+    supabase.from('antrenman').select('saat1, saat2, tesis').eq('grup_id', grupId).eq('tarih', bugun).maybeSingle(),
+    supabase.from('antrenman').select('tarih, saat1, tesis').eq('grup_id', grupId).gt('tarih', bugun).order('tarih').limit(1),
+    supabase.from('sporcu_antrenor').select('antrenor:profiles(ad)').eq('sporcu_id', childId).limit(1).maybeSingle(),
+    supabase.from('yoklama').select('durum, antrenman:antrenman(tarih, tesis)').eq('sporcu_id', childId).not('durum', 'is', null),
+  ]);
+
+  const bugunA = bugunRow as { saat1: string | null; saat2: string | null; tesis: string | null } | null;
+  const sonraki = ((sonrakiRows ?? []) as { tarih: string; saat1: string | null; tesis: string | null }[])[0];
+  const coachAd = (antrenorRow as any)?.antrenor?.ad ?? '';
+  const grupAd = sporcu?.grup?.ad ?? '';
+
+  let nextTraining: string | undefined;
+  if (!bugunA && sonraki) {
+    const gunAdi = new Date(sonraki.tarih + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long' });
+    nextTraining = [gunAdi + (sonraki.saat1 ? ` ${sonraki.saat1}` : ''), sonraki.tesis].filter(Boolean).join(' · ');
+  }
+
+  // Son yoklama: durum'u işlenmiş (katıldı/katılmadı) en güncel yoklama satırı.
+  const yRows = ((yoklamaRows ?? []) as unknown as { durum: string; antrenman: { tarih: string; tesis: string | null } | null }[])
+    .filter((y) => y.antrenman)
+    .sort((a, b) => (a.antrenman!.tarih < b.antrenman!.tarih ? 1 : -1));
+  const sonY = yRows[0];
+  const attCount = yRows.filter((y) => y.durum === 'katildi').length;
+  const pct = yRows.length > 0 ? Math.round((attCount / yRows.length) * 100) : 0;
+  const sonYoklama = sonY
+    ? {
+        title: `${new Date(sonY.antrenman!.tarih + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long' })} antrenmanı`,
+        sub: [grupAd, sonY.antrenman!.tesis].filter(Boolean).join(' · '),
+        pct,
+        katildi: sonY.durum === 'katildi',
+      }
+    : BOS_ANA_SAYFA.sonYoklama;
+
   return {
-    ...base,
-    aidat: { durum: odeme.durum, tutar: odeme.tutar, sonOdeme: odeme.sonOdeme, taksit: odeme.taksit },
-    duyurular: duyurular.slice(0, 3),
+    bugunAntrenman: {
+      var: !!bugunA,
+      branch: sporcu?.brans?.ad ?? '',
+      title: grupAd || 'Antrenman',
+      saat1: bugunA?.saat1 ?? '',
+      saat2: bugunA?.saat2 ?? '',
+      venue: bugunA?.tesis ?? '',
+      coach: coachAd,
+      coachInit: coachAd ? initialsOf(coachAd) : '',
+      coachRole: coachAd ? 'Antrenör' : '',
+      nextTraining,
+    },
+    sonYoklama,
+    aidat,
+    duyurular: ilkDuyurular,
   };
 }
 
@@ -170,8 +233,14 @@ export async function getYoklamaGelisim(childId: ChildId): Promise<YoklamaGelisi
   const grupId = (sporcuRow as { grup_id: string | null } | null)?.grup_id;
   if (!grupId) return BOS_YOKLAMA_GELISIM;
 
+  // Katılım yüzdesi/takvimi içinde bulunulan AY ile sınırlı — ekran "{Ay} KATILIMI"
+  // başlığı kullanıyor; tüm-zamanlar verisi ay dönümünde hem etiketle çelişir hem
+  // takvim grid'inde farklı ayların aynı gün numaraları çakışırdı.
+  const simdi = new Date();
+  const ayBasi = `${simdi.getFullYear()}-${String(simdi.getMonth() + 1).padStart(2, '0')}-01`;
+  const aySonu = `${simdi.getFullYear()}-${String(simdi.getMonth() + 1).padStart(2, '0')}-31`;
   const [{ data: antrenmanlar }, { data: gd }, { data: antrenorRow }] = await Promise.all([
-    supabase.from('antrenman').select('id, tarih').eq('grup_id', grupId).order('tarih'),
+    supabase.from('antrenman').select('id, tarih').eq('grup_id', grupId).gte('tarih', ayBasi).lte('tarih', aySonu).order('tarih'),
     supabase.from('gelisim_degerlendirme').select('id, not_metni, tarih').eq('sporcu_id', childId).eq('gonderildi', true).maybeSingle(),
     supabase.from('sporcu_antrenor').select('antrenor:profiles(ad)').eq('sporcu_id', childId).limit(1).maybeSingle(),
   ]);
@@ -230,11 +299,8 @@ export async function getYoklamaGelisim(childId: ChildId): Promise<YoklamaGelisi
 
 // Servis artık gerçek `servis_rota`/`servis_durak`/`servis_sporcu` tablolarından (bkz.
 // supabase/migrations/0012_servis_magaza_izin.sql) — seçili çocuğun bağlı olduğu rotayı
-// çözüyor. Gerçek GPS/canlı konum yok (mock'ta da yoktu); ETA yalnızca varış durağının
-// planlı saatinden hesaplanan tek seferlik bir tahmin.
-function initialsOf2(ad: string): string {
-  return ad.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
-}
+// çözüyor. Gerçek GPS/canlı konum YOK — ekran rota PLANINI gösterir; ETA yalnızca varış
+// durağının planlı saatinden hesaplanan tek seferlik bir tahmin.
 function dakikaFarki(saat: string): number {
   const [h, m] = saat.split(':').map((n) => parseInt(n, 10));
   if (Number.isNaN(h) || Number.isNaN(m)) return 0;
@@ -255,7 +321,7 @@ export async function getServisTakip(childId: ChildId): Promise<ServisTakip | nu
     supabase.from('servis_durak').select('id, ad, saat').eq('rota_id', baglanti.rota_id).order('sira'),
   ]);
   if (!rotaRow) return null;
-  const rota = rotaRow as { ad: string; plaka: string; sofor: string; durum_txt: string; yolda: boolean };
+  const rota = rotaRow as { ad: string; plaka: string; sofor: string; sofor_telefon: string | null; durum_txt: string; yolda: boolean };
   const duraklar = (durakRows ?? []) as { id: string; ad: string; saat: string | null }[];
   const suankiIdx = duraklar.findIndex((d) => d.id === baglanti.durak_id);
   const varis = duraklar[duraklar.length - 1];
@@ -264,14 +330,17 @@ export async function getServisTakip(childId: ChildId): Promise<ServisTakip | nu
     hatAdi: rota.ad,
     plaka: rota.plaka,
     soforAdi: rota.sofor,
-    soforInit: initialsOf2(rota.sofor),
+    soforInit: initialsOf(rota.sofor),
+    // 0018 ile eklenen kolon — boşsa ekran "Ara" butonunu hiç göstermez
+    // (yalnızca boşluktan oluşan değerler de boş sayılır, servisRepo ile aynı normalizasyon).
+    soforTelefon: (rota.sofor_telefon ?? '').trim() || null,
     etaMin: varis?.saat ? dakikaFarki(varis.saat) : 0,
     etaClock: varis?.saat ?? '—',
     durum: rota.durum_txt,
     suankiDurak: suankiIdx >= 0 ? duraklar[suankiIdx].ad : (duraklar[0]?.ad ?? ''),
     routePct: rota.yolda && duraklar.length > 1 && suankiIdx >= 0 ? Math.round((suankiIdx / (duraklar.length - 1)) * 100) : 0,
     stopsLeft: suankiIdx >= 0 ? Math.max(duraklar.length - 1 - suankiIdx, 0) : Math.max(duraklar.length - 1, 0),
-    bindiMesaji: rota.yolda ? `${rota.ad} yolda, takip edebilirsiniz` : 'Servis henüz yola çıkmadı',
+    bindiMesaji: rota.yolda ? `${rota.ad} planlanan rotada` : 'Servis henüz yola çıkmadı',
   };
 }
 
@@ -297,7 +366,7 @@ export async function getIznAntrenmanlar(childId: ChildId): Promise<IznAntrenman
     .from('antrenman')
     .select('id, tarih, saat1, saat2, grup:grup(ad)')
     .eq('grup_id', grupId)
-    .gte('tarih', new Date().toISOString().slice(0, 10))
+    .gte('tarih', todayStr())
     .order('tarih');
   if (error) throw error;
   const aRows = (antrenmanlar ?? []) as unknown as IznAntrenmanRow[];
@@ -326,7 +395,8 @@ export async function getIznAntrenmanlar(childId: ChildId): Promise<IznAntrenman
 }
 
 export async function getIznSebepleri(): Promise<string[]> {
-  return delay(IZIN_SEBEPLERI);
+  // Statik seçenek listesi (gerçek tablo gerektirmiyor) — sahte delay kaldırıldı.
+  return IZIN_SEBEPLERI;
 }
 
 export async function izinGonder(antrenmanId: string, sporcuId: ChildId, sebep: string, detay: string): Promise<void> {
@@ -366,7 +436,7 @@ export async function getEtkinlikler(childId: ChildId): Promise<Etkinlik[]> {
     .from('etkinlik')
     .select('id, tur, baslik, tesis, tarih, saat, aciklama')
     .is('sonuc', null)
-    .gte('tarih', new Date().toISOString().slice(0, 10))
+    .gte('tarih', todayStr())
     .order('tarih');
   if (error) throw error;
   const rows = (data ?? []) as EtkinlikRow[];
@@ -416,7 +486,24 @@ export async function getEtkinlikSonuclari(): Promise<EtkinlikSonuc[]> {
   }));
 }
 
-let bildirimler = [...BILDIRIMLER];
+// Kalıcı bir bildirim tablosu henüz YOK (ileriki iş) — buradaki liste yalnızca gerçek
+// verilerden (gecikmiş `odeme` satırları + `duyuru` tablosu) okuma anında sentezlenir,
+// sabit/mock taban bildirim tutulmaz. "Okundu" durumu da bu yüzden yalnızca uygulama
+// oturumu boyunca hafızada yaşar; kalıcı okundu takibi bildirim tablosuyla gelecek.
+let bildirimler: Bildirim[] = [];
+// Liste hangi hesap için sentezlendi? Aynı oturumda hesap değişirse (çıkış → farklı
+// veli girişi) önceki kullanıcının bildirimleri (çocuk adı + aidat bilgisi) yeni
+// kullanıcıya SIZMASIN diye sahibi değişince liste sıfırlanır.
+let bildirimSahibi: string | null = null;
+
+async function resetBildirimlerIfUserChanged(): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  const uid = data.session?.user.id ?? null;
+  if (uid !== bildirimSahibi) {
+    bildirimler = [];
+    bildirimSahibi = uid;
+  }
+}
 
 // Son ödeme tarihi geçmiş (durum: 'gecikti') aidatlar için otomatik hatırlatma bildirimi
 // oluşturur/kaldırır — gerçek bir zamanlayıcı olmadığından bildirim listesi her okunduğunda senkronize edilir.
@@ -476,20 +563,18 @@ async function syncDuyuruBildirimleri(): Promise<void> {
 }
 
 export async function getBildirimler(): Promise<Bildirim[]> {
+  await resetBildirimlerIfUserChanged();
   await syncOdemeGecikmeBildirimleri();
   await syncDuyuruBildirimleri();
-  return delay(bildirimler);
+  return bildirimler;
 }
 export async function markBildirimOkundu(id: string): Promise<void> {
   bildirimler = bildirimler.map((b) => (b.id === id ? { ...b, okundu: true } : b));
-  await delay(null);
 }
 export async function markTumuOkundu(): Promise<void> {
   bildirimler = bildirimler.map((b) => ({ ...b, okundu: true }));
-  await delay(null);
 }
 
-let veliProfil: VeliProfil = { ...VELI_PROFIL };
 // Duyurular artık gerçek `duyuru` tablosundan — RLS zaten yalnızca tum_veliler=true olanları
 // veya bağlı sporcusunun grubuna hedeflenmiş olanları döndürüyor (bkz. 0009_duyuru_etkinlik.sql),
 // client'ta ek filtre gerekmiyor.
@@ -505,21 +590,45 @@ export async function getTumDuyurular(): Promise<KulupDuyurusu[]> {
   }));
 }
 
+// Veli profili artık gerçek: ad/telefon `profiles` tablosundan, e-posta oturumdan,
+// çocuk listesi `veli_sporcu`⋈`sporcular` ilişkisinden. (Eski mock'taki "belgeler" ve
+// "kayıtlı kart" bölümlerinin gerçek karşılığı yok — tamamen kaldırıldı.)
+const BOS_VELI_PROFIL: VeliProfil = { ad: '', telefon: '', eposta: '', cocuklar: [] };
+
 export async function getVeliProfil(): Promise<VeliProfil> {
-  return delay(veliProfil);
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
+  if (!user) return BOS_VELI_PROFIL;
+
+  const [{ data: profilRow, error }, { data: baglar }] = await Promise.all([
+    supabase.from('profiles').select('ad, telefon').eq('id', user.id).maybeSingle(),
+    supabase
+      .from('veli_sporcu')
+      .select('sporcu:sporcular(id, ad, dogum_yili, numara, grup:grup(ad), brans:brans(ad))')
+      .eq('veli_id', user.id),
+  ]);
+  if (error) throw error;
+
+  const p = profilRow as { ad: string; telefon: string | null } | null;
+  const cocuklar = ((baglar ?? []) as any[])
+    .map((r) => r.sporcu)
+    .filter(Boolean)
+    .map((s: any) => ({
+      id: s.id as string,
+      ad: s.ad as string,
+      brans: [s.brans?.ad, s.grup?.ad, s.dogum_yili, s.numara ? `Forma #${s.numara}` : null].filter(Boolean).join(' · '),
+    }));
+
+  return { ad: p?.ad ?? '', telefon: p?.telefon ?? '', eposta: user.email ?? '', cocuklar };
 }
 
-export async function updateVeliProfil(input: { ad: string; telefon: string; eposta: string }): Promise<VeliProfil> {
-  veliProfil = { ...veliProfil, ...input };
-  return delay(veliProfil);
-}
-
-const KAYITLI_KARTLAR = ['Kredi kartı •••• 4521', 'Kredi kartı •••• 8890', 'Banka kartı •••• 1122'];
-export async function getKayitliKartlar(): Promise<string[]> {
-  return delay(KAYITLI_KARTLAR);
-}
-
-export async function setOdemeYontemi(kart: string): Promise<VeliProfil> {
-  veliProfil = { ...veliProfil, odemeYontemi: kart };
-  return delay(veliProfil);
+export async function updateVeliProfil(input: { ad: string; telefon: string }): Promise<VeliProfil> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) throw new Error('Oturum bulunamadı — yeniden giriş yapın.');
+  // role/sube_id kasıtlı olarak GÖNDERİLMİYOR — profiles üzerindeki koruma trigger'ı
+  // velinin kendi rolünü/şubesini değiştirmesini reddeder.
+  const { error } = await supabase.from('profiles').update({ ad: input.ad, telefon: input.telefon }).eq('id', userId);
+  if (error) throw error;
+  return getVeliProfil();
 }

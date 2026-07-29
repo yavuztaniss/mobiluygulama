@@ -241,7 +241,9 @@ export async function rezervasyonOlustur(
   }
 
   const tekFiyat = ant?.tek_fiyat ?? 0;
-  const odemeNotu = `${formatTL(tekFiyat)} · kart •••• 4521 ile ödendi`;
+  // Uygulama içi kart tahsilatı YOK — ücret kulüp tarafından (resepsiyon/havale) tahsil edilir,
+  // sahte "kart •••• ile ödendi" iddiası gösterilmez.
+  const odemeNotu = `Ödeme kulüp üzerinden tahsil edilecektir · ${formatTL(tekFiyat)}`;
   const { error } = await supabase
     .from('bireysel_rezervasyon')
     .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'tek', tutar: tekFiyat, odeme_notu: odemeNotu });

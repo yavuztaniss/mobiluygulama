@@ -31,15 +31,12 @@ export interface YoklamaSatiri {
   durum: YoklamaDurum;
   izinli: boolean;
   izinDetay?: string;
+  /** Yoklama Özeti'ndeki "Ara" butonu için (sporcular.veli_telefon) — yoklama-al kullanmaz. */
+  veliTelefon?: string;
 }
 
-export interface VeliBildirimi {
-  id: string;
-  veliAd: string;
-  sporcuAd: string;
-  durum: 'iletildi' | 'gorundu' | 'ulasilamadi';
-  zaman: string;
-}
+// VeliBildirimi kaldırıldı — sahte "İletildi/Görüldü/Ulaşılamadı" teslim-durumu listesiydi;
+// gerçek bir push/teslim altyapısı olmadığından yoklama-ozet ekranından tamamen çıkarıldı.
 
 export interface GelisimBeceriSatiri {
   ad: string;

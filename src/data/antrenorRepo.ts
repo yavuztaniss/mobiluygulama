@@ -1,10 +1,5 @@
 import { supabase } from '../lib/supabase';
-import {
-  ANTRENOR_BILDIRIMLER,
-  ANTRENOR_PROFIL,
-  GELISIM_NOT_SABLONLARI,
-  VELI_BILDIRIMLERI,
-} from './mock/antrenor';
+import { GELISIM_NOT_SABLONLARI } from './mock/antrenor';
 import type {
   AntrenorBildirim,
   AntrenorProfil,
@@ -12,15 +7,9 @@ import type {
   GelisimKaydi,
   KadroSatiri,
   Sporcu,
-  VeliBildirimi,
   YoklamaDurum,
   YoklamaSatiri,
 } from './types-antrenor';
-
-const DELAY_MS = 300;
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), DELAY_MS));
-}
 
 function initialsOf(ad: string): string {
   return ad.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
@@ -156,24 +145,29 @@ export async function getAktifAntrenman(): Promise<AktifAntrenman | null> {
 
 // Yoklama satırlarının roster'ı antrenmanın KENDİ grubuna daraltılır — aynı gün
 // birden fazla grup antrenmanı olduğunda tüm RLS-görünür sporcular karışmasın.
-async function rosterForAntrenman(antrenmanId: string | null): Promise<{ id: string; ad: string; init: string }[]> {
+async function rosterForAntrenman(antrenmanId: string | null): Promise<{ id: string; ad: string; init: string; veliTelefon: string }[]> {
   if (antrenmanId) {
     const { data: ant } = await supabase.from('antrenman').select('grup_id').eq('id', antrenmanId).maybeSingle();
     const grupId = (ant as { grup_id: string } | null)?.grup_id;
     if (grupId) {
-      const { data } = await supabase.from('sporcular').select('id, ad').eq('grup_id', grupId).order('ad');
-      return ((data ?? []) as { id: string; ad: string }[]).map((s) => ({ id: s.id, ad: s.ad, init: initialsOf(s.ad) }));
+      const { data } = await supabase.from('sporcular').select('id, ad, veli_telefon').eq('grup_id', grupId).order('ad');
+      return ((data ?? []) as { id: string; ad: string; veli_telefon: string | null }[]).map((s) => ({
+        id: s.id,
+        ad: s.ad,
+        init: initialsOf(s.ad),
+        veliTelefon: s.veli_telefon ?? '',
+      }));
     }
   }
   const roster = await getSporcular();
-  return roster.map((s) => ({ id: s.id, ad: s.ad, init: s.init }));
+  return roster.map((s) => ({ id: s.id, ad: s.ad, init: s.init, veliTelefon: s.veliTelefon }));
 }
 
 export async function getYoklamaSatirlari(antrenmanId?: string): Promise<YoklamaSatiri[]> {
   const id = antrenmanId ?? (await getTodayAntrenmanId());
   const roster = await rosterForAntrenman(id);
   if (!id) {
-    return roster.map((s) => ({ id: s.id, ad: s.ad, init: s.init, durum: null, izinli: false }));
+    return roster.map((s) => ({ id: s.id, ad: s.ad, init: s.init, durum: null, izinli: false, veliTelefon: s.veliTelefon }));
   }
   const { data } = await supabase.from('yoklama').select('sporcu_id, durum, izinli, izin_detay').eq('antrenman_id', id);
   const rows = (data ?? []) as { sporcu_id: string; durum: string | null; izinli: boolean; izin_detay: string | null }[];
@@ -186,6 +180,7 @@ export async function getYoklamaSatirlari(antrenmanId?: string): Promise<Yoklama
       durum: (row?.durum === 'katildi' ? 'in' : row?.durum === 'katilmadi' ? 'out' : null) as YoklamaDurum,
       izinli: row?.izinli ?? false,
       izinDetay: row?.izin_detay ?? undefined,
+      veliTelefon: s.veliTelefon,
     };
   });
 }
@@ -241,9 +236,8 @@ export async function yoklamaKilidiAc(antrenmanIdParam?: string): Promise<void> 
   if (error) throw error;
 }
 
-export async function getVeliBildirimleri(): Promise<VeliBildirimi[]> {
-  return delay(VELI_BILDIRIMLERI);
-}
+// getVeliBildirimleri kaldırıldı — sahte "İletildi/Görüldü/Ulaşılamadı" teslim-durumu
+// listesiydi; gerçek push/teslim altyapısı olmadığından ekranıyla birlikte silindi.
 
 export const GELISIM_TEMPLATES = GELISIM_NOT_SABLONLARI;
 
@@ -402,25 +396,166 @@ export async function kadroKilidiAc(): Promise<void> {
 
 // Mesajlaşma Faz 5'te src/data/mesajRepo.ts'e taşındı — bkz. antrenör mesajlar ekranları.
 
-let antrenorProfil: AntrenorProfil = { ...ANTRENOR_PROFIL };
 export async function getAntrenorProfil(): Promise<AntrenorProfil> {
-  return delay(antrenorProfil);
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
+  if (!user) throw new Error('Oturum bulunamadı');
+
+  const [{ data: p, error }, { data: bagRows, error: eBag }, { data: bireysel, error: eBireysel }] = await Promise.all([
+    supabase.from('profiles').select('ad, telefon').eq('id', user.id).single(),
+    supabase.from('sporcu_antrenor').select('sporcu:sporcular(grup:grup(id, ad))').eq('antrenor_id', user.id),
+    supabase.from('bireysel_antrenor').select('brans:brans(ad)').eq('antrenor_id', user.id).maybeSingle(),
+  ]);
+  // Üç sorgunun da hatası fırlatılır — yoksa geçici bir ağ hatası, ekranda kalıcı
+  // "Henüz bağlı sporcu grubu yok" iddiası gibi görünürdü.
+  if (error) throw error;
+  if (eBag) throw eBag;
+  if (eBireysel) throw eBireysel;
+
+  // Gruplar: antrenöre bağlı sporcuların (sporcu_antrenor) grupları — distinct grup adı +
+  // her gruptaki bağlı sporcu sayısı.
+  const grupMap = new Map<string, { ad: string; sporcuSayisi: number }>();
+  for (const r of (bagRows ?? []) as any[]) {
+    const g = r.sporcu?.grup;
+    if (!g?.id) continue;
+    const mevcut = grupMap.get(g.id);
+    if (mevcut) mevcut.sporcuSayisi += 1;
+    else grupMap.set(g.id, { ad: g.ad ?? '', sporcuSayisi: 1 });
+  }
+
+  // Unvan: bireysel_antrenor kaydındaki branş varsa 'Antrenör · {Branş}', yoksa 'Antrenör'.
+  const bransAd = (bireysel as any)?.brans?.ad as string | undefined;
+
+  return {
+    ad: (p as { ad: string; telefon: string | null } | null)?.ad ?? '',
+    rol: bransAd ? `Antrenör · ${bransAd}` : 'Antrenör',
+    telefon: (p as { ad: string; telefon: string | null } | null)?.telefon ?? '',
+    eposta: user.email ?? '',
+    gruplar: [...grupMap.values()].sort((a, b) => a.ad.localeCompare(b.ad, 'tr')),
+  };
 }
 
-export async function updateAntrenorProfil(input: { ad: string; telefon: string; eposta: string }): Promise<AntrenorProfil> {
-  antrenorProfil = { ...antrenorProfil, ...input };
-  return delay(antrenorProfil);
+export async function updateAntrenorProfil(input: { ad: string; telefon: string }): Promise<AntrenorProfil> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) throw new Error('Oturum bulunamadı');
+  // role/sube_id BİLEREK gönderilmiyor — protect_profile_role trigger'ı (0016) authenticated
+  // kullanıcının rol değiştirmesini reddeder; burada yalnızca ad + telefon güncellenir.
+  const { error } = await supabase.from('profiles').update({ ad: input.ad, telefon: input.telefon }).eq('id', userId);
+  if (error) throw error;
+  return getAntrenorProfil();
 }
 
-let antrenorBildirimler: AntrenorBildirim[] = [...ANTRENOR_BILDIRIMLER];
+// ---------------------------------------------------------------------------
+// Antrenör bildirimleri: DB'de bildirim tablosu yok — liste her okumada GERÇEK
+// olaylardan yeniden sentezlenir (veliRepo'daki syncOdemeGecikmeBildirimleri /
+// syncDuyuruBildirimleri deseni):
+//   1) bugünkü/yaklaşan antrenmanların izinli=true yoklama satırları (veli izin bildirimi),
+//   2) durum='onay_bekliyor' bireysel_rezervasyon talepleri.
+// "Okundu" durumu YALNIZCA bellekte tutulur — uygulama yeniden başlatılınca sıfırlanır
+// (bilinçli tercih; kalıcı okundu takibi için DB tablosu gerekir). Olay ortadan kalkınca
+// (izin geri alındı / rezervasyon yanıtlandı) bildirim de listeden düşer.
+let antrenorBildirimler: AntrenorBildirim[] = [];
+// Liste hangi hesap için sentezlendi — hesap değişiminde önceki kullanıcının
+// bildirimleri (ve okundu haritası) yeni kullanıcıya taşınmasın (veliRepo ile aynı desen).
+let antrenorBildirimSahibi: string | null = null;
+
+function bildirimGrubu(createdAt: string | null): AntrenorBildirim['grup'] {
+  if (!createdAt) return 'bugun';
+  const created = new Date(createdAt);
+  const simdi = new Date();
+  const gunBasi = new Date(simdi.getFullYear(), simdi.getMonth(), simdi.getDate());
+  if (created >= gunBasi) return 'bugun';
+  const dunBasi = new Date(gunBasi);
+  dunBasi.setDate(dunBasi.getDate() - 1);
+  return created >= dunBasi ? 'dun' : 'eski';
+}
+
+function bildirimZamani(createdAt: string | null): string {
+  if (!createdAt) return '';
+  const created = new Date(createdAt);
+  const saat = `${String(created.getHours()).padStart(2, '0')}:${String(created.getMinutes()).padStart(2, '0')}`;
+  const grup = bildirimGrubu(createdAt);
+  if (grup === 'bugun') return saat;
+  if (grup === 'dun') return `Dün ${saat}`;
+  return created.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+}
+
+async function syncAntrenorBildirimleri(): Promise<void> {
+  // devSignInAs ile sahte girişte gerçek oturum olmadığından senkronizasyon sessizce atlanır
+  // (veliRepo'daki aynı guard).
+  const { data: sessionData } = await supabase.auth.getSession();
+  const antrenorId = sessionData.session?.user.id;
+  if (!antrenorId) return;
+  if (antrenorId !== antrenorBildirimSahibi) {
+    antrenorBildirimler = [];
+    antrenorBildirimSahibi = antrenorId;
+  }
+
+  const bugun = todayStr();
+  const yeni: AntrenorBildirim[] = [];
+
+  // 1) Bugünkü/yaklaşan antrenmanların izinli işaretli yoklama satırları.
+  // Sorgu hatalarında mevcut liste KORUNUR (üzerine boş yazılırsa hem liste hem
+  // bellekteki okundu haritası kaybolur — geçici ağ hatası "hepsi okundu" gibi görünürdü).
+  const { data: antRows, error: eAnt } = await supabase.from('antrenman').select('id, tarih').gte('tarih', bugun);
+  if (eAnt) return;
+  const antler = (antRows ?? []) as { id: string; tarih: string }[];
+  if (antler.length > 0) {
+    const { data: izinRows, error: eIzin } = await supabase
+      .from('yoklama')
+      .select('antrenman_id, sporcu_id, izin_detay, created_at, sporcu:sporcular(ad)')
+      .in('antrenman_id', antler.map((a) => a.id))
+      .eq('izinli', true);
+    if (eIzin) return;
+    for (const r of (izinRows ?? []) as any[]) {
+      const antTarih = antler.find((a) => a.id === r.antrenman_id)?.tarih ?? bugun;
+      yeni.push({
+        id: `izin-${r.antrenman_id}-${r.sporcu_id}`,
+        grup: bildirimGrubu(r.created_at),
+        baslik: `İzin bildirimi · ${r.sporcu?.ad ?? ''}`,
+        aciklama: `${r.izin_detay ?? 'İzinli'} · Antrenman: ${antTarih === bugun ? 'bugün' : formatDateTR(antTarih)}`,
+        zaman: bildirimZamani(r.created_at),
+        tur: 'izin',
+        okundu: false,
+      });
+    }
+  }
+
+  // 2) Onay bekleyen bireysel ders rezervasyon talepleri.
+  const { data: rezRows, error: eRez } = await supabase
+    .from('bireysel_rezervasyon')
+    .select('id, tarih, saat, created_at, sporcu:sporcular(ad)')
+    .eq('antrenor_id', antrenorId)
+    .eq('durum', 'onay_bekliyor')
+    .order('tarih');
+  if (eRez) return;
+  for (const r of (rezRows ?? []) as any[]) {
+    yeni.push({
+      id: `rez-${r.id}`,
+      grup: bildirimGrubu(r.created_at),
+      // Sporcu, antrenörün RLS-görünür roster'ında olmayabilir (bireysel ders grup bağı
+      // gerektirmez) — embed null dönerse boş isim yerine nötr etiket.
+      baslik: `Yeni rezervasyon talebi · ${r.sporcu?.ad ?? 'Bir sporcu'}`,
+      aciklama: `${formatDateTR(r.tarih)} ${r.saat} · Onayınızı bekliyor`,
+      zaman: bildirimZamani(r.created_at),
+      tur: 'rezervasyon',
+      okundu: false,
+    });
+  }
+
+  // Önceki okumada işaretlenmiş "okundu" durumları korunur.
+  const okunduMap = new Map(antrenorBildirimler.map((b) => [b.id, b.okundu]));
+  antrenorBildirimler = yeni.map((b) => ({ ...b, okundu: okunduMap.get(b.id) ?? false }));
+}
+
 export async function getAntrenorBildirimler(): Promise<AntrenorBildirim[]> {
-  return delay(antrenorBildirimler);
+  await syncAntrenorBildirimleri();
+  return antrenorBildirimler;
 }
 export async function markAntrenorBildirimOkundu(id: string): Promise<void> {
   antrenorBildirimler = antrenorBildirimler.map((b) => (b.id === id ? { ...b, okundu: true } : b));
-  await delay(null);
 }
 export async function markAntrenorTumuOkundu(): Promise<void> {
   antrenorBildirimler = antrenorBildirimler.map((b) => ({ ...b, okundu: true }));
-  await delay(null);
 }

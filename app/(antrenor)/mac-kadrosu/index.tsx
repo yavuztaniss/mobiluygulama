@@ -73,7 +73,9 @@ export default function MacKadrosuScreen() {
     try {
       await kadroYayinla();
       setYayinlandi(true);
-      showToast('Kadro yayınlandı · velilere bildirim gitti');
+      // "velilere bildirim gitti" iddiası kaldırıldı — push altyapısı yok; yayınlanan
+      // kadro veli uygulamasında gerçek veriden görünür.
+      showToast('Kadro yayınlandı');
     } finally {
       setSaving(false);
     }
@@ -162,7 +164,7 @@ export default function MacKadrosuScreen() {
             ) : (
               <>
                 <View style={styles.savedBox}>
-                  <Text style={styles.savedText}>✓ Kadro yayınlandı · velilere bildirim gitti</Text>
+                  <Text style={styles.savedText}>✓ Kadro yayınlandı · veliler uygulamada görebilir</Text>
                 </View>
                 <Pressable onPress={onDuzenle}>
                   <Text style={styles.unlockText}>Düzenle</Text>

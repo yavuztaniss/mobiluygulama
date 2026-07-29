@@ -9,6 +9,7 @@ type RotaRow = {
   id: string;
   ad: string;
   sofor: string;
+  sofor_telefon: string | null;
   plaka: string;
   arac: string;
   alt: string | null;
@@ -52,6 +53,7 @@ function buildRota(r: RotaRow, durakRows: DurakRow[], sporcuRows: SporcuRow[]): 
     id: r.id,
     ad: r.ad,
     sofor: r.sofor,
+    soforTelefon: (r.sofor_telefon ?? '').trim() || null,
     plaka: r.plaka,
     arac: r.arac,
     alt: r.alt ?? '',
@@ -94,10 +96,17 @@ export async function getRotaDetay(id: string): Promise<ServisRota> {
   return buildRota(rota, duraklar, sporcular);
 }
 
-export async function addRota(input: { ad: string; sofor: string; plaka: string; arac: string; alt: string }): Promise<ServisRota> {
+export async function addRota(input: { ad: string; sofor: string; soforTelefon?: string; plaka: string; arac: string; alt: string }): Promise<ServisRota> {
   const { data, error } = await supabase
     .from('servis_rota')
-    .insert({ ad: input.ad, sofor: input.sofor, plaka: input.plaka, arac: input.arac, alt: input.alt })
+    .insert({
+      ad: input.ad,
+      sofor: input.sofor,
+      sofor_telefon: input.soforTelefon?.trim() || null,
+      plaka: input.plaka,
+      arac: input.arac,
+      alt: input.alt,
+    })
     .select('*')
     .single();
   if (error) throw error;

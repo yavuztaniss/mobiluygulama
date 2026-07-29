@@ -13,13 +13,15 @@ export default function OzetScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const [subeler, setSubeler] = useState<Sube[]>([]);
-  const [subeId, setSubeId] = useState('merkez');
+  // Şube id'leri artık gerçek `sube` tablosundan (uuid) — başlangıçta null,
+  // repo null'da ilk şubeyi seçer. KPI'lar şube-bağımsız hesaplanır (bkz. yoneticiRepo.getOzet).
+  const [subeId, setSubeId] = useState<string | null>(null);
   const [ozet, setOzet] = useState<YoneticiOzet | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subeOpen, setSubeOpen] = useState(false);
 
-  const load = useCallback(async (targetSubeId: string, cachedSubeler: Sube[]) => {
+  const load = useCallback(async (targetSubeId: string | null, cachedSubeler: Sube[]) => {
     setLoading(true);
     setError(null);
     try {
@@ -41,7 +43,11 @@ export default function OzetScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subeId]);
 
-  const maxTutar = ozet ? Math.max(...ozet.tahsilatSonAltiAy.map((t) => t.tutar)) : 1;
+  // Sheet'teki seçili işareti — henüz seçim yapılmadıysa listedeki ilk şube aktiftir.
+  const aktifSubeId = subeId ?? subeler[0]?.id ?? null;
+
+  // Hiç tahsilat yoksa 0'a bölme/NaN yükseklik olmasın diye alt sınır 1.
+  const maxTutar = ozet ? Math.max(1, ...ozet.tahsilatSonAltiAy.map((t) => t.tutar)) : 1;
 
   return (
     <ScreenBackground>
@@ -63,14 +69,8 @@ export default function OzetScreen() {
               <View style={styles.roleBadge}>
                 <Text style={styles.roleBadgeText}>Yönetici</Text>
               </View>
-              <View style={styles.bellBtn}>
-                <Text style={styles.bellIcon}>🔔</Text>
-                {!!ozet?.bellCount && (
-                  <View style={styles.bellDot}>
-                    <Text style={styles.bellDotText}>{ozet.bellCount}</Text>
-                  </View>
-                )}
-              </View>
+              {/* Zil ikonu + bellCount rozeti kaldırıldı: yönetici için bir bildirim
+                  merkezi yok — sahte sayaç göstermek yerine ikon tamamen kalktı. */}
             </View>
           </View>
 
@@ -79,6 +79,9 @@ export default function OzetScreen() {
 
           {!loading && !error && ozet && (
             <>
+              {/* Şube bazlı kırılım henüz yok — rakamlar seçili şubeye değil tüm kuruma ait,
+                  bunu açıkça söylemek gerekiyor (şube seçici yalnızca başlık etiketi). */}
+              <Text style={styles.kurumNotu}>Rakamlar tüm kurumu kapsar</Text>
               <View style={styles.kpiGrid}>
                 <Card style={styles.kpiCard}>
                   <Text style={styles.kpiLabel}>AKTİF SPORCU</Text>
@@ -88,7 +91,7 @@ export default function OzetScreen() {
                 <Card style={styles.kpiCard}>
                   <Text style={styles.kpiLabel}>BU AY TAHSİLAT</Text>
                   <Text style={styles.kpiValue}>{ozet.kpiTahsilat}</Text>
-                  <Text style={styles.kpiSubMuted}>{ozet.kpiTahsilatHedef}</Text>
+                  <Text style={styles.kpiSubMuted}>{ozet.kpiTahsilatAlt}</Text>
                 </Card>
                 <Card style={[styles.kpiCard, ozet.kpiGeciken > 0 && styles.kpiCardDanger]}>
                   <Text style={[styles.kpiLabel, ozet.kpiGeciken > 0 && styles.kpiLabelDanger]}>GECİKEN AİDAT</Text>
@@ -106,7 +109,7 @@ export default function OzetScreen() {
                 <Card style={styles.kpiCard}>
                   <Text style={styles.kpiLabel}>YOKLAMA ORANI</Text>
                   <Text style={styles.kpiValue}>%{ozet.yoklamaOrani}</Text>
-                  <Text style={styles.kpiSubMuted}>Son 30 gün</Text>
+                  <Text style={styles.kpiSubMuted}>Bugün {ozet.bugunAntrenman} antrenman</Text>
                 </Card>
               </View>
 
@@ -142,7 +145,7 @@ export default function OzetScreen() {
             {subeler.map((s) => (
               <Pressable
                 key={s.id}
-                style={[styles.sheetRow, s.id === subeId && styles.sheetRowActive]}
+                style={[styles.sheetRow, s.id === aktifSubeId && styles.sheetRowActive]}
                 onPress={() => {
                   setSubeId(s.id);
                   setSubeOpen(false);
@@ -150,9 +153,10 @@ export default function OzetScreen() {
               >
                 <View style={styles.sheetRowText}>
                   <Text style={styles.sheetRowTitle}>{s.ad}</Text>
-                  <Text style={styles.sheetRowSubtitle}>{s.altBilgi}</Text>
+                  {/* alt_bilgi seed'deki eski tanıtım metni ("184 sporcu · 6 branş" gibi) —
+                      gerçek sayılarla eşleşmediği için gösterilmiyor. */}
                 </View>
-                {s.id === subeId && <Text style={styles.sheetCheck}>✓</Text>}
+                {s.id === aktifSubeId && <Text style={styles.sheetCheck}>✓</Text>}
               </Pressable>
             ))}
           </View>
@@ -187,33 +191,8 @@ function createStyles(colors: AppColors) {
     borderColor: colors.accentBorder,
   },
   roleBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.xs, color: colors.accent },
-  bellBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    backgroundColor: colors.panel,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellIcon: { fontSize: 18 },
-  bellDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.bgDeep,
-    paddingHorizontal: 3,
-  },
-  bellDotText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  kurumNotu: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginBottom: spacing.xs },
   kpiCard: { width: '47.5%', gap: 6, minHeight: 96 },
   kpiCardDanger: { borderColor: colors.danger },
   kpiLabel: { fontFamily: fontFamily.mono, fontSize: 9.5, fontWeight: '800', letterSpacing: 1.3, color: colors.textDim },

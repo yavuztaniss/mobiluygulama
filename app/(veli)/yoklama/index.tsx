@@ -51,6 +51,10 @@ export default function YoklamaGelisimScreen() {
   const r = 38;
   const circumference = 2 * Math.PI * r;
 
+  // Başlıklar sabit 'Temmuz 2026' değil — bugünden türetilir (gün verisi zaten gerçek).
+  const ayYil = new Date().toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+  const ayAdi = new Date().toLocaleDateString('tr-TR', { month: 'long' });
+
   return (
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
@@ -90,7 +94,7 @@ export default function YoklamaGelisimScreen() {
                 </View>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.heroLabel}>TEMMUZ KATILIMI</Text>
+                <Text style={styles.heroLabel}>{ayAdi.toLocaleUpperCase('tr-TR')} KATILIMI</Text>
                 <Text style={styles.heroSub}>{data.attCount} / {data.attCount + data.missCount} antrenman</Text>
                 <Text style={styles.heroTrend}>{data.trendText}</Text>
               </View>
@@ -111,7 +115,7 @@ export default function YoklamaGelisimScreen() {
             </View>
 
             <Card>
-              <Text style={styles.calTitle}>Temmuz 2026</Text>
+              <Text style={styles.calTitle}>{ayYil}</Text>
               <View style={styles.calGrid}>
                 {data.calDays.map((d) => (
                   <View

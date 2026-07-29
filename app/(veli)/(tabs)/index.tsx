@@ -7,6 +7,7 @@ import { Card } from '../../../src/components/Card';
 import { ChildSwitcherPills } from '../../../src/components/ChildSwitcher';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
+import { useAuth } from '../../../src/context/AuthContext';
 import { useChild } from '../../../src/context/ChildContext';
 import { getAnaSayfa, getBildirimler } from '../../../src/data/veliRepo';
 import type { AnaSayfaOzet, Bildirim } from '../../../src/data/types-veli';
@@ -17,7 +18,8 @@ const DUYURU_ICON: Record<string, string> = { kamp: '🏕️', servis: '🚌', b
 export default function VeliAnaSayfa() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const { selectedChildId, selectedChild } = useChild();
+  const { profile } = useAuth();
+  const { selectedChildId } = useChild();
   const [ozet, setOzet] = useState<AnaSayfaOzet | null>(null);
   const [bildirimler, setBildirimler] = useState<Bildirim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,10 @@ export default function VeliAnaSayfa() {
   );
 
   const unreadCount = bildirimler.filter((b) => !b.okundu).length;
+  // Gerçek profil adı (ilk isim) — profil yüklenmemişse nötr 'Veli'.
+  const veliAdi = profile?.ad?.trim() ? profile.ad.trim().split(' ')[0] : 'Veli';
+  const bugunEtiketi = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const ayAdi = new Date().toLocaleDateString('tr-TR', { month: 'long' });
 
   return (
     <ScreenBackground>
@@ -60,8 +66,8 @@ export default function VeliAnaSayfa() {
                 <View style={styles.dot} />
                 <Text style={styles.brand}>KARŞIYAKA SPOR OKULU</Text>
               </View>
-              <Text style={styles.title}>Merhaba, Elif</Text>
-              <Text style={styles.subtitle}>Pazartesi, 20 Temmuz</Text>
+              <Text style={styles.title}>Merhaba, {veliAdi}</Text>
+              <Text style={styles.subtitle}>{bugunEtiketi}</Text>
             </View>
             <Pressable style={styles.bellBtn} onPress={() => router.push('/bildirimler')}>
               <Text style={styles.bellIcon}>🔔</Text>
@@ -115,11 +121,14 @@ export default function VeliAnaSayfa() {
                   <Text style={styles.emptyTrainingIcon}>📅</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.emptyTrainingTitle}>Bugün antrenman yok</Text>
-                    <Text style={styles.emptyTrainingSub}>Sıradaki: {ozet.bugunAntrenman.nextTraining}</Text>
+                    {!!ozet.bugunAntrenman.nextTraining && (
+                      <Text style={styles.emptyTrainingSub}>Sıradaki: {ozet.bugunAntrenman.nextTraining}</Text>
+                    )}
                   </View>
                 </View>
               )}
 
+              {!!ozet.sonYoklama.title && (
               <Pressable style={styles.attendanceRow} onPress={() => router.push('/yoklama')}>
                 <View style={[styles.attendanceIcon, { backgroundColor: ozet.sonYoklama.katildi ? colors.accentSoft : colors.dangerSoft }]}>
                   <Text>{ozet.sonYoklama.katildi ? '✓' : '✕'}</Text>
@@ -133,6 +142,7 @@ export default function VeliAnaSayfa() {
                   <Text style={styles.attendancePctText}>%{ozet.sonYoklama.pct} katılım</Text>
                 </View>
               </Pressable>
+              )}
 
               {ozet.aidat.durum !== 'odendi' ? (
                 <Pressable
@@ -144,7 +154,9 @@ export default function VeliAnaSayfa() {
                       <Text style={styles.aidatIconText}>₺</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.aidatLabel}>TEMMUZ AİDATI</Text>
+                      {/* Etiket, gösterilen odeme kaydının kendi dönemi (aciklama) — içinde bulunulan ay değil:
+                          Ağustos'ta hâlâ ödenmemiş "Temmuz aidatı" kartı yanlış ay iddia etmesin. */}
+                      <Text style={styles.aidatLabel}>{(ozet.aidat.kapsam || `${ayAdi} aidatı`).toLocaleUpperCase('tr-TR')}</Text>
                       <View style={styles.aidatAmountRow}>
                         <Text style={styles.aidatAmount}>{ozet.aidat.tutar}</Text>
                         <View style={styles.aidatPill}>
@@ -165,8 +177,8 @@ export default function VeliAnaSayfa() {
                     <Text style={{ color: colors.accent }}>✓</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.aidatOkTitle}>Temmuz aidatı ödendi</Text>
-                    <Text style={styles.aidatOkSub}>Kredi kartı •••• 4521</Text>
+                    <Text style={styles.aidatOkTitle}>{ozet.aidat.kapsam || `${ayAdi} aidatı`} ödendi</Text>
+                    <Text style={styles.aidatOkSub}>{ozet.aidat.tutar} · ödeme kulüp tarafından kaydedildi</Text>
                   </View>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>

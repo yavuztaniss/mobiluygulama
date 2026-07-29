@@ -22,7 +22,7 @@ export interface AnaSayfaOzet {
     nextTraining?: string;
   };
   sonYoklama: { title: string; sub: string; pct: number; katildi: boolean };
-  aidat: { durum: 'bekliyor' | 'gecikti' | 'odendi'; tutar: string; sonOdeme: string; taksit: string };
+  aidat: { durum: 'bekliyor' | 'gecikti' | 'odendi'; tutar: string; kapsam: string; sonOdeme: string; taksit: string };
   duyurular: { id: string; baslik: string; aciklama: string; zaman: string; tur: 'kamp' | 'servis' | 'basari' | 'genel' }[];
 }
 
@@ -73,6 +73,8 @@ export interface ServisTakip {
   plaka: string;
   soforAdi: string;
   soforInit: string;
+  /** servis_rota.sofor_telefon (0018) — boşsa ekran "Ara" butonunu göstermez. */
+  soforTelefon: string | null;
   etaMin: number;
   etaClock: string;
   durum: string;
@@ -133,11 +135,11 @@ export interface Bildirim {
   okundu: boolean;
 }
 
+// Profil artık gerçek `profiles` + `veli_sporcu`⋈`sporcular` verisinden geliyor —
+// "belgeler"/"kayıtlı kart" alanlarının gerçek karşılığı olmadığından kaldırıldı.
 export interface VeliProfil {
   ad: string;
   telefon: string;
   eposta: string;
-  cocuklar: { id: ChildId; ad: string; brans: string; belgeDurum: 'tam' | 'eksik' }[];
-  belgeler: { id: string; ad: string; durum: string; aksiyonGerekli: boolean }[];
-  odemeYontemi: string;
+  cocuklar: { id: ChildId; ad: string; brans: string }[];
 }

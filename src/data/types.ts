@@ -4,17 +4,19 @@ export interface Sube {
   altBilgi: string;
 }
 
+// Tüm alanlar gerçek tablolardan hesaplanır (bkz. yoneticiRepo.getOzet).
+// bellCount kaldırıldı — yönetici bildirim merkezi yok, sahte rozet gösterilmiyor.
 export interface YoneticiOzet {
   subeAd: string;
   tarihEtiketi: string;
-  bellCount: number;
   kpiSporcu: number;
-  kpiSporcuArtis: string;
+  kpiSporcuArtis: string; // bu ay eklenen sporcu sayısı (sporcular.created_at)
   kpiTahsilat: string;
-  kpiTahsilatHedef: string;
+  kpiTahsilatAlt: string; // bu ayki ödeme işlem sayısı (eski sahte "Hedef" metni yerine)
   kpiGeciken: number;
   kpiGecikenTutar: string;
   yoklamaOrani: number;
+  bugunAntrenman: number; // bugünkü antrenman sayısı (antrenman.tarih = bugün)
   tahsilatSonAltiAy: { ay: string; tutar: number }[];
 }
 
@@ -41,7 +43,7 @@ export interface OdemeKaydi {
   id: string;
   baslik: string;
   tutar: string;
-  durum: 'gecikti' | 'odendi';
+  durum: 'gecikti' | 'odendi' | 'bekliyor';
   detay: string;
 }
 
@@ -53,8 +55,8 @@ export interface GelisimNotu {
 
 export interface SporcuDetay extends Sporcu {
   sube: string;
-  yoklamaOrani: number;
-  aylikAidat: string;
+  yoklamaOrani: number | null; // null: henüz yoklama kaydı yok (ekran '—' gösterir)
+  aylikAidat: string; // aidat planı bağlanamadıysa '—'
   kayitTarihi: string;
   calDays: YoklamaGunu[];
   odemeGecmisi: OdemeKaydi[];
@@ -136,6 +138,8 @@ export interface ServisRota {
   id: string;
   ad: string;
   sofor: string;
+  /** servis_rota.sofor_telefon (0018) — boşsa ekranlar "Ara" butonunu göstermez. */
+  soforTelefon: string | null;
   plaka: string;
   arac: string;
   alt: string;
@@ -205,12 +209,14 @@ export interface AntrenorHakedis {
 }
 
 export interface FinansOzet {
+  subeAd: string; // gerçek sube.ad (başlık etiketi için)
   planlar: AidatPlani[];
   tahsilatlar: TahsilatKaydi[];
   islemSayisi: number;
   tahsilatToplam: string;
   ggAylar: GelirGiderAy[];
   kategoriler: GelirKategori[];
+  kategoriToplam: string; // kategori kartındaki donut merkezi (aidat+mağaza+bireysel)
   toplamGelir: string;
   toplamGider: string;
   net: string;
@@ -234,10 +240,9 @@ export interface KurumBranslariDurumu {
   seciliHizmetTurleri: string[];
 }
 
-export interface BagimsizAntrenorBasvurusu {
-  ad: string;
-  telefon: string;
-}
+// BagimsizAntrenorBasvurusu kaldırıldı — sahte bekleme listesi sayacı
+// (beklemeSirasi=214) temizlendi, akış gerçek bir tabloya bağlanana dek
+// "yakında" bilgilendirmesine dönüştürüldü (bkz. kurum-branslari.tsx).
 
 export interface DuyuruHedefi {
   id: string;
@@ -247,10 +252,7 @@ export interface DuyuruHedefi {
 
 export type DuyuruTuru = 'kamp' | 'servis' | 'basari' | 'genel';
 
-export interface DuyuruTaslak {
-  baslik: string;
-  mesaj: string;
-}
+// DuyuruTaslak kaldırıldı — duyuru formu artık boş açılıyor, örnek metinler placeholder.
 
 export interface DuyuruGonderSonuc {
   veliSayisi: number;

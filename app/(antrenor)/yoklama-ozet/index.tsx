@@ -1,29 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
-import { getVeliBildirimleri, getYoklamaSatirlari } from '../../../src/data/antrenorRepo';
-import type { VeliBildirimi, YoklamaSatiri } from '../../../src/data/types-antrenor';
+import { getAktifAntrenman, getBugunkuGruplar, getYoklamaSatirlari } from '../../../src/data/antrenorRepo';
+import type { YoklamaSatiri } from '../../../src/data/types-antrenor';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
-function getDurumMeta(colors: AppColors): Record<VeliBildirimi['durum'], { label: string; color: string }> {
-  return {
-    iletildi: { label: 'İletildi', color: colors.textMuted },
-    gorundu: { label: 'Görüldü', color: colors.accent },
-    ulasilamadi: { label: 'Ulaşılamadı', color: colors.danger },
-  };
+function bugunEtiketi(): string {
+  const d = new Date();
+  return `${d.toLocaleDateString('tr-TR', { weekday: 'long' })}, ${d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}`;
 }
 
 export default function YoklamaOzetScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const DURUM_META = getDurumMeta(colors);
+  // Bugün ekranından tıklanan grubun antrenman id'si — varsa tahmin yerine o kullanılır.
+  const { antrenmanId: paramAntrenmanId } = useLocalSearchParams<{ antrenmanId?: string }>();
   const [satirlar, setSatirlar] = useState<YoklamaSatiri[]>([]);
-  const [bildirimler, setBildirimler] = useState<VeliBildirimi[]>([]);
+  const [baslik, setBaslik] = useState(bugunEtiketi());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [servisOnaylandi, setServisOnaylandi] = useState<Record<string, boolean>>({});
@@ -33,15 +31,37 @@ export default function YoklamaOzetScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [s, b] = await Promise.all([getYoklamaSatirlari(), getVeliBildirimleri()]);
-      setSatirlar(s);
-      setBildirimler(b);
+      // Hedef antrenman: (1) route param'la gelen id (Bugün ekranında tıklanan grup),
+      // (2) devam eden (aktif) antrenman, (3) bugünün antrenmanı (kaydedilmiş öncelikli).
+      let hedefId: string | undefined;
+      let sub: string | null = null;
+      const gruplar = await getBugunkuGruplar();
+      if (paramAntrenmanId) {
+        const g = gruplar.find((x) => x.id === paramAntrenmanId);
+        hedefId = paramAntrenmanId;
+        if (g) sub = `${g.ad} · ${g.saat1} – ${g.saat2}`;
+      }
+      if (!hedefId) {
+        const aktif = await getAktifAntrenman();
+        if (aktif) {
+          hedefId = aktif.id;
+          sub = `${aktif.ad} · ${aktif.saat1} – ${aktif.saat2}`;
+        } else {
+          const g = gruplar.find((x) => x.yoklamaAlindi) ?? gruplar[0];
+          if (g) {
+            hedefId = g.id;
+            sub = `${g.ad} · ${g.saat1} – ${g.saat2}`;
+          }
+        }
+      }
+      setBaslik(sub ?? bugunEtiketi());
+      setSatirlar(await getYoklamaSatirlari(hedefId));
     } catch {
       setError('Özet yüklenemedi.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paramAntrenmanId]);
 
   useEffect(() => {
     load();
@@ -54,9 +74,15 @@ export default function YoklamaOzetScreen() {
   const r = 38;
   const circumference = 2 * Math.PI * r;
 
-  function onServisOnay(id: string, ad: string) {
+  function veliyiAra(telefon: string) {
+    Linking.openURL(`tel:${telefon}`).catch(() => showToast('Arama başlatılamadı'));
+  }
+
+  // Salt YEREL işaretleme — veliye herhangi bir bildirim GİTMEZ (push altyapısı yok);
+  // işaret yalnızca bu ekran açıkken bellekte tutulur.
+  function onServisOnay(id: string) {
     setServisOnaylandi((prev) => ({ ...prev, [id]: true }));
-    showToast(ad + " servise bindi — veliye bildirim gönderildi");
+    showToast('İşaretlendi');
   }
 
   return (
@@ -68,7 +94,7 @@ export default function YoklamaOzetScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Yoklama Özeti</Text>
-            <Text style={styles.headerSub}>U12 Basketbol · Pazartesi, 20 Temmuz</Text>
+            <Text style={styles.headerSub}>{baslik}</Text>
           </View>
         </View>
 
@@ -105,36 +131,33 @@ export default function YoklamaOzetScreen() {
               </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>VELİ BİLDİRİMLERİ</Text>
-              <Text style={styles.sectionCount}>{bildirimler.length} bildirim</Text>
-            </View>
-            {bildirimler.map((b) => {
-              const meta = DURUM_META[b.durum];
-              return (
-                <View key={b.id} style={styles.notifRow}>
-                  <View style={styles.notifIcon}>
-                    <Text>🔔</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.notifVeli}>{b.veliAd}</Text>
-                    <Text style={styles.notifSub}>{b.sporcuAd}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.notifStatus, { color: meta.color }]}>{meta.label}</Text>
-                    <Text style={styles.notifTime}>{b.zaman}</Text>
-                  </View>
-                  {b.durum === 'ulasilamadi' && (
-                    <Pressable style={styles.callBtn} onPress={() => Linking.openURL('tel:').catch(() => showToast('Arama başlatılamadı'))}>
-                      <Text>📞</Text>
-                    </Pressable>
-                  )}
+            {/* Sahte "Veli bildirimleri" (İletildi/Görüldü/Ulaşılamadı) ve "SMS ile yinelenir"
+                bölümleri kaldırıldı — gerçek push/SMS altyapısı yok. Yerine katılmayan
+                sporcuların velilerini gerçek telefon numarasından arama listesi kondu. */}
+            {katilmayanlar.length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionLabel}>KATILMAYANLAR</Text>
+                  <Text style={styles.sectionCount}>{katilmayanlar.length} sporcu</Text>
                 </View>
-              );
-            })}
-            <View style={styles.smsNote}>
-              <Text style={styles.smsNoteText}>Ulaşmayan bildirimler 5 dakika sonra SMS ile yinelenir</Text>
-            </View>
+                {katilmayanlar.map((s) => (
+                  <View key={s.id} style={styles.servisRow}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{s.init}</Text>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.name}>{s.ad}</Text>
+                      <Text style={styles.servisSub}>{s.veliTelefon ? `Veli: ${s.veliTelefon}` : 'Veli telefonu kayıtlı değil'}</Text>
+                    </View>
+                    {!!s.veliTelefon && (
+                      <Pressable style={styles.callBtn} onPress={() => veliyiAra(s.veliTelefon!)}>
+                        <Text>📞</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+              </>
+            )}
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionLabel}>SERVİS TAKİBİ</Text>
@@ -147,10 +170,10 @@ export default function YoklamaOzetScreen() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.name}>{s.ad}</Text>
-                  <Text style={styles.servisSub}>{servisOnaylandi[s.id] ? 'Servise bindi ✓' : 'Servis bekleniyor'}</Text>
+                  <Text style={styles.servisSub}>{servisOnaylandi[s.id] ? 'Servise bindi olarak işaretlendi ✓' : 'Henüz işaretlenmedi'}</Text>
                 </View>
                 {!servisOnaylandi[s.id] ? (
-                  <Pressable style={styles.servisBtn} onPress={() => onServisOnay(s.id, s.ad)}>
+                  <Pressable style={styles.servisBtn} onPress={() => onServisOnay(s.id)}>
                     <Text style={styles.servisBtnText}>Bindi</Text>
                   </Pressable>
                 ) : (
@@ -160,6 +183,7 @@ export default function YoklamaOzetScreen() {
                 )}
               </View>
             ))}
+            <Text style={styles.servisNote}>Servis işaretleri yalnızca bu cihazda tutulur, veliye bildirim gitmez</Text>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -186,16 +210,9 @@ function createStyles(colors: AppColors) {
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
   sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   sectionCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
-  notifRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 11 },
-  notifIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  notifVeli: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  notifSub: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  notifStatus: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5 },
-  notifTime: { fontFamily: fontFamily.manropeSemi, fontSize: 10, color: colors.textDim, marginTop: 2 },
   callBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
-  smsNote: { borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11, marginTop: spacing.xs },
-  smsNoteText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.accent },
   servisRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 11 },
+  servisNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.xs },
   avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 12.5, color: avatarColorAt(0).avFg },
   name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },

@@ -10,6 +10,11 @@ import { getAntrenorBildirimler, getBugunkuGruplar } from '../../../src/data/ant
 import type { AntrenorBildirim, BugunkuGrup } from '../../../src/data/types-antrenor';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
+function bugunEtiketi(): string {
+  const d = new Date();
+  return `${d.toLocaleDateString('tr-TR', { weekday: 'long' })}, ${d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}`;
+}
+
 export default function AntrenorBugun() {
   const colors = useColors();
   const styles = createStyles(colors);
@@ -60,7 +65,7 @@ export default function AntrenorBugun() {
                 <Text style={styles.brand}>ANTRENÖR PANELİ</Text>
               </View>
               <Text style={styles.title}>Merhaba, {profile?.ad || 'Antrenör'}</Text>
-              <Text style={styles.subtitle}>Pazartesi, 20 Temmuz · {gruplar.length} grup</Text>
+              <Text style={styles.subtitle}>{bugunEtiketi()} · {gruplar.length} grup</Text>
             </View>
             <Pressable style={styles.bellBtn} onPress={() => router.push('/bildirimler')}>
               <Text style={styles.bellIcon}>🔔</Text>
@@ -85,7 +90,13 @@ export default function AntrenorBugun() {
               {gruplar
                 .filter((g) => g.durum === 'tamamlandi')
                 .map((g) => (
-                  <Pressable key={g.id} style={styles.doneRow} onPress={() => router.push('/yoklama-ozet')}>
+                  <Pressable
+                    key={g.id}
+                    style={styles.doneRow}
+                    // Hedef antrenman id'si taşınır — aynı gün birden fazla grup varsa
+                    // özet ekranı tıklanan grubu göstersin (kendi tahminini değil).
+                    onPress={() => router.push({ pathname: '/yoklama-ozet', params: { antrenmanId: g.id } })}
+                  >
                     <View style={styles.doneIcon}>
                       <Text style={{ color: colors.accent }}>✓</Text>
                     </View>
@@ -108,9 +119,7 @@ export default function AntrenorBugun() {
                       <View style={styles.liveDot} />
                       <Text style={styles.nowLabel}>ŞİMDİ</Text>
                     </View>
-                    <View style={styles.techPill}>
-                      <Text style={styles.techPillText}>Teknik Antrenman</Text>
-                    </View>
+                    {/* Sabit "Teknik Antrenman" rozeti kaldırıldı — antrenman türü DB'de tutulmuyor. */}
                   </View>
                   <Text style={styles.nowTitle}>{simdikiGrup.ad}</Text>
                   <View style={styles.nowTimeRow}>
@@ -222,8 +231,6 @@ function createStyles(colors: AppColors) {
   nowBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
   nowLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  techPill: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  techPillText: { fontFamily: fontFamily.manropeBold, fontSize: 11, color: colors.accent },
   nowTitle: { fontFamily: fontFamily.archivoBold, fontSize: 22, color: colors.textBright, marginTop: 10 },
   nowTimeRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
   nowTime1: { fontFamily: fontFamily.archivoBold, fontSize: 32, color: colors.textBright },

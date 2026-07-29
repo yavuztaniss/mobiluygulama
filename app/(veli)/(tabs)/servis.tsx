@@ -57,7 +57,8 @@ export default function ServisScreen() {
           {!!takip && (
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
-              <Text style={styles.liveBadgeText}>CANLI</Text>
+              {/* Gerçek GPS/canlı konum yok — gösterilen, rotanın PLANI. */}
+              <Text style={styles.liveBadgeText}>PLANLI</Text>
             </View>
           )}
         </View>
@@ -74,7 +75,7 @@ export default function ServisScreen() {
           <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.mapBox}>
               <View style={styles.busDot} />
-              <Text style={styles.mapText}>canlı harita önizleme · araç konumu</Text>
+              <Text style={styles.mapText}>rota planı · duraklar ve planlı saatler</Text>
               <View style={styles.hatBadge}>
                 <Text style={styles.hatBadgeText}>{takip.hatAdi} · {takip.plaka}</Text>
               </View>
@@ -111,17 +112,19 @@ export default function ServisScreen() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.soforName}>{takip.soforAdi}</Text>
-                  <Text style={styles.soforSub}>Servis şoförü · 4,9 ★ · 6 yıl</Text>
+                  <Text style={styles.soforSub}>Servis şoförü</Text>
                 </View>
                 <Pressable style={styles.iconBtn} onPress={onMesajSofor}>
                   <Text>💬</Text>
                 </Pressable>
-                <Pressable
-                  style={styles.callBtnMain}
-                  onPress={() => Linking.openURL('tel:').catch(() => showToast('Arama başlatılamadı'))}
-                >
-                  <Text style={styles.callBtnMainText}>Ara</Text>
-                </Pressable>
+                {!!takip.soforTelefon && (
+                  <Pressable
+                    style={styles.callBtnMain}
+                    onPress={() => Linking.openURL(`tel:${takip.soforTelefon!.replace(/\s/g, '')}`).catch(() => showToast('Arama başlatılamadı'))}
+                  >
+                    <Text style={styles.callBtnMainText}>Ara</Text>
+                  </Pressable>
+                )}
               </View>
               <View style={styles.confirmBox}>
                 <Text style={styles.confirmText}>✓ {takip.bindiMesaji}</Text>

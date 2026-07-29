@@ -81,10 +81,12 @@ export default function FinansScreen() {
     if (!seciliSporcu) return;
     setSaving(true);
     try {
-      await recordPayment({ sporcuId: seciliSporcu.id, aciklama: 'Temmuz aidatı', tutar, yontem });
+      // Açıklama içinde bulunulan aydan üretilir (eski sabit 'Temmuz aidatı' yerine).
+      const ayAdi = new Date().toLocaleDateString('tr-TR', { month: 'long' });
+      await recordPayment({ sporcuId: seciliSporcu.id, aciklama: `${ayAdi} aidatı`, tutar, yontem });
       await load();
       setPaySheetOpen(false);
-      showToast(seciliSporcu.ad + ' için ödeme kaydedildi · veliye makbuz bildirimi gönderildi');
+      showToast('Ödeme kaydedildi');
     } catch {
       showToast('Ödeme kaydedilemedi, tekrar dene');
     } finally {
@@ -136,7 +138,9 @@ export default function FinansScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Finans</Text>
-            <Text style={styles.subtitle}>Merkez Şube · Temmuz 2026</Text>
+            {/* Toplamlar/grafikler tarih filtresiz (tüm kayıtlar) — başlık belirli bir ay
+                iddia etmesin diye 'Genel Özet' (eski sabit 'Merkez Şube · Temmuz 2026' yerine). */}
+            <Text style={styles.subtitle}>{ozet ? `${ozet.subeAd} · Genel Özet` : ''}</Text>
           </View>
           <Pressable style={styles.payBtn} onPress={() => setPaySheetOpen(true)}>
             <Text style={styles.payBtnIcon}>+</Text>
@@ -206,7 +210,8 @@ export default function FinansScreen() {
                   </View>
                 ))}
                 <View style={styles.tahsilatFooter}>
-                  <Text style={styles.tahsilatFooterLabel}>Bu ay {ozet.islemSayisi} işlem</Text>
+                  {/* Liste tüm ödenmiş kayıtları içerir — 'Bu ay' iddiası yerine gerçek kapsam. */}
+                  <Text style={styles.tahsilatFooterLabel}>{ozet.islemSayisi} işlem</Text>
                   <Text style={styles.tahsilatFooterValue}>Toplam: {ozet.tahsilatToplam}</Text>
                 </View>
               </Card>
@@ -224,7 +229,8 @@ export default function FinansScreen() {
                   </View>
                   <View style={styles.ggBarRow}>
                     {ozet.ggAylar.map((m) => {
-                      const maxV = Math.max(...ozet.ggAylar.map((x) => Math.max(x.gelir, x.gider)));
+                      // Hiç kayıt yoksa 0'a bölme/NaN yükseklik olmasın diye alt sınır 1.
+                      const maxV = Math.max(1, ...ozet.ggAylar.map((x) => Math.max(x.gelir, x.gider)));
                       return (
                         <View key={m.ay} style={styles.ggBarCol}>
                           <View style={styles.ggBarPair}>
@@ -240,19 +246,23 @@ export default function FinansScreen() {
 
                 <Card>
                   <Text style={styles.sectionLabel}>GELİR KATEGORİLERİ</Text>
-                  <View style={styles.donutRow}>
-                    <DonutChart kategoriler={ozet.kategoriler} toplam={ozet.toplamGelir} />
-                    <View style={styles.kategoriList}>
-                      {ozet.kategoriler.map((k) => (
-                        <View key={k.ad} style={styles.kategoriRow}>
-                          <View style={[styles.kategoriDot, { backgroundColor: colors[k.renkAnahtar] }]} />
-                          <Text style={styles.kategoriAd}>{k.ad}</Text>
-                          <Text style={styles.kategoriTutar}>{k.tutar}</Text>
-                          <Text style={styles.kategoriPct}>{k.pct}</Text>
-                        </View>
-                      ))}
+                  {ozet.kategoriler.length === 0 ? (
+                    <Text style={styles.kategoriBos}>Henüz gelir kaydı yok</Text>
+                  ) : (
+                    <View style={styles.donutRow}>
+                      <DonutChart kategoriler={ozet.kategoriler} toplam={ozet.kategoriToplam} />
+                      <View style={styles.kategoriList}>
+                        {ozet.kategoriler.map((k) => (
+                          <View key={k.ad} style={styles.kategoriRow}>
+                            <View style={[styles.kategoriDot, { backgroundColor: colors[k.renkAnahtar] }]} />
+                            <Text style={styles.kategoriAd}>{k.ad}</Text>
+                            <Text style={styles.kategoriTutar}>{k.tutar}</Text>
+                            <Text style={styles.kategoriPct}>{k.pct}</Text>
+                          </View>
+                        ))}
+                      </View>
                     </View>
-                  </View>
+                  )}
                 </Card>
 
                 <Card>
@@ -261,7 +271,7 @@ export default function FinansScreen() {
                     <Text style={[styles.ggSummaryValue, { color: colors.accent }]}>{ozet.toplamGelir}</Text>
                   </View>
                   <View style={styles.ggSummaryRow}>
-                    <Text style={styles.ggSummaryLabel}>Toplam Gider <Text style={styles.ggSummaryNote}>· maaş, kira, ekipman</Text></Text>
+                    <Text style={styles.ggSummaryLabel}>Toplam Gider <Text style={styles.ggSummaryNote}>· tüm gider kayıtları</Text></Text>
                     <Text style={[styles.ggSummaryValue, { color: colors.danger }]}>{ozet.toplamGider}</Text>
                   </View>
                   <View style={[styles.ggSummaryRow, { borderBottomWidth: 0 }]}>
@@ -313,7 +323,8 @@ export default function FinansScreen() {
 
               <View style={{ height: spacing.md }} />
               <Button label="Ödemeyi Kaydet" onPress={onKaydetPay} loading={saving} />
-              <Text style={styles.paySheetNote}>Veliye otomatik makbuz bildirimi gönderilir</Text>
+              {/* Dürüst metin: bildirim/makbuz altyapısı yok — kayıt yalnızca tahsilat listesine işlenir. */}
+              <Text style={styles.paySheetNote}>Kayıt, tahsilat listesine anında işlenir</Text>
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -468,6 +479,7 @@ function createStyles(colors: AppColors) {
   donutValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
   donutLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
   kategoriList: { flex: 1, gap: 9 },
+  kategoriBos: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
   kategoriRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kategoriDot: { width: 8, height: 8, borderRadius: 4 },
   kategoriAd: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { AppModal } from '../../src/components/AppModal';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
 import { Toast, useToast } from '../../src/components/Toast';
 import {
-  bagimsizAntrenoreKatil,
   getBranslar,
   getHizmetTurleri,
   getKurumBranslariDurumu,
@@ -35,11 +34,9 @@ export default function KurumBranslariScreen() {
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const { toastMessage, showToast } = useToast();
 
+  // Bağımsız antrenör sheet'i artık yalnızca bilgilendirme — sahte bekleme
+  // sırası formu (beklemeSirasi=214) kaldırıldı, başvurular yakında açılacak.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [wlAd, setWlAd] = useState('');
-  const [wlTelefon, setWlTelefon] = useState('');
-  const [wlSira, setWlSira] = useState<number | null>(null);
-  const [wlGonderiliyor, setWlGonderiliyor] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,31 +84,10 @@ export default function KurumBranslariScreen() {
 
   function openSheet() {
     setSheetOpen(true);
-    setWlSira(null);
-  }
-
-  const digits = wlTelefon.replace(/\D/g, '');
-  const canJoin = wlAd.trim().length >= 3 && digits.length >= 10;
-
-  async function onJoin() {
-    if (!canJoin) {
-      showToast('Ad soyad ve geçerli bir telefon girin');
-      return;
-    }
-    setWlGonderiliyor(true);
-    try {
-      const { sira } = await bagimsizAntrenoreKatil({ ad: wlAd.trim(), telefon: wlTelefon.trim() });
-      setWlSira(sira);
-    } finally {
-      setWlGonderiliyor(false);
-    }
   }
 
   function closeSheet() {
     setSheetOpen(false);
-    setWlAd('');
-    setWlTelefon('');
-    setWlSira(null);
   }
 
   const fitnessSecili = seciliHizmet.includes('fitness');
@@ -246,46 +222,15 @@ export default function KurumBranslariScreen() {
                 <Text style={styles.soonPillText}>YAKINDA</Text>
               </View>
             </View>
-            <Text style={styles.sheetDesc}>Bireysel çalışan antrenörler için ayrı bir sürüm hazırlıyoruz. Hazır olduğunda ilk size haber verelim.</Text>
-
-            {wlSira === null ? (
-              <>
-                <Text style={styles.fieldLabel}>AD SOYAD</Text>
-                <TextInput
-                  value={wlAd}
-                  onChangeText={setWlAd}
-                  placeholder="Adınız Soyadınız"
-                  placeholderTextColor={colors.textDim}
-                  style={styles.input}
-                />
-                <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>TELEFON</Text>
-                <TextInput
-                  value={wlTelefon}
-                  onChangeText={setWlTelefon}
-                  placeholder="05xx xxx xx xx"
-                  placeholderTextColor={colors.textDim}
-                  keyboardType="phone-pad"
-                  style={styles.input}
-                />
-                <Pressable style={[styles.joinBtn, !canJoin && styles.joinBtnDisabled]} onPress={onJoin} disabled={wlGonderiliyor}>
-                  <Text style={[styles.joinBtnText, !canJoin && styles.joinBtnTextDisabled]}>
-                    {wlGonderiliyor ? 'Gönderiliyor…' : 'Sıraya Gir'}
-                  </Text>
-                </Pressable>
-                <Text style={styles.sheetFooterNote}>Bekleme listesinde 214 antrenör var</Text>
-              </>
-            ) : (
-              <View style={styles.successWrap}>
-                <View style={styles.successIcon}>
-                  <Text style={{ color: colors.accent, fontSize: 26 }}>✓</Text>
-                </View>
-                <Text style={styles.successTitle}>Sıradasınız!</Text>
-                <Text style={styles.successSub}>Lansmandan önce {wlTelefon} numarasına{'\n'}SMS ile haber vereceğiz</Text>
-                <View style={styles.successPill}>
-                  <Text style={styles.successPillText}>Sıra numaranız: #{wlSira}</Text>
-                </View>
-              </View>
-            )}
+            {/* Dürüst bilgilendirme: sahte "sıraya gir" formu ve uydurma bekleme
+                sayacı (214) kaldırıldı — başvuru akışı gerçek tabloya bağlanınca açılacak. */}
+            <Text style={styles.sheetDesc}>
+              Bireysel çalışan antrenörler için ayrı bir sürüm hazırlıyoruz. Bağımsız antrenör
+              başvuruları yakında açılacak — şimdilik başvuru alınmıyor.
+            </Text>
+            <Pressable style={styles.kapatBtn} onPress={closeSheet}>
+              <Text style={styles.kapatBtnText}>Anladım</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </AppModal>
@@ -350,18 +295,7 @@ function createStyles(colors: AppColors) {
   sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.md },
   sheetTitle: { flex: 1, fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   sheetDesc: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 6, lineHeight: 19 },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginTop: spacing.md },
-  input: { width: '100%', marginTop: 7, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.md, fontFamily: fontFamily.manropeSemi },
-  joinBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  joinBtnDisabled: { backgroundColor: colors.chip },
-  joinBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
-  joinBtnTextDisabled: { color: colors.textDim },
-  sheetFooterNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
-  successWrap: { alignItems: 'center', paddingTop: spacing.md, paddingBottom: spacing.xs },
-  successIcon: { width: 56, height: 56, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  successTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md },
-  successSub: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 5, lineHeight: 19 },
-  successPill: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.pill, marginTop: spacing.md },
-  successPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
+  kapatBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  kapatBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textMuted },
   });
 }

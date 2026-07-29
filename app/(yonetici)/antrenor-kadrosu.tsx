@@ -87,7 +87,8 @@ export default function AntrenorKadrosuScreen() {
   async function onOde(h: AntrenorHakedis) {
     await odeHakedis(h.id);
     setHakedisler(await getHakedisler());
-    showToast(h.ad + ' hakedişi ödendi · dekont iletildi');
+    // Dürüst metin: dekont iletimi yok — yalnızca hakediş kaydı 'ödendi' işaretleniyor.
+    showToast('Hakediş ödendi olarak işaretlendi');
   }
 
   return (
@@ -113,7 +114,8 @@ export default function AntrenorKadrosuScreen() {
           <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.summaryCard}>
               <View style={styles.summaryTop}>
-                <Text style={styles.summaryLabel}>TEMMUZ HAKEDİŞ ÖZETİ</Text>
+                {/* Ay adı sabit 'TEMMUZ' yerine içinde bulunulan aydan üretilir. */}
+                <Text style={styles.summaryLabel}>{AY_ADI[new Date().getMonth()].toLocaleUpperCase('tr-TR')} HAKEDİŞ ÖZETİ</Text>
                 <Text style={styles.summaryCount}>{odenenN}/{hakedisler.length} ödendi</Text>
               </View>
               <View style={styles.summaryAmountRow}>

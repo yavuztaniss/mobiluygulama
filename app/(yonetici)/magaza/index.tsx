@@ -86,7 +86,9 @@ export default function MagazaScreen() {
     await setSiparisDurum(id, durum);
     setSiparisler(await getSiparisler());
     setDurumSecId(null);
-    if (durum === 'hazir') showToast('Veliye teslime hazır bildirimi gönderildi');
+    // Dürüst metin: veliye bildirim gitmiyor — yalnızca sipariş durumu güncelleniyor
+    // (veli, mağaza ekranından güncel durumu görür).
+    showToast('Sipariş durumu güncellendi');
   }
 
   return (

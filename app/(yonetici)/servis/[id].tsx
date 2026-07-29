@@ -73,7 +73,8 @@ export default function RotaDetayScreen() {
           <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.mapBox}>
               <View style={styles.liveDotBig} />
-              <Text style={styles.mapText}>canlı harita önizleme · araç konumu</Text>
+              {/* Dürüst metin: canlı konum takibi yok — harita entegrasyonu ileri faz. */}
+              <Text style={styles.mapText}>harita görünümü yakında</Text>
               <View style={styles.mapBadge}>
                 <Text style={styles.mapBadgeText}>{rota.konumSaat} · {rota.konumHiz}</Text>
               </View>
@@ -87,12 +88,15 @@ export default function RotaDetayScreen() {
                 <Text style={styles.soforName}>{rota.sofor}</Text>
                 <Text style={styles.soforSub}>Şoför · {rota.plaka} · {rota.arac}</Text>
               </View>
-              <Pressable
-                style={styles.callBtn}
-                onPress={() => Linking.openURL('tel:').catch(() => showToast('Arama başlatılamadı'))}
-              >
-                <Text>📞</Text>
-              </Pressable>
+              {/* Telefon kayıtlı değilse boş `tel:` açan sahte buton yerine buton hiç gösterilmez. */}
+              {!!rota.soforTelefon && (
+                <Pressable
+                  style={styles.callBtn}
+                  onPress={() => Linking.openURL(`tel:${rota.soforTelefon!.replace(/\s/g, '')}`).catch(() => showToast('Arama başlatılamadı'))}
+                >
+                  <Text>📞</Text>
+                </Pressable>
+              )}
             </View>
 
             <Card>
@@ -136,12 +140,9 @@ export default function RotaDetayScreen() {
               <Text style={styles.chevron}>›</Text>
             </Pressable>
 
-            <Pressable
-              style={styles.notifyBtn}
-              onPress={() => showToast('Rota velilerine bildirim gönderildi')}
-            >
-              <Text style={styles.notifyBtnText}>Rota Velilerine Bildirim Gönder</Text>
-            </Pressable>
+            {/* 'Rota Velilerine Bildirim Gönder' butonu kaldırıldı — hiçbir bildirim
+                göndermiyordu (yalnızca sahte toast). Bildirim altyapısı bağlandığında
+                gerçek işlemle geri eklenebilir. */}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -229,8 +230,6 @@ function createStyles(colors: AppColors) {
   sporcuRowTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   sporcuRowSub: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   chevron: { color: colors.textDim, fontSize: 16 },
-  notifyBtn: { height: 48, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
-  notifyBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accent },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },

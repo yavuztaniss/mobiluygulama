@@ -89,7 +89,12 @@ export async function onaylaBasvuru(basvuruId: string, grupId?: string | null): 
       sube_id: b.sube_id,
       veli_ad: b.veli_ad,
       veli_telefon: b.veli_telefon,
-      kayit_tarihi: new Date().toISOString().slice(0, 10),
+      // toISOString UTC'ye çevirir — 00:00-03:00 arası onaylarda kayıt tarihi bir gün
+      // geri yazılırdı; yerel bileşenlerden kur (projedeki todayStr deseni).
+      kayit_tarihi: (() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })(),
     })
     .select('id')
     .single();
@@ -109,5 +114,80 @@ export async function reddetBasvuru(basvuruId: string): Promise<void> {
 
 export async function geriAlBasvuru(basvuruId: string): Promise<void> {
   const { error } = await supabase.from('basvuru').update({ durum: 'bekliyor' }).eq('id', basvuruId);
+  if (error) throw error;
+}
+
+// ---- Veli tarafı (Sporcu Ekle / deneme dersi başvurusu) ----
+// 0018 politikaları: veli kendi adına DENEME başvurusu ekleyebilir (created_by = auth.uid())
+// ve yalnızca kendi başvurularını görebilir — Yönetici > Başvurular aynı tabloyu onaylıyor.
+
+export type BransSecenek = { id: string; ad: string };
+
+// Katalogdaki TÜM branşlar değil, kurumun gerçekten sunduğu branşlar (kurum_brans_secimi,
+// Yönetici > Kurum Branşları'ndan yönetilir) — yoksa veli, kulübün hiç açmadığı bir
+// branşa başvuru oluşturabilirdi. Politika: "giriş yapan herkes okur" (0004).
+export async function getBranslar(): Promise<BransSecenek[]> {
+  const { data, error } = await supabase.from('kurum_brans_secimi').select('brans:brans(id, ad)');
+  if (error) throw error;
+  const secenekler = ((data ?? []) as unknown as { brans: BransSecenek | null }[])
+    .map((r) => r.brans)
+    .filter(Boolean) as BransSecenek[];
+  return secenekler.sort((a, b) => a.ad.localeCompare(b.ad, 'tr'));
+}
+
+export type VeliBasvuru = {
+  id: string;
+  ad: string;
+  altBilgi: string;
+  durum: BasvuruDurum;
+  when: string;
+};
+
+export async function getVeliBasvurulari(): Promise<VeliBasvuru[]> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const veliId = sessionData.session?.user.id;
+  if (!veliId) return [];
+  const { data, error } = await supabase
+    .from('basvuru')
+    .select('id, ad, dogum_yili, durum, created_at, brans:brans(ad)')
+    .eq('created_by', veliId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as { id: string; ad: string; dogum_yili: number | null; durum: BasvuruDurum; created_at: string; brans: { ad: string } | null }[]).map(
+    (b) => ({
+      id: b.id,
+      ad: b.ad,
+      altBilgi: [b.brans?.ad, b.dogum_yili].filter(Boolean).join(' · '),
+      durum: b.durum,
+      when: zamanEtiketi(b.created_at),
+    })
+  );
+}
+
+export async function veliBasvuruOlustur(input: {
+  ad: string;
+  dogumYili: number | null;
+  bransId: string;
+  tercihNotu: string;
+}): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const veliId = sessionData.session?.user.id;
+  if (!veliId) throw new Error('Oturum bulunamadı — yeniden giriş yapın.');
+
+  // Veli iletişim bilgisi başvuruya profiles'tan kopyalanır (onayda sporcular satırına taşınıyor).
+  const { data: profilRow } = await supabase.from('profiles').select('ad, telefon').eq('id', veliId).maybeSingle();
+  const profil = profilRow as { ad: string; telefon: string | null } | null;
+
+  const { error } = await supabase.from('basvuru').insert({
+    ad: input.ad,
+    dogum_yili: input.dogumYili,
+    brans_id: input.bransId,
+    veli_ad: profil?.ad ?? null,
+    veli_telefon: profil?.telefon ?? null,
+    tag: 'DENEME',
+    durum: 'bekliyor',
+    detay_notu: input.tercihNotu.trim() ? `Tercih edilen gün/saat: ${input.tercihNotu.trim()}` : null,
+    created_by: veliId,
+  });
   if (error) throw error;
 }

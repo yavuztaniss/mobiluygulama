@@ -108,12 +108,8 @@ export default function MagazaScreen() {
 
         {!loading && !error && (
           <ScrollView contentContainerStyle={styles.scroll}>
-            <View style={styles.bannerCard}>
-              <Text style={styles.bannerLabel}>YENİ SEZON</Text>
-              <Text style={styles.bannerTitle}>2026 forması çıktı</Text>
-              <Text style={styles.bannerSub}>Sporcu adı + numara baskısı hediye · 31 Temmuz'a kadar</Text>
-            </View>
-
+            {/* Sahte kampanya bandı ("baskı hediye · 31 Temmuz'a kadar") kaldırıldı —
+                gerçek bir kampanya verisi yok; katalog gerçek `urun` tablosundan geliyor. */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.katScroll} contentContainerStyle={styles.katRow}>
               {KATEGORILER.map((k) => (
                 <Pressable key={k} style={[styles.katChip, seciliKat === k && styles.katChipActive]} onPress={() => setSeciliKat(k)}>

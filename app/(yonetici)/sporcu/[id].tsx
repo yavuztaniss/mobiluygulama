@@ -162,7 +162,8 @@ export default function SporcuDetayScreen() {
 
             <View style={styles.statsGrid}>
               <Card style={styles.statCard}>
-                <Text style={styles.statValue}>%{detay.yoklamaOrani}</Text>
+                {/* Henüz yoklama kaydı yoksa oran uydurulmaz — '—' gösterilir. */}
+                <Text style={styles.statValue}>{detay.yoklamaOrani === null ? '—' : `%${detay.yoklamaOrani}`}</Text>
                 <Text style={styles.statLabel}>YOKLAMA</Text>
               </Card>
               <Card style={styles.statCard}>
@@ -184,21 +185,35 @@ export default function SporcuDetayScreen() {
                   <LegendDot color={colors.textDim} label="Planlı" />
                 </View>
               </View>
-              <View style={styles.calGrid}>
-                {detay.calDays.map((d) => (
-                  <View key={d.gun} style={[styles.calCell, { backgroundColor: GUN_RENK[d.durum].bg }]}>
-                    <Text style={[styles.calCellText, { color: GUN_RENK[d.durum].c }]}>{d.gun}</Text>
-                  </View>
-                ))}
-              </View>
+              {detay.calDays.length === 0 ? (
+                <Text style={styles.emptyText}>Henüz yoklama kaydı yok</Text>
+              ) : (
+                <View style={styles.calGrid}>
+                  {detay.calDays.map((d) => (
+                    <View key={d.gun} style={[styles.calCell, { backgroundColor: GUN_RENK[d.durum].bg }]}>
+                      <Text style={[styles.calCellText, { color: GUN_RENK[d.durum].c }]}>{d.gun}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </Card>
 
             <Card style={styles.sectionCard}>
               <Text style={styles.sectionLabel}>ÖDEME GEÇMİŞİ</Text>
+              {detay.odemeGecmisi.length === 0 && <Text style={styles.emptyText}>Henüz ödeme kaydı yok</Text>}
               {detay.odemeGecmisi.map((o) => (
                 <View key={o.id} style={styles.paymentRow}>
-                  <View style={[styles.paymentIcon, o.durum === 'gecikti' ? styles.paymentIconDanger : styles.paymentIconOk]}>
-                    <Text>{o.durum === 'gecikti' ? '⏱' : '✓'}</Text>
+                  <View
+                    style={[
+                      styles.paymentIcon,
+                      o.durum === 'gecikti'
+                        ? styles.paymentIconDanger
+                        : o.durum === 'bekliyor'
+                          ? styles.paymentIconBekliyor
+                          : styles.paymentIconOk,
+                    ]}
+                  >
+                    <Text>{o.durum === 'gecikti' ? '⏱' : o.durum === 'bekliyor' ? '⏳' : '✓'}</Text>
                   </View>
                   <View style={styles.profileMid}>
                     <Text style={styles.paymentTitle}>{o.baslik}</Text>
@@ -227,6 +242,7 @@ export default function SporcuDetayScreen() {
                   </Pressable>
                 )}
               </View>
+              {detay.gelisimNotlari.length === 0 && <Text style={styles.emptyText}>Henüz gelişim notu yok</Text>}
               {detay.gelisimNotlari.slice(0, 2).map((n, i) => (
                 <View key={i} style={styles.noteBox}>
                   <Text style={styles.noteText}>{n.metin}</Text>
@@ -359,6 +375,8 @@ function createStyles(colors: AppColors) {
   paymentIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   paymentIconDanger: { backgroundColor: colors.dangerSoft },
   paymentIconOk: { backgroundColor: colors.accentSoft },
+  paymentIconBekliyor: { backgroundColor: colors.chip },
+  emptyText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   paymentTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   paymentDetail: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   paymentDetailDanger: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.danger, marginTop: 1 },

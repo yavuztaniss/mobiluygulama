@@ -22,6 +22,7 @@ export default function ServisListesiScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ad, setAd] = useState('');
   const [sofor, setSofor] = useState('');
+  const [soforTel, setSoforTel] = useState('');
   const [plaka, setPlaka] = useState('');
   const [arac, setArac] = useState('');
   const [alt, setAlt] = useState('');
@@ -61,7 +62,7 @@ export default function ServisListesiScreen() {
     }
     setKaydediliyor(true);
     try {
-      await addRota({ ad: ad.trim(), sofor: sofor.trim(), plaka: plaka.trim(), arac: arac.trim() || 'Belirtilmedi', alt: alt.trim() || 'Sefer saati belirlenmedi' });
+      await addRota({ ad: ad.trim(), sofor: sofor.trim(), soforTelefon: soforTel.trim(), plaka: plaka.trim(), arac: arac.trim() || 'Belirtilmedi', alt: alt.trim() || 'Sefer saati belirlenmedi' });
       await load();
       setSheetOpen(false);
       showToast('Yeni rota eklendi');
@@ -134,6 +135,7 @@ export default function ServisListesiScreen() {
             <ScrollView contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm }} keyboardShouldPersistTaps="handled">
               <FormField label="ROTA ADI" value={ad} onChangeText={setAd} placeholder="ör. Bornova – Merkez Hattı" />
               <FormField label="ŞOFÖR" value={sofor} onChangeText={setSofor} placeholder="Ad Soyad" />
+              <FormField label="ŞOFÖR TELEFONU" value={soforTel} onChangeText={setSoforTel} placeholder="05xx xxx xx xx" />
               <FormField label="PLAKA" value={plaka} onChangeText={setPlaka} placeholder="35 KSO 000" autoCapitalize="characters" />
               <FormField label="ARAÇ" value={arac} onChangeText={setArac} placeholder="ör. Ford Transit" />
               <FormField label="SEFER BİLGİSİ" value={alt} onChangeText={setAlt} placeholder="ör. Sabah seferi · 07:30 kalkış" />

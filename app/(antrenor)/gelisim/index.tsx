@@ -15,11 +15,13 @@ import {
   setGelisimSeviye,
 } from '../../../src/data/antrenorRepo';
 import type { GelisimKaydi, Sporcu } from '../../../src/data/types-antrenor';
+import { useAuth } from '../../../src/context/AuthContext';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function GelisimScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { profile } = useAuth();
   const params = useLocalSearchParams<{ sporcuId?: string }>();
   const [sporcular, setSporcular] = useState<Sporcu[]>([]);
   const [seciliId, setSeciliId] = useState<string>(params.sporcuId || '');
@@ -109,7 +111,8 @@ export default function GelisimScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Gelişim Değerlendirme</Text>
-            <Text style={styles.headerSub}>U12 Basketbol · Temmuz dönemi</Text>
+            {/* Sabit "U12 Basketbol" grup adı kaldırıldı — liste tüm bağlı sporcuları kapsıyor. */}
+            <Text style={styles.headerSub}>{new Date().toLocaleDateString('tr-TR', { month: 'long' })} dönemi</Text>
           </View>
         </View>
 
@@ -192,10 +195,12 @@ export default function GelisimScreen() {
                   <Text style={styles.previewNote}>{kayit.not}</Text>
                   <View style={styles.previewFooter}>
                     <View style={styles.previewAvatar}>
-                      <Text style={styles.previewAvatarText}>MD</Text>
+                      <Text style={styles.previewAvatarText}>
+                        {(profile?.ad || 'A').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+                      </Text>
                     </View>
                     <View>
-                      <Text style={styles.previewCoach}>Mert Demir</Text>
+                      <Text style={styles.previewCoach}>{profile?.ad || 'Antrenör'}</Text>
                       <Text style={styles.previewDate}>{kayit.tarih}</Text>
                     </View>
                   </View>

@@ -227,7 +227,8 @@ export default function BireyselDersDetay() {
               <View style={[styles.radio, odemeTipi === 'tek' && styles.radioActive]}>{odemeTipi === 'tek' && <View style={styles.radioDot} />}</View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.payOptionTitle}>Tek Ders</Text>
-                <Text style={styles.payOptionSub}>Kayıtlı kart •••• 4521 ile ödenir</Text>
+                {/* Uygulama içi kart tahsilatı yok — ücret kulübe ödenir. */}
+                <Text style={styles.payOptionSub}>Ödeme kulübe yapılır (resepsiyon / havale)</Text>
               </View>
               <Text style={styles.payOptionAmount}>{antrenor ? formatTL(antrenor.tekFiyatN) : ''}</Text>
             </Pressable>
@@ -254,7 +255,7 @@ export default function BireyselDersDetay() {
                 {onaylaniyor
                   ? 'İşleniyor…'
                   : odemeTipi === 'tek'
-                    ? `Onayla ve Öde · ${antrenor ? formatTL(antrenor.tekFiyatN) : ''}`
+                    ? `Rezervasyonu Onayla · ${antrenor ? formatTL(antrenor.tekFiyatN) : ''} kulübe ödenir`
                     : 'Onayla · Paketten 1 Ders Düş'}
               </Text>
             </Pressable>
@@ -270,7 +271,8 @@ export default function BireyselDersDetay() {
           <Text style={styles.onayTitle}>Ders rezerve edildi</Text>
           <Text style={styles.onaySub}>{antrenor?.ad} · {antrenor?.brans} · {secimEtiketi}{'\n'}{onaySonuc.odemeNotu}</Text>
           <View style={styles.onayInfoBox}>
-            <Text style={styles.onayInfoText}>Takviminize eklendi · {antrenor?.ad}'ya bildirim gitti</Text>
+            {/* Push bildirimi yok — rezervasyon, antrenörün uygulamadaki takvim/onay listesine düşer. */}
+            <Text style={styles.onayInfoText}>Rezervasyon {antrenor?.ad ?? 'antrenör'} onayına iletildi</Text>
           </View>
           <View style={[styles.onayInfoBox, styles.onayWarnBox]}>
             <Text style={styles.onayWarnText}>24 saatten geç iptalde seans yanar</Text>

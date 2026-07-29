@@ -8,12 +8,13 @@ import { getAntrenorBildirimler, markAntrenorBildirimOkundu, markAntrenorTumuOku
 import type { AntrenorBildirim } from '../../../src/data/types-antrenor';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
+// Bildirimler gerçek olaylardan sentezlenir (bkz. antrenorRepo.syncAntrenorBildirimleri) ve
+// şimdilik yalnızca 'izin' + 'rezervasyon' türleri üretilir — hiç dolmayacak 'Mesaj'/'Yoklama'
+// filtreleri mock temizliğinde kaldırıldı (tür listesi genişlerse buraya eklenir).
 const FILTRELER = [
   { id: 'tumu', ad: 'Tümü' },
   { id: 'izin', ad: 'İzin' },
   { id: 'rezervasyon', ad: 'Bireysel Ders' },
-  { id: 'mesaj', ad: 'Mesaj' },
-  { id: 'yoklama', ad: 'Yoklama' },
 ];
 
 const TUR_ICON: Record<AntrenorBildirim['tur'], string> = { izin: '📅', mesaj: '💬', rezervasyon: '🧑‍🏫', yoklama: '✓', sistem: '📣' };

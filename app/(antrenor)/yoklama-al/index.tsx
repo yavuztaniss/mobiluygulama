@@ -230,7 +230,7 @@ export default function YoklamaAlScreen() {
             ) : (
               <>
                 <View style={styles.savedBox}>
-                  <Text style={styles.savedText}>✓ Kaydedildi · {savedAt} · Bildirim gitti</Text>
+                  <Text style={styles.savedText}>✓ Kaydedildi · {savedAt}</Text>
                 </View>
                 <Pressable onPress={onUnlock}>
                   <Text style={styles.unlockText}>Düzenle</Text>
@@ -247,7 +247,7 @@ export default function YoklamaAlScreen() {
             <Text style={styles.overlayCheck}>✓</Text>
           </View>
           <Text style={styles.overlayTitle}>Yoklama kaydedildi</Text>
-          <Text style={styles.overlaySub}>Velilere bildirim gönderildi</Text>
+          <Text style={styles.overlaySub}>Yoklama, velilerin uygulamasında görünür</Text>
           <View style={styles.overlayPills}>
             <View style={styles.overlayPillIn}>
               <Text style={styles.overlayPillInText}>{overlay.inCount} sporcu katıldı</Text>

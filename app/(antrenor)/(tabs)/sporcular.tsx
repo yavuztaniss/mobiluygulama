@@ -41,7 +41,8 @@ export default function AntrenorSporcularScreen() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.title}>Sporcular</Text>
-          <Text style={styles.subtitle}>U12 Basketbol · {sporcular.length} sporcu</Text>
+          {/* Sabit "U12 Basketbol" etiketi kaldırıldı — liste antrenörün TÜM bağlı sporcularını kapsıyor. */}
+          <Text style={styles.subtitle}>{sporcular.length} sporcu</Text>
         </View>
 
         <View style={styles.searchBox}>

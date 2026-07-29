@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { BagimsizAntrenorBasvurusu, Brans, HizmetTuruSecenegi, KurumBranslariDurumu } from './types';
+import type { Brans, HizmetTuruSecenegi, KurumBranslariDurumu } from './types';
 
 // Faz 1'de tek şube (Merkez) üzerinden çalışıyor — supabase/migrations/0004_kurum_ve_sporcular.sql'deki seed id'si.
 // Çoklu şube seçimi (kullanıcının kendi profiles.sube_id'sine göre) ileri bir faz konusu.
@@ -63,10 +63,6 @@ export async function kurumBranslariKaydet(): Promise<void> {
   // "kaydet" adımına gerek yok — geriye dönük uyum için no-op olarak duruyor.
 }
 
-// Bekleme listesi sayacı ve başvuru kaydı henüz gerçek bir tabloya taşınmadı
-// (Faz 1 kapsamı dışı — bkz. plan dosyası, Kurum domain notları).
-let beklemeSirasi = 214;
-export async function bagimsizAntrenoreKatil(_basvuru: BagimsizAntrenorBasvurusu): Promise<{ sira: number }> {
-  beklemeSirasi += 1;
-  return { sira: beklemeSirasi };
-}
+// bagimsizAntrenoreKatil kaldırıldı — sahte bekleme sırası sayacı (214) hiçbir
+// tabloya yazmıyordu. Bağımsız antrenör başvuruları gerçek bir tabloya bağlanana
+// dek ekran yalnızca "yakında" bilgilendirmesi gösteriyor (bkz. kurum-branslari.tsx).

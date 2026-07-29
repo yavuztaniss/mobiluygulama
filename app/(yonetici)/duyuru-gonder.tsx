@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
 import { Toast, useToast } from '../../src/components/Toast';
-import { duyuruGonder, duyuruHedefSayisi, getDuyuruHedefleri, getDuyuruTaslak } from '../../src/data/yoneticiRepo';
+import { duyuruGonder, duyuruHedefSayisi, getDuyuruHedefleri } from '../../src/data/yoneticiRepo';
 import type { DuyuruHedefi, DuyuruTuru } from '../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
 
@@ -30,14 +30,13 @@ export default function DuyuruGonderScreen() {
   const [gonderiliyor, setGonderiliyor] = useState(false);
   const { toastMessage, showToast } = useToast();
 
+  // Form boş açılır — eski DUYURU_TASLAK_VARSAYILAN mock taslağı kaldırıldı,
+  // örnek metinler yalnızca placeholder olarak duruyor.
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [h, t] = await Promise.all([getDuyuruHedefleri(), getDuyuruTaslak()]);
-      setHedefler(h);
-      setBaslik(t.baslik);
-      setMesaj(t.mesaj);
+      setHedefler(await getDuyuruHedefleri());
     } catch {
       setError('Duyuru formu yüklenemedi.');
     } finally {
@@ -66,12 +65,17 @@ export default function DuyuruGonderScreen() {
     }
     setGonderiliyor(true);
     try {
+      // Dürüst metin: push/SMS altyapısı yok — duyuru kaydedilir ve veliler
+      // uygulama içinde görür. SMS tercihi kayda işlenir (sms_ile kolonu).
       const sonuc = await duyuruGonder({ hedefIds: seciliHedefler, baslik: baslik.trim(), mesaj: mesaj.trim(), tur, smsIle });
-      showToast(`Duyuru ${sonuc.veliSayisi} veliye gönderildi ✓ ${sonuc.smsIle ? '(bildirim + SMS)' : '(bildirim)'}`);
+      showToast(`Duyuru yayınlandı ✓ ${sonuc.veliSayisi} veli uygulamada görebilecek`);
     } finally {
       setGonderiliyor(false);
     }
   }
+
+  const bugun = new Date();
+  const onizlemeTarihi = `${bugun.toLocaleDateString('tr-TR', { weekday: 'long' })}, ${bugun.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}`;
 
   return (
     <ScreenBackground>
@@ -119,7 +123,7 @@ export default function DuyuruGonderScreen() {
             <TextInput
               value={baslik}
               onChangeText={setBaslik}
-              placeholder="Duyuru başlığı"
+              placeholder="ör. Yaz Kampı Erken Kayıt İndirimi"
               placeholderTextColor={colors.textDim}
               style={styles.titleInput}
             />
@@ -128,7 +132,7 @@ export default function DuyuruGonderScreen() {
             <TextInput
               value={mesaj}
               onChangeText={setMesaj}
-              placeholder="Duyuru mesajı"
+              placeholder="ör. Yaz kampı kayıtları açıldı! Detaylar ve kayıt formu uygulamada."
               placeholderTextColor={colors.textDim}
               multiline
               style={styles.messageInput}
@@ -136,16 +140,17 @@ export default function DuyuruGonderScreen() {
 
             <Pressable style={styles.smsRow} onPress={() => setSmsIle((v) => !v)}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.smsTitle}>Bildirim + SMS olarak gönder</Text>
-                {smsIle && <Text style={styles.smsSub}>Uygulaması olmayan velilere de SMS gider</Text>}
+                <Text style={styles.smsTitle}>SMS ile de gönder</Text>
+                {/* Dürüst not: SMS gönderim altyapısı henüz yok — tercih kaydedilir. */}
+                <Text style={styles.smsSub}>SMS altyapısı bağlandığında gönderilir</Text>
               </View>
               <Switch value={smsIle} onValueChange={setSmsIle} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
             </Pressable>
 
-            <Text style={styles.fieldLabel}>VELİNİN KİLİT EKRANINDA</Text>
+            <Text style={styles.fieldLabel}>BİLDİRİM ÖNİZLEMESİ</Text>
             <View style={styles.previewCard}>
               <Text style={styles.previewClock}>09:41</Text>
-              <Text style={styles.previewDate}>Çarşamba, 22 Temmuz</Text>
+              <Text style={styles.previewDate}>{onizlemeTarihi}</Text>
               <View style={styles.previewNotif}>
                 <View style={styles.previewAvatar}>
                   <Text style={styles.previewAvatarText}>KS</Text>

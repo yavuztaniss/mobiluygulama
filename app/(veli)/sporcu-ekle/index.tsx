@@ -1,54 +1,93 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
+import { LoadingState, ErrorState } from '../../../src/components/StateViews';
+import { Toast, useToast } from '../../../src/components/Toast';
+import {
+  getBranslar,
+  getVeliBasvurulari,
+  veliBasvuruOlustur,
+  type BransSecenek,
+  type VeliBasvuru,
+} from '../../../src/data/basvurularRepo';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
-const BRANSLAR = ['Basketbol', 'Yüzme', 'Voleybol', 'Jimnastik'];
+// Başvuru artık GERÇEK: `basvuru` tablosuna DENEME kaydı ekleniyor (0018 politikası),
+// Yönetici > Başvurular ekranı aynı satırı görüp onaylıyor/reddediyor. Eski sabit
+// gün/saat (SLOT) seçimi kaldırıldı — veli, RLS gereği başka grupların antrenman
+// planını göremez; tercih artık serbest metin olarak detay_notu'na yazılıyor.
 
-const SLOTS: Record<string, { d1: string; d2: string; t: string; v: string }[]> = {
-  Basketbol: [
-    { d1: 'ÇAR', d2: '22', t: '17:00 – 18:00', v: 'Salon 1 · U11 grubuyla' },
-    { d1: 'CUM', d2: '24', t: '16:30 – 17:30', v: 'Salon 2 · U11 grubuyla' },
-    { d1: 'PZT', d2: '27', t: '17:00 – 18:00', v: 'Salon 1 · U11 grubuyla' },
-  ],
-  Yüzme: [
-    { d1: 'SAL', d2: '21', t: '18:00 – 18:45', v: 'Havuz · başlangıç kulvarı' },
-    { d1: 'PER', d2: '23', t: '18:00 – 18:45', v: 'Havuz · başlangıç kulvarı' },
-    { d1: 'SAL', d2: '28', t: '18:00 – 18:45', v: 'Havuz · başlangıç kulvarı' },
-  ],
-  Voleybol: [
-    { d1: 'ÇAR', d2: '22', t: '18:30 – 19:30', v: 'Salon 2 · minik grup' },
-    { d1: 'CMT', d2: '25', t: '10:00 – 11:00', v: 'Salon 1 · minik grup' },
-    { d1: 'ÇAR', d2: '29', t: '18:30 – 19:30', v: 'Salon 2 · minik grup' },
-  ],
-  Jimnastik: [
-    { d1: 'PZT', d2: '27', t: '16:00 – 17:00', v: 'Stüdyo · temel seviye' },
-    { d1: 'ÇAR', d2: '29', t: '16:00 – 17:00', v: 'Stüdyo · temel seviye' },
-    { d1: 'CUM', d2: '31', t: '16:00 – 17:00', v: 'Stüdyo · temel seviye' },
-  ],
+const DURUM_ETIKET: Record<VeliBasvuru['durum'], string> = {
+  bekliyor: 'BEKLİYOR',
+  onaylandi: 'ONAYLANDI',
+  reddedildi: 'REDDEDİLDİ',
 };
 
 export default function SporcuEkleScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { toastMessage, showToast } = useToast();
+
+  const [branslar, setBranslar] = useState<BransSecenek[]>([]);
+  const [basvurular, setBasvurular] = useState<VeliBasvuru[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [ad, setAd] = useState('');
   const [yil, setYil] = useState('');
-  const [brans, setBrans] = useState<string | null>(null);
-  const [slotIdx, setSlotIdx] = useState(0);
+  const [bransId, setBransId] = useState<string | null>(null);
+  const [tercih, setTercih] = useState('');
   const [gonderildi, setGonderildi] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const canSend = ad.trim().length > 1 && !!brans;
-  const slot = brans ? SLOTS[brans][slotIdx] : null;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [b, v] = await Promise.all([getBranslar(), getVeliBasvurulari()]);
+      setBranslar(b);
+      setBasvurular(v);
+    } catch {
+      setError('Bilgiler yüklenemedi.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const canSend = ad.trim().length > 1 && !!bransId;
+  const seciliBrans = branslar.find((b) => b.id === bransId);
 
   async function onSend() {
-    if (!canSend) return;
+    if (!canSend || !bransId) return;
+    const yilN = parseInt(yil.trim(), 10);
     setSending(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSending(false);
-    setGonderildi(true);
+    try {
+      await veliBasvuruOlustur({
+        ad: ad.trim(),
+        dogumYili: Number.isNaN(yilN) ? null : yilN,
+        bransId,
+        tercihNotu: tercih,
+      });
+      setGonderildi(true);
+      // Alt listedeki "önceki başvurular" da tazelensin (başarı ekranından dönüşte görünür).
+      getVeliBasvurulari().then(setBasvurular).catch(() => {});
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Başvuru gönderilemedi, tekrar deneyin.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function durumRozetStil(durum: VeliBasvuru['durum']) {
+    if (durum === 'onaylandi') return { bg: colors.accentSoft, fg: colors.accent };
+    if (durum === 'reddedildi') return { bg: colors.dangerSoft, fg: colors.danger };
+    return { bg: colors.warningSoft, fg: colors.warning };
   }
 
   return (
@@ -64,17 +103,19 @@ export default function SporcuEkleScreen() {
           </View>
         </View>
 
-        {gonderildi ? (
+        {loading && <LoadingState label="Yükleniyor…" />}
+        {!loading && error && <ErrorState message={error} onRetry={load} />}
+
+        {!loading && !error && (gonderildi ? (
           <View style={styles.doneWrap}>
             <View style={styles.doneCircle}>
               <Text style={styles.doneCheckmark}>✓</Text>
             </View>
             <Text style={styles.doneTitle}>Başvuru alındı</Text>
-            <Text style={styles.doneSum}>{ad} · {brans} · {slot?.t}</Text>
+            <Text style={styles.doneSum}>{ad.trim()}{seciliBrans ? ` · ${seciliBrans.ad}` : ''}</Text>
             <View style={styles.timeline}>
               <TimelineRow label="Başvuru kulübe iletildi" note="şimdi" done />
-              <TimelineRow label="Kulüp onayı · genellikle aynı gün" note="bekleniyor" done={false} />
-              <TimelineRow label="Ders günü hatırlatma bildirimi" note="otomatik" done={false} />
+              <TimelineRow label="Kulüp onayı · sonucu bu ekrandan takip edebilirsiniz" note="bekleniyor" done={false} />
             </View>
             <Pressable style={styles.okBtn} onPress={() => router.back()}>
               <Text style={styles.okBtnText}>Tamam</Text>
@@ -101,49 +142,34 @@ export default function SporcuEkleScreen() {
 
             <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>BRANŞ</Text>
             <View style={styles.bransGrid}>
-              {BRANSLAR.map((b) => {
-                const active = brans === b;
+              {branslar.map((b) => {
+                const active = bransId === b.id;
                 return (
                   <Pressable
-                    key={b}
+                    key={b.id}
                     style={[styles.bransChip, active && styles.bransChipActive]}
-                    onPress={() => {
-                      setBrans(b);
-                      setSlotIdx(0);
-                    }}
+                    onPress={() => setBransId(b.id)}
                   >
-                    <Text style={[styles.bransChipText, active && styles.bransChipTextActive]}>{b}</Text>
+                    <Text style={[styles.bransChipText, active && styles.bransChipTextActive]}>{b.ad}</Text>
                   </Pressable>
                 );
               })}
             </View>
 
-            {brans && (
-              <>
-                <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>DENEME DERSİ SEÇ · ÜCRETSİZ</Text>
-                {SLOTS[brans].map((s, i) => {
-                  const active = slotIdx === i;
-                  return (
-                    <Pressable key={i} style={[styles.slotRow, active && styles.slotRowActive]} onPress={() => setSlotIdx(i)}>
-                      <View style={styles.slotDateBox}>
-                        <Text style={styles.slotD1}>{s.d1}</Text>
-                        <Text style={styles.slotD2}>{s.d2}</Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.slotTitle}>{s.t}</Text>
-                        <Text style={styles.slotDetay}>{s.v}</Text>
-                      </View>
-                      <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
-                        {active && <View style={styles.radioInner} />}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </>
-            )}
+            <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>TERCİH EDİLEN GÜN / SAAT (İSTEĞE BAĞLI)</Text>
+            <TextInput
+              style={[styles.input, styles.inputMulti]}
+              placeholder="örn. hafta içi 17:00 sonrası, Cumartesi sabahı…"
+              placeholderTextColor={colors.textDim}
+              value={tercih}
+              onChangeText={setTercih}
+              multiline
+            />
 
             <View style={styles.infoBox}>
-              <Text style={styles.infoText}>Başvuru kulüp onayından geçer. Deneme dersi sonrası kayıt kararı tamamen size aittir.</Text>
+              <Text style={styles.infoText}>
+                Başvuru kulüp onayından geçer; uygun grup ve deneme dersi saati kulüp tarafından sizinle iletişime geçilerek planlanır. Deneme dersi sonrası kayıt kararı tamamen size aittir.
+              </Text>
             </View>
 
             <Pressable style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]} disabled={!canSend || sending} onPress={onSend}>
@@ -151,9 +177,30 @@ export default function SporcuEkleScreen() {
                 {sending ? 'Gönderiliyor…' : canSend ? 'Başvuruyu Gönder' : 'Ad ve branş seçin'}
               </Text>
             </Pressable>
+
+            {basvurular.length > 0 && (
+              <>
+                <Text style={[styles.fieldLabel, { marginTop: spacing.xl }]}>ÖNCEKİ BAŞVURULARIM</Text>
+                {basvurular.map((b) => {
+                  const rozet = durumRozetStil(b.durum);
+                  return (
+                    <View key={b.id} style={styles.basvuruRow}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.basvuruAd}>{b.ad}</Text>
+                        <Text style={styles.basvuruAlt}>{[b.altBilgi, b.when].filter(Boolean).join(' · ')}</Text>
+                      </View>
+                      <View style={[styles.basvuruRozet, { backgroundColor: rozet.bg }]}>
+                        <Text style={[styles.basvuruRozetText, { color: rozet.fg }]}>{DURUM_ETIKET[b.durum]}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
+            )}
           </ScrollView>
-        )}
+        ))}
       </SafeAreaView>
+      <Toast message={toastMessage} />
     </ScreenBackground>
   );
 }
@@ -181,27 +228,23 @@ function createStyles(colors: AppColors) {
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
   fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
   input: { height: 48, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
+  inputMulti: { height: 84, paddingTop: 12, textAlignVertical: 'top' },
   bransGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   bransChip: { width: '48%', height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   bransChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   bransChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   bransChipTextActive: { color: colors.accent },
-  slotRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, padding: 12, marginBottom: spacing.xs },
-  slotRowActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-  slotDateBox: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  slotD1: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textMuted },
-  slotD2: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
-  slotTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  slotDetay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  radioOuterActive: { borderColor: colors.accent },
-  radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.accent },
   infoBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
   infoText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.accent, lineHeight: 19 },
   sendBtn: { marginTop: spacing.lg, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { backgroundColor: colors.panel },
   sendBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   sendBtnTextDisabled: { color: colors.textDim },
+  basvuruRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 13, marginBottom: spacing.xs },
+  basvuruAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
+  basvuruAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  basvuruRozet: { paddingVertical: 5, paddingHorizontal: 9, borderRadius: radius.pill },
+  basvuruRozetText: { fontFamily: fontFamily.manropeExtra, fontSize: 10 },
   doneWrap: { flex: 1, alignItems: 'center', padding: spacing.xl, paddingTop: 56 },
   doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentSoft, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   doneCheckmark: { fontSize: 40, color: colors.accent },
