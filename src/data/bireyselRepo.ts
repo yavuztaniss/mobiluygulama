@@ -1,16 +1,7 @@
-import {
-  BEKLEYEN_REZERVASYON,
-  BIREYSEL_ANTRENORLER,
-  BIREYSEL_FILTRELER,
-  BIREYSEL_PAKETLERIM,
-  ISTISNA_VARSAYILAN,
-  KAZANC_AYLAR,
-  KAZANC_HAM,
-  MUSAITLIK_VARSAYILAN,
-  bireyselHaftaSlotlari,
-  bireyselTakvimHaftasi,
-} from './mock/bireysel';
+import { supabase } from '../lib/supabase';
+import { avatarColorAt } from '../theme/avatarPalette';
 import type {
+  AntrenorTakvimBlok,
   AntrenorTakvimGun,
   BekleyenRezervasyon,
   BireyselAntrenor,
@@ -18,15 +9,25 @@ import type {
   BireyselOdemeTipi,
   BireyselPaketDurumu,
   BireyselRezervasyonSonuc,
+  BireyselSlot,
   KazancAySecenegi,
   KazancOzet,
   MusaitlikGunu,
   MusaitlikIstisna,
 } from './types-bireysel';
 
-const DELAY_MS = 300;
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), DELAY_MS));
+// Faz 7'de gerçek `bireysel_antrenor`/`bireysel_musaitlik`/`bireysel_istisna`/
+// `bireysel_paket`/`bireysel_rezervasyon` tablolarına taşındı (bkz.
+// supabase/migrations/0013_bireysel_hakedis_basvurular.sql). `BireyselAntrenor.id`
+// artık `bireysel_antrenor.antrenor_id` (= gerçek `profiles.id`) — diğer tüm
+// tablolar da antrenor_id'yi doğrudan bu şekilde referans alıyor.
+
+const GUN_ADLARI = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const AYLAR_TR = ['OCAK', 'ŞUBAT', 'MART', 'NİSAN', 'MAYIS', 'HAZİRAN', 'TEMMUZ', 'AĞUSTOS', 'EYLÜL', 'EKİM', 'KASIM', 'ARALIK'];
+const AYLAR_TR2 = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+function initialsOf(ad: string): string {
+  return ad.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
 }
 
 export function formatTL(n: number): string {
@@ -37,163 +38,490 @@ export function paketAvantajYuzdesi(a: BireyselAntrenor): number {
   return Math.round((1 - a.paketFiyatN / (a.tekFiyatN * 10)) * 100);
 }
 
+function startOfWeek(d: Date): Date {
+  const x = new Date(d);
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function weekDays(): Date[] {
+  const monday = startOfWeek(new Date());
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+function toISO(d: Date): string {
+  // toISOString() UTC'ye çeviriyor — yerel gece yarısı (setHours(0,0,0,0)) UTC+3'te bir
+  // önceki güne kayıyor (ör. 27 Temmuz 00:00 yerel = 26 Temmuz 21:00 UTC). Yerel takvim
+  // bileşenlerinden string kurmak bu kaymayı önlüyor.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function formatTarihUzun(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
+}
+function saatAraligi(bas: string, bit: string): string[] {
+  const h1 = parseInt(bas.split(':')[0], 10);
+  const h2 = parseInt(bit.split(':')[0], 10);
+  const out: string[] = [];
+  for (let h = h1; h < h2; h++) out.push(String(h).padStart(2, '0') + ':00');
+  return out;
+}
+async function currentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+function mapRezervasyonError(error: { code?: string } & Error): Error {
+  if (error.code === '23505') return new Error('Bu saat az önce doldu, başka bir saat seçin.');
+  return error;
+}
+
 // ---- Veli tarafı ----
 
+type AntrenorRow = {
+  antrenor_id: string;
+  deneyim_yil: number;
+  puan: number | null;
+  bio: string | null;
+  musait: boolean;
+  tek_fiyat: number;
+  paket_fiyat: number;
+  paket_ders_sayisi: number;
+  profiles: { ad: string } | null;
+  brans: { ad: string } | null;
+};
+
+async function toBireyselAntrenor(row: AntrenorRow, index: number): Promise<BireyselAntrenor> {
+  const ad = row.profiles?.ad ?? 'Antrenör';
+  const { count } = await supabase
+    .from('bireysel_rezervasyon')
+    .select('id', { count: 'exact', head: true })
+    .eq('antrenor_id', row.antrenor_id)
+    .eq('durum', 'tamamlandi');
+  const palette = avatarColorAt(index);
+  return {
+    id: row.antrenor_id,
+    ad,
+    init: initialsOf(ad),
+    brans: row.brans?.ad ?? '',
+    deneyim: row.deneyim_yil,
+    puan: row.puan != null ? row.puan.toFixed(1).replace('.', ',') : '—',
+    dersSayisi: count ?? 0,
+    musait: row.musait,
+    ilkBosEtiket: row.musait ? undefined : 'Müsaitlik için iletişime geçin',
+    tekFiyatN: row.tek_fiyat,
+    paketFiyatN: row.paket_fiyat,
+    bio: row.bio ?? '',
+    avBg: palette.avBg,
+    avFg: palette.avFg,
+  };
+}
+
+const ANTRENOR_SELECT = 'antrenor_id, deneyim_yil, puan, bio, musait, tek_fiyat, paket_fiyat, paket_ders_sayisi, profiles:profiles(ad), brans:brans(ad)';
+
 export async function getBireyselAntrenorler(): Promise<BireyselAntrenor[]> {
-  return delay(BIREYSEL_ANTRENORLER);
+  const { data, error } = await supabase.from('bireysel_antrenor').select(ANTRENOR_SELECT).order('created_at');
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as AntrenorRow[];
+  return Promise.all(rows.map((r, i) => toBireyselAntrenor(r, i)));
 }
 
 export async function getBireyselFiltreler(): Promise<string[]> {
-  return delay(BIREYSEL_FILTRELER);
+  const { data, error } = await supabase.from('bireysel_antrenor').select('brans:brans(ad)');
+  if (error) throw error;
+  const branslar = Array.from(
+    new Set(((data ?? []) as unknown as { brans: { ad: string } | null }[]).map((r) => r.brans?.ad).filter(Boolean) as string[])
+  );
+  return ['Tümü', ...branslar];
 }
 
-export async function getBireyselAntrenor(id: string): Promise<BireyselAntrenor> {
-  const a = BIREYSEL_ANTRENORLER.find((x) => x.id === id);
-  if (!a) throw new Error('Antrenör bulunamadı');
-  return delay(a);
+export async function getBireyselAntrenor(antrenorId: string): Promise<BireyselAntrenor> {
+  const { data, error } = await supabase.from('bireysel_antrenor').select(ANTRENOR_SELECT).eq('antrenor_id', antrenorId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('Antrenör bulunamadı');
+  return toBireyselAntrenor(data as unknown as AntrenorRow, 0);
 }
 
-let paketState: Record<string, BireyselPaketDurumu> = { ...BIREYSEL_PAKETLERIM };
-export async function getBireyselPaket(antrenorId: string): Promise<BireyselPaketDurumu | null> {
-  return delay(paketState[antrenorId] ?? null);
-}
-
-const haftaState: Record<string, BireyselGunSlotlari[]> = {};
-function haftaFor(antrenorId: string): BireyselGunSlotlari[] {
-  if (!haftaState[antrenorId]) haftaState[antrenorId] = bireyselHaftaSlotlari(antrenorId);
-  return haftaState[antrenorId];
+export async function getBireyselPaket(antrenorId: string, sporcuId: string): Promise<BireyselPaketDurumu | null> {
+  if (!antrenorId || !sporcuId) return null;
+  const { data, error } = await supabase
+    .from('bireysel_paket')
+    .select('kalan, toplam')
+    .eq('antrenor_id', antrenorId)
+    .eq('sporcu_id', sporcuId)
+    .gt('kalan', 0)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as BireyselPaketDurumu | null;
 }
 
 export async function getBireyselHafta(antrenorId: string): Promise<BireyselGunSlotlari[]> {
-  return delay(haftaFor(antrenorId));
+  const days = weekDays();
+  const startStr = toISO(days[0]);
+  const endStr = toISO(days[6]);
+
+  const [{ data: musRows }, { data: istRows }, { data: rezRows }] = await Promise.all([
+    supabase.from('bireysel_musaitlik').select('gun_index, baslangic_saat, bitis_saat, aktif').eq('antrenor_id', antrenorId),
+    supabase.from('bireysel_istisna').select('tarih').eq('antrenor_id', antrenorId).gte('tarih', startStr).lte('tarih', endStr),
+    supabase
+      .from('bireysel_rezervasyon')
+      .select('tarih, saat')
+      .eq('antrenor_id', antrenorId)
+      .gte('tarih', startStr)
+      .lte('tarih', endStr)
+      .not('durum', 'in', '(reddedildi,iptal)'),
+  ]);
+  const mus = (musRows ?? []) as { gun_index: number; baslangic_saat: string; bitis_saat: string; aktif: boolean }[];
+  const istisnaTarihler = new Set(((istRows ?? []) as { tarih: string }[]).map((r) => r.tarih));
+  const doluSet = new Set(((rezRows ?? []) as { tarih: string; saat: string }[]).map((r) => `${r.tarih}|${r.saat}`));
+
+  return days.map((d, i) => {
+    const iso = toISO(d);
+    const musRow = mus.find((m) => m.gun_index === i && m.aktif);
+    let slotlar: BireyselSlot[] = [];
+    if (musRow && !istisnaTarihler.has(iso)) {
+      slotlar = saatAraligi(musRow.baslangic_saat, musRow.bitis_saat).map((saat) => ({
+        saat,
+        durum: doluSet.has(`${iso}|${saat}`) ? 'dolu' : 'musait',
+      }));
+    }
+    return { gunAdi: GUN_ADLARI[i], gunNo: String(d.getDate()), slotlar };
+  });
 }
 
 export async function rezervasyonOlustur(
   antrenorId: string,
+  sporcuId: string,
   gunIndex: number,
   saat: string,
   odemeTipi: BireyselOdemeTipi
 ): Promise<BireyselRezervasyonSonuc> {
-  const hafta = haftaFor(antrenorId);
-  const gun = hafta[gunIndex];
-  const slot = gun?.slotlar.find((s) => s.saat === saat);
-  if (slot) slot.durum = 'dolu';
+  const days = weekDays();
+  const tarih = toISO(days[gunIndex]);
+  const { data: antData } = await supabase
+    .from('bireysel_antrenor')
+    .select('tek_fiyat, paket_fiyat, paket_ders_sayisi')
+    .eq('antrenor_id', antrenorId)
+    .maybeSingle();
+  const ant = antData as { tek_fiyat: number; paket_fiyat: number; paket_ders_sayisi: number } | null;
 
   if (odemeTipi === 'paket') {
-    const mevcut = paketState[antrenorId];
-    if (mevcut && mevcut.kalan > 0) {
-      const kalan = mevcut.kalan - 1;
-      paketState = { ...paketState, [antrenorId]: { ...mevcut, kalan } };
-      return delay({ odemeNotu: `Paketten düşüldü · kalan ${kalan}/${mevcut.toplam} ders`, kalanPaket: kalan });
+    const { data: paketRow } = await supabase
+      .from('bireysel_paket')
+      .select('id, kalan, toplam')
+      .eq('antrenor_id', antrenorId)
+      .eq('sporcu_id', sporcuId)
+      .gt('kalan', 0)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle();
+    if (paketRow) {
+      const p = paketRow as { id: string; kalan: number; toplam: number };
+      const tutar = ant ? Math.round(ant.paket_fiyat / ant.paket_ders_sayisi) : 0;
+      const { error } = await supabase
+        .from('bireysel_rezervasyon')
+        .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'paket', paket_id: p.id, tutar });
+      if (error) throw mapRezervasyonError(error);
+      const kalan = p.kalan - 1;
+      // 0016 trigger'ı (yalnızca kalan-1'e izin verir) bu update'i reddedebilir (ör.
+      // eşzamanlı ikinci rezervasyonda bayat kalan değeri) — hata yutulursa veliye
+      // "düşüldü" denip DB'de düşüm yapılmamış olur, o yüzden mutlaka kontrol et.
+      const { error: paketHata } = await supabase.from('bireysel_paket').update({ kalan }).eq('id', p.id);
+      if (paketHata) throw paketHata;
+      return { odemeNotu: `Paketten düşüldü · kalan ${kalan}/${p.toplam} ders`, kalanPaket: kalan };
     }
   }
 
-  const antrenor = BIREYSEL_ANTRENORLER.find((a) => a.id === antrenorId);
-  const tutar = antrenor ? formatTL(antrenor.tekFiyatN) : '';
-  return delay({ odemeNotu: `${tutar} · kart •••• 4521 ile ödendi` });
+  const tekFiyat = ant?.tek_fiyat ?? 0;
+  const odemeNotu = `${formatTL(tekFiyat)} · kart •••• 4521 ile ödendi`;
+  const { error } = await supabase
+    .from('bireysel_rezervasyon')
+    .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'tek', tutar: tekFiyat, odeme_notu: odemeNotu });
+  if (error) throw mapRezervasyonError(error);
+  return { odemeNotu };
 }
 
 // ---- Antrenör tarafı ----
 
-let takvim: AntrenorTakvimGun[] = bireyselTakvimHaftasi();
-let bekleyen: BekleyenRezervasyon | null = { ...BEKLEYEN_REZERVASYON };
-
 export async function getBireyselTakvimHaftasi(): Promise<AntrenorTakvimGun[]> {
-  return delay(takvim);
+  const myId = await currentUserId();
+  if (!myId) return [];
+  const days = weekDays();
+  const startStr = toISO(days[0]);
+  const endStr = toISO(days[6]);
+
+  const [{ data: antrenmanRows }, { data: rezRows }, { data: musRows }, { data: istRows }] = await Promise.all([
+    supabase.from('antrenman').select('id, tarih, saat1, saat2, grup:grup(ad)').gte('tarih', startStr).lte('tarih', endStr),
+    supabase
+      .from('bireysel_rezervasyon')
+      .select('id, tarih, saat, tesis, durum, odeme_tipi, sporcu:sporcular(ad)')
+      .eq('antrenor_id', myId)
+      .gte('tarih', startStr)
+      .lte('tarih', endStr)
+      .not('durum', 'in', '(reddedildi,iptal)'),
+    supabase.from('bireysel_musaitlik').select('gun_index, baslangic_saat, bitis_saat, aktif').eq('antrenor_id', myId),
+    supabase.from('bireysel_istisna').select('tarih, aciklama').eq('antrenor_id', myId).gte('tarih', startStr).lte('tarih', endStr),
+  ]);
+
+  const aRows = (antrenmanRows ?? []) as unknown as { id: string; tarih: string; saat1: string | null; saat2: string | null; grup: { ad: string } | null }[];
+  const rRows = (rezRows ?? []) as unknown as { id: string; tarih: string; saat: string; tesis: string | null; durum: string; odeme_tipi: string; sporcu: { ad: string } | null }[];
+  const mus = (musRows ?? []) as { gun_index: number; baslangic_saat: string; bitis_saat: string; aktif: boolean }[];
+  const istRowsTyped = (istRows ?? []) as { tarih: string; aciklama: string | null }[];
+
+  return days.map((d, i) => {
+    const iso = toISO(d);
+    const istisna = istRowsTyped.find((r) => r.tarih === iso);
+    if (istisna) {
+      const blok: AntrenorTakvimBlok = { id: 'istisna-' + iso, saat: '—', tur: 'kapali', baslik: 'KAPALI · İstisna gün', sub: istisna.aciklama ?? 'Tüm gün müsait değil' };
+      return { gunAdi: GUN_ADLARI[i], gunNo: String(d.getDate()), bloklar: [blok] };
+    }
+
+    const bloklar: AntrenorTakvimBlok[] = [];
+    aRows
+      .filter((a) => a.tarih === iso)
+      .forEach((a) => {
+        bloklar.push({ id: a.id, saat: a.saat1 ?? '', tur: 'grup', baslik: a.grup?.ad ?? 'Grup Antrenmanı', sub: a.saat2 ? `${a.saat1} – ${a.saat2}` : '' });
+      });
+    const doluSaatler = new Set<string>();
+    rRows
+      .filter((r) => r.tarih === iso)
+      .forEach((r) => {
+        doluSaatler.add(r.saat);
+        const ad = r.sporcu?.ad ?? '';
+        const bekliyor = r.durum === 'onay_bekliyor';
+        const durumEtiket = r.durum === 'tamamlandi' ? 'Tamamlandı' : r.durum === 'gelmedi' ? 'Gelmedi' : bekliyor ? 'Onay bekliyor' : r.odeme_tipi === 'paket' ? 'Paketten' : 'Tek ders';
+        bloklar.push({
+          id: r.id,
+          saat: r.saat,
+          tur: 'bireysel',
+          baslik: `${ad} · Bireysel`,
+          sub: `${r.tesis ?? 'Salon'} · ${durumEtiket}`,
+          bekliyor,
+          rezervasyonId: r.id,
+          sonuclandirilabilir: r.durum === 'onaylandi' && iso <= toISO(new Date()),
+        });
+      });
+
+    const musRow = mus.find((m) => m.gun_index === i && m.aktif);
+    if (musRow) {
+      saatAraligi(musRow.baslangic_saat, musRow.bitis_saat).forEach((saat) => {
+        if (doluSaatler.has(saat) || aRows.some((a) => a.tarih === iso && a.saat1 === saat)) return;
+        bloklar.push({ id: 'bos-' + iso + '-' + saat, saat, tur: 'bos', baslik: '', sub: '' });
+      });
+    }
+
+    bloklar.sort((x, y) => x.saat.localeCompare(y.saat));
+    return { gunAdi: GUN_ADLARI[i], gunNo: String(d.getDate()), bloklar };
+  });
 }
 
-export async function getBekleyenRezervasyon(): Promise<BekleyenRezervasyon | null> {
-  return delay(bekleyen);
-}
-
-export async function rezervasyonYanitla(cevap: 'onayla' | 'reddet'): Promise<{ mesaj: string }> {
-  const pending = bekleyen;
-  if (!pending) return delay({ mesaj: '' });
-
-  takvim = takvim.map((gun) => {
-    if (gun.gunNo !== pending.gunNo) return gun;
+export async function getBekleyenRezervasyonlar(): Promise<BekleyenRezervasyon[]> {
+  const myId = await currentUserId();
+  if (!myId) return [];
+  const { data, error } = await supabase
+    .from('bireysel_rezervasyon')
+    .select('id, tarih, saat, sporcu:sporcular(ad)')
+    .eq('antrenor_id', myId)
+    .eq('durum', 'onay_bekliyor')
+    .order('tarih');
+  if (error) throw error;
+  return ((data ?? []) as unknown as { id: string; tarih: string; saat: string; sporcu: { ad: string } | null }[]).map((r) => {
+    const ad = r.sporcu?.ad ?? '';
     return {
-      ...gun,
-      bloklar: gun.bloklar.map((b) => {
-        if (b.saat !== pending.saat) return b;
-        if (cevap === 'onayla') {
-          return { ...b, tur: 'bireysel' as const, bekliyor: false, sub: 'Salon 2 · Paket 6/10' };
-        }
-        return { ...b, tur: 'bos' as const, baslik: '', sub: '', bekliyor: false };
-      }),
+      id: r.id,
+      gunNo: String(new Date(r.tarih + 'T00:00:00').getDate()),
+      saat: r.saat,
+      sporcuAd: ad,
+      sporcuInit: initialsOf(ad),
+      baslik: `${ad} · Bireysel Ders`,
+      detay: `${formatTarihUzun(r.tarih)} · ${r.saat} · Onay bekliyor`,
     };
   });
-  bekleyen = null;
-
-  const mesaj = cevap === 'onayla'
-    ? `${pending.sporcuAd} · Salı ${pending.saat} onaylandı — takvime işlendi`
-    : `${pending.sporcuAd} · Salı ${pending.saat} reddedildi — slot yeniden açıldı`;
-  return delay({ mesaj });
 }
 
-let musaitlik: MusaitlikGunu[] = [...MUSAITLIK_VARSAYILAN];
+export async function rezervasyonYanitla(rezervasyonId: string, cevap: 'onayla' | 'reddet'): Promise<{ mesaj: string }> {
+  const durum = cevap === 'onayla' ? 'onaylandi' : 'reddedildi';
+  const { data, error } = await supabase
+    .from('bireysel_rezervasyon')
+    .update({ durum })
+    .eq('id', rezervasyonId)
+    .select('saat, sporcu:sporcular(ad)')
+    .single();
+  if (error) throw error;
+  const row = data as unknown as { saat: string; sporcu: { ad: string } | null };
+  const ad = row.sporcu?.ad ?? '';
+  const mesaj = cevap === 'onayla' ? `${ad} · ${row.saat} onaylandı — takvime işlendi` : `${ad} · ${row.saat} reddedildi — slot yeniden açıldı`;
+  return { mesaj };
+}
+
+export async function rezervasyonSonuclandir(rezervasyonId: string, sonuc: 'tamamlandi' | 'gelmedi'): Promise<void> {
+  const { error } = await supabase
+    .from('bireysel_rezervasyon')
+    .update({ durum: sonuc, sonuc_zamani: new Date().toISOString() })
+    .eq('id', rezervasyonId);
+  if (error) throw error;
+}
+
 export async function getMusaitlik(): Promise<MusaitlikGunu[]> {
-  return delay(musaitlik);
-}
-export async function toggleMusaitlikGun(index: number): Promise<void> {
-  musaitlik = musaitlik.map((m, i) => (i === index ? { ...m, aktif: !m.aktif } : m));
-  await delay(null);
-}
-export async function musaitlikKaydet(): Promise<void> {
-  await delay(null);
+  const myId = await currentUserId();
+  if (!myId) return [];
+  const { data } = await supabase.from('bireysel_musaitlik').select('gun_index, baslangic_saat, bitis_saat, aktif').eq('antrenor_id', myId);
+  const rows = (data ?? []) as { gun_index: number; baslangic_saat: string; bitis_saat: string; aktif: boolean }[];
+  return GUN_ADLARI.map((gun, i) => {
+    const row = rows.find((r) => r.gun_index === i);
+    return { gun, saatAraligi: row && row.aktif ? `${row.baslangic_saat} – ${row.bitis_saat}` : 'Kapalı', aktif: row?.aktif ?? false };
+  });
 }
 
-let istisnalar: MusaitlikIstisna[] = [...ISTISNA_VARSAYILAN];
+export async function toggleMusaitlikGun(index: number): Promise<void> {
+  const myId = await currentUserId();
+  if (!myId) return;
+  const { data: existing } = await supabase.from('bireysel_musaitlik').select('id, aktif').eq('antrenor_id', myId).eq('gun_index', index).maybeSingle();
+  if (existing) {
+    const row = existing as { id: string; aktif: boolean };
+    await supabase.from('bireysel_musaitlik').update({ aktif: !row.aktif }).eq('id', row.id);
+  } else {
+    await supabase.from('bireysel_musaitlik').insert({ antrenor_id: myId, gun_index: index, baslangic_saat: '09:00', bitis_saat: '18:00', aktif: true });
+  }
+}
+
+export async function musaitlikKaydet(): Promise<void> {
+  // Değişiklikler her toggle'da zaten anında yazılıyor — bu buton yalnızca
+  // ekranı kapatıp onay mesajı gösteriyor (mock'taki davranışla birebir aynı).
+}
+
 export async function getIstisnalar(): Promise<MusaitlikIstisna[]> {
-  return delay(istisnalar);
+  const myId = await currentUserId();
+  if (!myId) return [];
+  const { data, error } = await supabase.from('bireysel_istisna').select('id, tarih, aciklama').eq('antrenor_id', myId).order('tarih');
+  if (error) throw error;
+  return ((data ?? []) as { id: string; tarih: string; aciklama: string | null }[]).map((r) => ({
+    id: r.id,
+    etiket: `${formatTarihUzun(r.tarih)} · ${r.aciklama ?? 'Tüm gün'}`,
+  }));
 }
-export async function istisnaEkle(etiket: string): Promise<void> {
-  istisnalar = [...istisnalar, { id: 'i' + Date.now(), etiket }];
-  await delay(null);
+
+export async function istisnaEkle(): Promise<void> {
+  const myId = await currentUserId();
+  if (!myId) return;
+  const nextSunday = toISO(weekDays()[6]);
+  const { error } = await supabase.from('bireysel_istisna').insert({ antrenor_id: myId, tarih: nextSunday, aciklama: 'Tüm gün' });
+  if (error && error.code !== '23505') throw error;
 }
+
 export async function istisnaSil(id: string): Promise<void> {
-  istisnalar = istisnalar.filter((i) => i.id !== id);
-  await delay(null);
+  const { error } = await supabase.from('bireysel_istisna').delete().eq('id', id);
+  if (error) throw error;
+}
+
+async function brutForMonth(myId: string, yil: number, ay: number): Promise<number> {
+  const ayBasi = toISO(new Date(yil, ay - 1, 1));
+  const ayBitis = toISO(new Date(yil, ay, 1));
+  const { data } = await supabase
+    .from('bireysel_rezervasyon')
+    .select('tutar')
+    .eq('antrenor_id', myId)
+    .eq('durum', 'tamamlandi')
+    .gte('tarih', ayBasi)
+    .lt('tarih', ayBitis);
+  return ((data ?? []) as { tutar: number }[]).reduce((a, r) => a + r.tutar, 0);
 }
 
 export async function getKazancAylar(): Promise<KazancAySecenegi[]> {
-  return delay(KAZANC_AYLAR);
+  const now = new Date();
+  const out: KazancAySecenegi[] = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push({ id: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, ad: AYLAR_TR2[d.getMonth()] });
+  }
+  return out;
 }
 
-export async function getKazancOzet(ayId: string): Promise<KazancOzet> {
-  const ay = KAZANC_HAM[ayId] ?? KAZANC_HAM.tem;
-  const pay = Math.round(ay.brut * 0.2);
-  const net = ay.brut - pay;
-  const toplamSeans = ay.tamam + ay.iptal + ay.noshow;
-  const pct = (n: number) => Math.round((n / toplamSeans) * 100);
-  const maxHafta = Math.max(...ay.haftalar.map((h) => h[1]));
+const BOS_KAZANC: KazancOzet = {
+  ayAd: '', ayAd2: '', net: '₺0', brut: '₺0', kulupPay: '₺0', odemeNotu: '', trend: '',
+  dersAdet: 0, saat: 0, ogrenci: 0, ortalamaDersUcret: '₺0', toplamSeans: 0,
+  tamamlanan: 0, tamamlananPct: 0, iptal: 0, iptalPct: 0, noshow: 0, noshowPct: 0, haftalar: [], altNot: '',
+};
 
-  const ozet: KazancOzet = {
-    ayAd: ay.ad,
-    ayAd2: ay.ad2,
+export async function getKazancOzet(ayId: string): Promise<KazancOzet> {
+  const myId = await currentUserId();
+  if (!myId) return BOS_KAZANC;
+
+  const [yilStr, ayStr] = ayId.split('-');
+  const yil = parseInt(yilStr, 10);
+  const ay = parseInt(ayStr, 10);
+  const ayBasiIso = toISO(new Date(yil, ay - 1, 1));
+  const ayBitisIso = toISO(new Date(yil, ay, 1));
+
+  const [{ data }, oncekiBrut] = await Promise.all([
+    supabase
+      .from('bireysel_rezervasyon')
+      .select('tarih, tutar, durum, sporcu_id')
+      .eq('antrenor_id', myId)
+      .gte('tarih', ayBasiIso)
+      .lt('tarih', ayBitisIso)
+      .in('durum', ['tamamlandi', 'iptal', 'gelmedi']),
+    brutForMonth(myId, ay === 1 ? yil - 1 : yil, ay === 1 ? 12 : ay - 1),
+  ]);
+  const rows = (data ?? []) as { tarih: string; tutar: number; durum: string; sporcu_id: string }[];
+
+  const tamamRows = rows.filter((r) => r.durum === 'tamamlandi');
+  const brut = tamamRows.reduce((a, r) => a + r.tutar, 0);
+  const pay = Math.round(brut * 0.2);
+  const net = brut - pay;
+  const dersAdet = tamamRows.length;
+  const ogrenci = new Set(tamamRows.map((r) => r.sporcu_id)).size;
+  const iptal = rows.filter((r) => r.durum === 'iptal').length;
+  const noshow = rows.filter((r) => r.durum === 'gelmedi').length;
+  const toplamSeans = dersAdet + iptal + noshow;
+  const pct = (n: number) => (toplamSeans > 0 ? Math.round((n / toplamSeans) * 100) : 0);
+
+  const haftaMap = new Map<number, number>();
+  tamamRows.forEach((r) => {
+    const gun = new Date(r.tarih + 'T00:00:00').getDate();
+    const haftaNo = Math.floor((gun - 1) / 7);
+    haftaMap.set(haftaNo, (haftaMap.get(haftaNo) ?? 0) + r.tutar);
+  });
+  const haftaGirdiler = Array.from(haftaMap.entries()).sort((a, b) => a[0] - b[0]);
+  const maxHafta = Math.max(1, ...haftaGirdiler.map(([, tutar]) => tutar));
+  const sonHafta = haftaGirdiler.length > 0 ? haftaGirdiler[haftaGirdiler.length - 1][0] : -1;
+  const haftalar = haftaGirdiler.map(([hafta, tutar]) => ({
+    ad: `Hafta ${hafta + 1}`,
+    val: '₺' + (tutar / 1000).toFixed(1).replace('.', ',') + 'b',
+    pct: Math.max(8, Math.round((tutar / maxHafta) * 78)),
+    aktif: hafta === sonHafta,
+  }));
+
+  const trend = oncekiBrut > 0 ? `${brut >= oncekiBrut ? '+' : ''}%${Math.round(((brut - oncekiBrut) / oncekiBrut) * 100)} · önceki aya göre` : '';
+
+  return {
+    ayAd: AYLAR_TR[ay - 1],
+    ayAd2: AYLAR_TR2[ay - 1],
     net: formatTL(net),
-    brut: formatTL(ay.brut),
+    brut: formatTL(brut),
     kulupPay: formatTL(pay),
-    odemeNotu: ay.odeme,
-    trend: ay.trend,
-    dersAdet: ay.ders,
-    saat: ay.ders,
-    ogrenci: ay.ogrenci,
-    ortalamaDersUcret: formatTL(Math.round(ay.brut / ay.ders)),
+    odemeNotu: "Hakediş her ayın 5'inde IBAN'ınıza aktarılır",
+    trend,
+    dersAdet,
+    saat: dersAdet,
+    ogrenci,
+    ortalamaDersUcret: dersAdet > 0 ? formatTL(Math.round(brut / dersAdet)) : '₺0',
     toplamSeans,
-    tamamlanan: ay.tamam,
-    tamamlananPct: pct(ay.tamam),
-    iptal: ay.iptal,
-    iptalPct: pct(ay.iptal),
-    noshow: ay.noshow,
-    noshowPct: pct(ay.noshow),
-    haftalar: ay.haftalar.map(([ad, tutar], i) => ({
-      ad,
-      val: '₺' + (tutar / 1000).toFixed(1).replace('.', ',') + 'b',
-      pct: Math.max(8, Math.round((tutar / maxHafta) * 78)),
-      aktif: i === ay.aktifHafta,
-    })),
-    altNot: ay.not,
+    tamamlanan: dersAdet,
+    tamamlananPct: pct(dersAdet),
+    iptal,
+    iptalPct: pct(iptal),
+    noshow,
+    noshowPct: pct(noshow),
+    haftalar,
+    altNot: 'No-show seanslarda ders ücreti tahsil edilir — hakedişinize dahildir',
   };
-  return delay(ozet);
 }

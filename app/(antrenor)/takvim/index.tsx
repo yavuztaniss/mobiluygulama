@@ -8,31 +8,34 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import {
-  getBekleyenRezervasyon,
+  getBekleyenRezervasyonlar,
   getBireyselTakvimHaftasi,
   getIstisnalar,
   getMusaitlik,
   istisnaEkle,
   istisnaSil,
   musaitlikKaydet,
+  rezervasyonSonuclandir,
   rezervasyonYanitla,
   toggleMusaitlikGun,
 } from '../../../src/data/bireyselRepo';
 import type { AntrenorTakvimGun, BekleyenRezervasyon, MusaitlikGunu, MusaitlikIstisna } from '../../../src/data/types-bireysel';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
-const AY = 'Temmuz';
+function bugunIndex(): number {
+  const day = new Date().getDay();
+  return day === 0 ? 6 : day - 1;
+}
 
 export default function TakvimScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { profile } = useAuth();
   const [hafta, setHafta] = useState<AntrenorTakvimGun[]>([]);
-  const [bekleyen, setBekleyen] = useState<BekleyenRezervasyon | null>(null);
-  const [gunIndex, setGunIndex] = useState(1);
+  const [bekleyenler, setBekleyenler] = useState<BekleyenRezervasyon[]>([]);
+  const [gunIndex, setGunIndex] = useState(bugunIndex());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [yaniti, setYaniti] = useState<{ tip: 'onay' | 'red'; metin: string } | null>(null);
   const { toastMessage, showToast } = useToast();
 
   const [musaitOn, setMusaitOn] = useState(false);
@@ -43,9 +46,9 @@ export default function TakvimScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [h, b] = await Promise.all([getBireyselTakvimHaftasi(), getBekleyenRezervasyon()]);
+      const [h, b] = await Promise.all([getBireyselTakvimHaftasi(), getBekleyenRezervasyonlar()]);
       setHafta(h);
-      setBekleyen(b);
+      setBekleyenler(b);
     } catch {
       setError('Takvim yüklenemedi.');
     } finally {
@@ -61,21 +64,26 @@ export default function TakvimScreen() {
 
   function pickGun(i: number) {
     setGunIndex(i);
-    setYaniti(null);
   }
 
-  async function onYanitla(cevap: 'onayla' | 'reddet') {
-    const { mesaj } = await rezervasyonYanitla(cevap);
-    setYaniti({ tip: cevap === 'onayla' ? 'onay' : 'red', metin: mesaj });
-    setBekleyen(null);
+  async function onYanitla(rezervasyonId: string, cevap: 'onayla' | 'reddet') {
+    const { mesaj } = await rezervasyonYanitla(rezervasyonId, cevap);
+    setBekleyenler((prev) => prev.filter((b) => b.id !== rezervasyonId));
     setHafta(await getBireyselTakvimHaftasi());
     showToast(mesaj);
   }
 
+  async function onSonuclandir(rezervasyonId: string, sonuc: 'tamamlandi' | 'gelmedi') {
+    await rezervasyonSonuclandir(rezervasyonId, sonuc);
+    setHafta(await getBireyselTakvimHaftasi());
+    showToast(sonuc === 'tamamlandi' ? 'Ders tamamlandı olarak işaretlendi' : 'Ders gelmedi olarak işaretlendi');
+  }
+
   function onBlokTap(blok: AntrenorTakvimGun['bloklar'][number]) {
     if (blok.tur === 'bos') { showToast('Boş slot — veliler bu saati rezerve edebilir'); return; }
-    if (blok.tur === 'kapali') { showToast('26 Temmuz istisna gün olarak kapatıldı'); return; }
+    if (blok.tur === 'kapali') { showToast('İstisna gün olarak kapatıldı'); return; }
     if (blok.tur === 'grup') { showToast('Grup antrenmanı detayı Bugün ekranında'); return; }
+    if (blok.sonuclandirilabilir) return;
     showToast(blok.baslik.split(' · ')[0] + ' ders detayı sonraki turlarda');
   }
 
@@ -92,7 +100,7 @@ export default function TakvimScreen() {
   }
 
   async function onIstisnaEkle() {
-    await istisnaEkle('2 Ağustos Pazar · Tüm gün');
+    await istisnaEkle();
     setIstisnalar(await getIstisnalar());
   }
 
@@ -141,7 +149,7 @@ export default function TakvimScreen() {
                   const on = i === gunIndex;
                   const kapali = g.bloklar.some((b) => b.tur === 'kapali');
                   const doluluk = g.bloklar.filter((b) => b.tur === 'grup' || b.tur === 'bireysel').length;
-                  const dotColor = kapali ? colors.danger : doluluk >= 4 ? colors.accent : doluluk >= 2 ? 'rgba(46,230,168,0.45)' : 'rgba(255,255,255,0.15)';
+                  const dotColor = kapali ? colors.danger : doluluk >= 4 ? colors.accent : doluluk >= 2 ? colors.accentBorder : colors.border;
                   return (
                     <Pressable key={g.gunNo} style={[styles.gunChip, on && styles.gunChipActive]} onPress={() => pickGun(i)}>
                       <Text style={[styles.gunAd, on && styles.gunAdActive]}>{g.gunAdi}</Text>
@@ -152,8 +160,8 @@ export default function TakvimScreen() {
                 })}
               </ScrollView>
 
-              {bekleyen && gunIndex === 1 && (
-                <View style={styles.rezvCard}>
+              {bekleyenler.map((bekleyen) => (
+                <View key={bekleyen.id} style={styles.rezvCard}>
                   <View style={styles.rezvTop}>
                     <View style={styles.liveDotWrap}>
                       <View style={styles.liveDot} />
@@ -170,30 +178,25 @@ export default function TakvimScreen() {
                     </View>
                   </View>
                   <View style={styles.rezvActions}>
-                    <Pressable style={styles.onaylaBtn} onPress={() => onYanitla('onayla')}>
+                    <Pressable style={styles.onaylaBtn} onPress={() => onYanitla(bekleyen.id, 'onayla')}>
                       <Text style={styles.onaylaBtnText}>Onayla</Text>
                     </Pressable>
-                    <Pressable style={styles.reddetBtn} onPress={() => onYanitla('reddet')}>
+                    <Pressable style={styles.reddetBtn} onPress={() => onYanitla(bekleyen.id, 'reddet')}>
                       <Text style={styles.reddetBtnText}>Reddet</Text>
                     </Pressable>
                   </View>
                 </View>
-              )}
-
-              {yaniti && gunIndex === 1 && (
-                <View style={[styles.sonucBanner, { borderColor: yaniti.tip === 'onay' ? 'rgba(46,230,168,0.3)' : 'rgba(255,107,122,0.3)' }]}>
-                  <Text style={[styles.sonucText, { color: yaniti.tip === 'onay' ? colors.accent : colors.danger }]}>{yaniti.metin}</Text>
-                </View>
-              )}
+              ))}
 
               <View style={styles.timelineHeader}>
-                <Text style={styles.timelineLabel}>{gun?.gunAdi.toUpperCase()} {gun?.gunNo} {AY.toUpperCase()} · GÜN GÖRÜNÜMÜ</Text>
+                <Text style={styles.timelineLabel}>{gun?.gunAdi.toUpperCase()} {gun?.gunNo} · GÜN GÖRÜNÜMÜ</Text>
                 <Text style={styles.timelineSummary}>{bireyselSayisi} bireysel · {grupSayisi} grup</Text>
               </View>
 
               <View style={{ gap: spacing.sm }}>
                 {gun?.bloklar.map((b) => (
-                  <View key={b.id} style={styles.timelineRow}>
+                  <View key={b.id} style={{ gap: 6 }}>
+                  <View style={styles.timelineRow}>
                     <Text style={styles.timelineSaat}>{b.saat}</Text>
                     <Pressable
                       style={[
@@ -209,11 +212,11 @@ export default function TakvimScreen() {
                       <View
                         style={[
                           styles.timelineBar,
-                          b.tur === 'grup' && { backgroundColor: '#2B4A8F' },
+                          b.tur === 'grup' && { backgroundColor: colors.info },
                           (b.tur === 'bireysel' && !b.bekliyor) && { backgroundColor: colors.accent },
                           b.bekliyor && { backgroundColor: colors.accent },
                           b.tur === 'kapali' && { backgroundColor: colors.danger },
-                          b.tur === 'bos' && { backgroundColor: 'rgba(255,255,255,0.14)' },
+                          b.tur === 'bos' && { backgroundColor: colors.border },
                         ]}
                       />
                       <View style={{ flex: 1, minWidth: 0 }}>
@@ -221,7 +224,7 @@ export default function TakvimScreen() {
                           style={[
                             styles.timelineTitle,
                             b.tur === 'kapali' && { color: colors.danger },
-                            b.tur === 'bos' && { color: colors.textFaint },
+                            b.tur === 'bos' && { color: colors.textDim },
                           ]}
                         >
                           {b.tur === 'bos' ? 'Boş slot' : b.baslik}
@@ -230,8 +233,8 @@ export default function TakvimScreen() {
                           style={[
                             styles.timelineSub,
                             b.bekliyor && { color: colors.warning },
-                            b.tur === 'kapali' && { color: colors.textFaint },
-                            b.tur === 'bos' && { color: colors.textFaint },
+                            b.tur === 'kapali' && { color: colors.textDim },
+                            b.tur === 'bos' && { color: colors.textDim },
                           ]}
                         >
                           {b.tur === 'bos' ? 'Bireysel derse açık' : b.sub}
@@ -240,21 +243,21 @@ export default function TakvimScreen() {
                       <View
                         style={[
                           styles.timelinePill,
-                          b.tur === 'grup' && { backgroundColor: 'rgba(43,74,143,0.45)' },
-                          (b.tur === 'bireysel' && !b.bekliyor) && { backgroundColor: 'rgba(46,230,168,0.12)' },
-                          b.bekliyor && { backgroundColor: 'rgba(255,180,84,0.14)' },
-                          b.tur === 'kapali' && { backgroundColor: 'rgba(255,107,122,0.14)' },
-                          b.tur === 'bos' && { backgroundColor: 'rgba(255,255,255,0.05)' },
+                          b.tur === 'grup' && { backgroundColor: colors.infoSoft },
+                          (b.tur === 'bireysel' && !b.bekliyor) && { backgroundColor: colors.accentSoft },
+                          b.bekliyor && { backgroundColor: colors.warningSoft },
+                          b.tur === 'kapali' && { backgroundColor: colors.dangerSoft },
+                          b.tur === 'bos' && { backgroundColor: colors.chip },
                         ]}
                       >
                         <Text
                           style={[
                             styles.timelinePillText,
-                            b.tur === 'grup' && { color: colors.iconMuted },
+                            b.tur === 'grup' && { color: colors.textMuted },
                             (b.tur === 'bireysel' && !b.bekliyor) && { color: colors.accent },
                             b.bekliyor && { color: colors.warning },
                             b.tur === 'kapali' && { color: colors.danger },
-                            b.tur === 'bos' && { color: colors.textFaint },
+                            b.tur === 'bos' && { color: colors.textDim },
                           ]}
                         >
                           {b.tur === 'grup' ? 'GRUP' : b.tur === 'kapali' ? 'İSTİSNA' : b.tur === 'bos' ? 'AÇIK' : b.bekliyor ? 'BEKLİYOR' : 'BİREYSEL'}
@@ -262,11 +265,22 @@ export default function TakvimScreen() {
                       </View>
                     </Pressable>
                   </View>
+                  {b.sonuclandirilabilir && b.rezervasyonId && (
+                    <View style={styles.sonuclandirRow}>
+                      <Pressable style={styles.tamamlandiBtn} onPress={() => onSonuclandir(b.rezervasyonId!, 'tamamlandi')}>
+                        <Text style={styles.tamamlandiBtnText}>✓ Tamamlandı</Text>
+                      </Pressable>
+                      <Pressable style={styles.gelmediBtn} onPress={() => onSonuclandir(b.rezervasyonId!, 'gelmedi')}>
+                        <Text style={styles.gelmediBtnText}>✕ Gelmedi</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  </View>
                 ))}
               </View>
 
               <View style={styles.legendRow}>
-                <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#2B4A8F' }]} /><Text style={styles.legendText}>Grup</Text></View>
+                <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.info }]} /><Text style={styles.legendText}>Grup</Text></View>
                 <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.accent }]} /><Text style={styles.legendText}>Bireysel</Text></View>
                 <View style={styles.legendItem}><View style={styles.legendDashed} /><Text style={styles.legendText}>Boş slot</Text></View>
               </View>
@@ -328,85 +342,90 @@ function createStyles(colors: AppColors) {
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   header: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
   brand: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white, marginTop: 3 },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright, marginTop: 3 },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
-  musaitBtn: { height: 44, paddingHorizontal: 15, borderRadius: 15, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: 'rgba(46,230,168,0.3)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  musaitBtn: { height: 44, paddingHorizontal: 15, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   musaitBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   gunRow: { gap: 6, paddingBottom: spacing.xs },
-  gunChip: { width: 52, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  gunChipActive: { backgroundColor: 'rgba(46,230,168,0.10)', borderColor: 'rgba(46,230,168,0.55)' },
-  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textFaint },
+  gunChip: { width: 52, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  gunChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textDim },
   gunAdActive: { color: colors.accent },
   gunNo: { fontFamily: fontFamily.archivoBold, fontSize: 15, color: colors.textMuted, marginTop: 2 },
-  gunNoActive: { color: colors.white },
+  gunNoActive: { color: colors.textBright },
   gunDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4 },
-  rezvCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: 'rgba(46,230,168,0.35)', backgroundColor: colors.navySurfaceAlt, padding: spacing.lg },
+  rezvCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.accentBorder, backgroundColor: colors.surface, padding: spacing.lg },
   rezvTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveDotWrap: { width: 8, height: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
   rezvLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
   rezvBody: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: spacing.md },
-  rezvAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  rezvAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 13, color: '#9FE8CE' },
-  rezvName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  rezvAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  rezvAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 13, color: avatarColorAt(0).avFg },
+  rezvName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   rezvDetay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   rezvActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   onaylaBtn: { flex: 1, height: 44, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  onaylaBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 13, color: colors.accentOnDark },
-  reddetBtn: { flex: 1, height: 44, borderRadius: 13, backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.dangerBorder, alignItems: 'center', justifyContent: 'center' },
+  onaylaBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 13, color: colors.onAccent },
+  reddetBtn: { flex: 1, height: 44, borderRadius: 13, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
   reddetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 13, color: colors.danger },
-  sonucBanner: { borderRadius: 18, borderWidth: 1, backgroundColor: colors.navySurface, paddingVertical: 13, paddingHorizontal: 15 },
+  sonucBanner: { borderRadius: 18, borderWidth: 1, backgroundColor: colors.panel, paddingVertical: 13, paddingHorizontal: 15 },
   sonucText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base },
   timelineHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  timelineLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, flexShrink: 1 },
-  timelineSummary: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
+  timelineLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, flexShrink: 1 },
+  timelineSummary: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   timelineRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
-  timelineSaat: { width: 42, textAlign: 'right', paddingTop: 11, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textFaint },
+  timelineSaat: { width: 42, textAlign: 'right', paddingTop: 11, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   timelineCard: { flex: 1, borderRadius: 16, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: 'transparent' },
-  timelineCardGrup: { backgroundColor: 'rgba(43,74,143,0.30)', borderColor: 'rgba(90,140,230,0.35)' },
-  timelineCardBireysel: { backgroundColor: 'rgba(46,230,168,0.09)', borderColor: 'rgba(46,230,168,0.3)' },
-  timelineCardBekliyor: { backgroundColor: 'rgba(46,230,168,0.09)', borderColor: 'rgba(255,180,84,0.45)' },
-  timelineCardKapali: { backgroundColor: 'rgba(255,107,122,0.06)', borderColor: 'rgba(255,107,122,0.25)' },
-  timelineCardBos: { backgroundColor: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.14)', borderStyle: 'dashed' },
+  timelineCardGrup: { backgroundColor: colors.infoSoft, borderColor: colors.info },
+  timelineCardBireysel: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  timelineCardBekliyor: { backgroundColor: colors.accentSoft, borderColor: colors.warning },
+  timelineCardKapali: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  timelineCardBos: { backgroundColor: colors.chip, borderColor: colors.border, borderStyle: 'dashed' },
   timelineBar: { width: 4, alignSelf: 'stretch', borderRadius: 2 },
-  timelineTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  timelineTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   timelineSub: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
   timelinePill: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill },
   timelinePillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5 },
+  sonuclandirRow: { flexDirection: 'row', gap: 7, marginLeft: 52 },
+  tamamlandiBtn: { flex: 1, height: 36, borderRadius: 11, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  tamamlandiBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 12, color: colors.accent },
+  gelmediBtn: { flex: 1, height: 36, borderRadius: 11, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
+  gelmediBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 12, color: colors.danger },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 13, marginTop: spacing.xs, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendDashed: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', borderStyle: 'dashed' },
+  legendDashed: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border, borderStyle: 'dashed' },
   legendText: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '85%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: spacing.sm },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.sm },
   sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
   musaitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 11 },
-  musaitRowOn: { backgroundColor: 'rgba(46,230,168,0.05)', borderColor: 'rgba(46,230,168,0.2)' },
-  musaitRowOff: { backgroundColor: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.07)' },
-  toggleTrack: { width: 40, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center' },
+  musaitRowOn: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  musaitRowOff: { backgroundColor: colors.chip, borderColor: colors.border },
+  toggleTrack: { width: 40, height: 24, borderRadius: 12, backgroundColor: colors.border, justifyContent: 'center' },
   toggleTrackOn: { backgroundColor: colors.accent },
   toggleThumb: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFFFFF', marginLeft: 3 },
   toggleThumbOn: { marginLeft: 19 },
-  musaitGun: { width: 34, fontFamily: fontFamily.manropeExtra, fontSize: 12.5, color: colors.textFaint },
-  musaitGunOn: { color: colors.white },
-  musaitSaat: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: 12.5, color: colors.textFaint },
-  musaitSaatOn: { color: '#9FE8CE' },
+  musaitGun: { width: 34, fontFamily: fontFamily.manropeExtra, fontSize: 12.5, color: colors.textDim },
+  musaitGunOn: { color: colors.textBright },
+  musaitSaat: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: 12.5, color: colors.textDim },
+  musaitSaatOn: { color: colors.accent },
   istisnaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.xs },
-  istisnaLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
-  istisnaEkleBtn: { backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 5, paddingHorizontal: 11, borderRadius: radius.pill },
+  istisnaLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  istisnaEkleBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 5, paddingHorizontal: 11, borderRadius: radius.pill },
   istisnaEkleBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.accent },
-  istisnaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.dangerBorder, padding: 11 },
+  istisnaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, padding: 11 },
   istisnaText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: 12.5, color: colors.danger },
-  istisnaSil: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textFaint },
+  istisnaSil: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textDim },
   musaitKaydetBtn: { marginTop: spacing.md, height: 50, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  musaitKaydetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accentOnDark },
+  musaitKaydetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   });
 }

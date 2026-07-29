@@ -1,132 +1,133 @@
-// Mockup'lardan (Yonetici/Veli/Antrenor .dc.html) çıkarılan renk paleti.
-// Anahtar adları tarihseldir ("navy*", "white") ama artık tema-bağımsız ROL isimleridir:
-// navyBg = ekran arka planı, white = birincil metin, navySurface = kart yüzeyi, vb.
-// Değerleri ThemeContext üzerinden `useColors()` ile okunan aktif temaya (dark/light) göre değişir.
+// Üretim kalitesinde renk sistemi — premium/güven veren/atletik/sakin/veri odaklı karakter.
+// Mint (`accent`) yalnızca güçlü vurgu, CTA, ilerleme ve aktif durumlarda kullanılır; ekranın
+// büyük bölümünü kaplamaz. Değerler ThemeContext üzerinden `useColors()` ile okunan aktif
+// temaya (dark/light) göre değişir. Tüm hex değerleri kaynak-gerçek olarak sabitlenmiştir —
+// buradaki dizin dışında hiçbir bileşende ham hex/rgba renk bulunmamalı.
 export interface AppColors {
-  navyBg: string;
-  navyBgGradientTop: string;
-  navySurface: string;
-  navySurfaceAlt: string;
-  navySheet: string;
-  navyChip: string;
-  navyBorder: string;
-  navyBorderStrong: string;
-  navyBorderSoft: string;
-  lightBg: string;
-  lightText: string;
-  lightTextHover: string;
-  lightTextMuted: string;
-  lightTextFaint: string;
-  lightBorder: string;
-  lightSurface: string;
+  // Accent (mint) — etkileşim durumlarıyla birlikte
   accent: string;
-  accentDark: string;
-  accentOnDark: string;
-  accentTint: string;
+  accentHover: string;
+  accentPressed: string;
+  accentSoft: string;
   accentBorder: string;
-  white: string;
+  onAccent: string;
+
+  // Yüzey hiyerarşisi (5 katman: kabuk → sayfa → panel → yükseltilmiş yüzey → chip)
+  bgDeep: string;
+  bgMid: string;
+  panel: string;
+  surface: string;
+  chip: string;
+
+  // Metin
+  textBright: string;
+  text: string;
   textMuted: string;
-  textFaint: string;
-  textFainter: string;
-  iconMuted: string;
+  textDim: string;
+
+  // Semantik durum renkleri
   danger: string;
-  dangerSoft: string;
-  dangerBg: string;
-  dangerBorder: string;
   warning: string;
+  info: string;
+  purple: string;
+  onDanger: string;
+  onWarning: string;
+  onInfo: string;
+  onPurple: string;
+  dangerSoft: string;
   warningSoft: string;
-  warningBg: string;
-  warningBorder: string;
+  infoSoft: string;
+  purpleSoft: string;
+
+  // Yapı
+  border: string;
+  divider: string;
+  focusRing: string;
+
+  // Zorunlu sette olmayan, yapısal olarak gerekli tek ek — modal/bottom-sheet arka perdesi.
+  scrim: string;
 }
 
 export const darkColors: AppColors = {
-  // Koyu (dashboard/kart) yüzeyler — Yönetici/Veli/Antrenör ana ekranları
-  navyBg: '#0A1628',
-  navyBgGradientTop: '#13284C',
-  navySurface: '#101F38',
-  navySurfaceAlt: '#152B50',
-  navySheet: '#0F1F3A',
-  navyChip: '#16294A',
-  navyBorder: 'rgba(255,255,255,0.06)',
-  navyBorderStrong: 'rgba(255,255,255,0.12)',
-  navyBorderSoft: 'rgba(255,255,255,0.07)',
+  accent: '#36E6AF',
+  accentHover: '#64F0C4',
+  accentPressed: '#1BCB94',
+  accentSoft: '#143E38',
+  accentBorder: '#2D9B7A',
+  onAccent: '#06221A',
 
-  // Açık (dış sayfa / liste) yüzeyler — sadece mockup galeri çerçevesinde kullanılıyor
-  lightBg: '#EBEAE5',
-  lightText: '#13233F',
-  lightTextHover: '#0A1628',
-  lightTextMuted: '#6D6B64',
-  lightTextFaint: '#8A887F',
-  lightBorder: '#D9D7CF',
-  lightSurface: 'rgba(255,255,255,0.92)',
+  bgDeep: '#061923',
+  bgMid: '#0A2530',
+  panel: '#0F303D',
+  surface: '#153C4A',
+  chip: '#1B4A59',
 
-  // Accent
-  accent: '#2EE6A8',
-  accentDark: '#0A8F63',
-  accentOnDark: '#052117',
-  accentTint: 'rgba(46,230,168,0.10)',
-  accentBorder: 'rgba(46,230,168,0.45)',
+  textBright: '#F2FBF8',
+  text: '#C7DCD8',
+  textMuted: '#B0CAC5',
+  textDim: '#9BB8B3',
 
-  // Metin (koyu zemin üstünde)
-  white: '#FFFFFF',
-  textMuted: '#8FA0B8',
-  textFaint: '#5D708C',
-  textFainter: '#7E90AB',
-  iconMuted: '#C7D3E6',
+  danger: '#FF7482',
+  warning: '#FFC266',
+  info: '#63C5FF',
+  purple: '#B9A0FF',
 
-  // Durum
-  danger: '#FF6B7A',
-  dangerSoft: '#FF8A96',
-  dangerBg: 'rgba(255,107,122,0.13)',
-  dangerBorder: 'rgba(255,107,122,0.35)',
-  warning: '#FFB454',
-  warningSoft: '#FFD9A0',
-  warningBg: 'rgba(255,180,84,0.14)',
-  warningBorder: 'rgba(255,180,84,0.35)',
+  onDanger: '#340A12',
+  onWarning: '#302000',
+  onInfo: '#062435',
+  onPurple: '#1E1440',
+
+  dangerSoft: '#3A1A22',
+  warningSoft: '#3B2B10',
+  infoSoft: '#143548',
+  purpleSoft: '#2E234B',
+
+  border: '#274B58',
+  divider: '#1B3B47',
+  focusRing: '#64F0C4',
+
+  scrim: 'rgba(3,12,17,0.7)',
 };
 
 export const lightColors: AppColors = {
-  navyBg: '#F2F1EC',
-  navyBgGradientTop: '#FFFFFF',
-  navySurface: '#FFFFFF',
-  navySurfaceAlt: '#E9FAF3',
-  navySheet: '#FFFFFF',
-  navyChip: '#F1F3F2',
-  navyBorder: 'rgba(15,23,42,0.08)',
-  navyBorderStrong: 'rgba(15,23,42,0.18)',
-  navyBorderSoft: 'rgba(15,23,42,0.10)',
+  accent: '#007A5A',
+  accentHover: '#00684D',
+  accentPressed: '#005B43',
+  accentSoft: '#D9F4EA',
+  accentBorder: '#8CD5BF',
+  onAccent: '#FFFFFF',
 
-  lightBg: '#EBEAE5',
-  lightText: '#13233F',
-  lightTextHover: '#0A1628',
-  lightTextMuted: '#6D6B64',
-  lightTextFaint: '#8A887F',
-  lightBorder: '#D9D7CF',
-  lightSurface: 'rgba(255,255,255,0.92)',
+  bgDeep: '#EDF5F5',
+  bgMid: '#E2EEEE',
+  panel: '#FFFFFF',
+  surface: '#F7FBFA',
+  chip: '#DCEBEB',
 
-  accent: '#0E9F6E',
-  accentDark: '#0A8F63',
-  accentOnDark: '#FFFFFF',
-  accentTint: 'rgba(14,159,110,0.10)',
-  accentBorder: 'rgba(14,159,110,0.4)',
+  textBright: '#08232B',
+  text: '#1B3B42',
+  textMuted: '#3F5F65',
+  textDim: '#4D676C',
 
-  white: '#101828',
-  textMuted: '#5B6472',
-  textFaint: '#8A94A6',
-  textFainter: '#A7B0BE',
-  iconMuted: '#475569',
+  danger: '#C53347',
+  warning: '#8A5200',
+  info: '#006FAE',
+  purple: '#6746C4',
 
-  danger: '#E11D48',
-  dangerSoft: '#BE123C',
-  dangerBg: 'rgba(225,29,72,0.10)',
-  dangerBorder: 'rgba(225,29,72,0.35)',
-  warning: '#B45309',
-  warningSoft: '#92400E',
-  warningBg: 'rgba(217,119,6,0.12)',
-  warningBorder: 'rgba(217,119,6,0.35)',
+  onDanger: '#FFFFFF',
+  onWarning: '#FFFFFF',
+  onInfo: '#FFFFFF',
+  onPurple: '#FFFFFF',
+
+  dangerSoft: '#FBE8EB',
+  warningSoft: '#FFF1D6',
+  infoSoft: '#E5F2FB',
+  purpleSoft: '#EFE9FB',
+
+  border: '#C5DADA',
+  divider: '#D8E6E5',
+  focusRing: '#007A5A',
+
+  scrim: 'rgba(8,35,43,0.4)',
 };
 
 export type ColorToken = keyof AppColors;
-
-/** @deprecated Statik değil — ekranlarda `useColors()` kullan. Sadece tema-dışı yerler için (ör. splash). */
-export const colors = darkColors;

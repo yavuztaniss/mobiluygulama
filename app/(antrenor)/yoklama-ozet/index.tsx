@@ -8,7 +8,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { getVeliBildirimleri, getYoklamaSatirlari } from '../../../src/data/antrenorRepo';
 import type { VeliBildirimi, YoklamaSatiri } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 function getDurumMeta(colors: AppColors): Record<VeliBildirimi['durum'], { label: string; color: string }> {
   return {
@@ -80,7 +80,7 @@ export default function YoklamaOzetScreen() {
             <View style={styles.heroCard}>
               <View style={{ width: size, height: size }}>
                 <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: [{ rotate: '-90deg' }] }}>
-                  <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1B2E4F" strokeWidth={8} fill="none" />
+                  <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.border} strokeWidth={8} fill="none" />
                   <Circle
                     cx={size / 2}
                     cy={size / 2}
@@ -172,37 +172,37 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs, paddingBottom: spacing.xxl },
-  heroCard: { flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: radius.xxl, backgroundColor: colors.navySurfaceAlt, borderWidth: 1, borderColor: colors.navyBorderSoft, padding: spacing.lg, marginBottom: spacing.sm },
+  heroCard: { flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: radius.xxl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, marginBottom: spacing.sm },
   heroPctWrap: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' },
-  heroPct: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.white },
+  heroPct: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.textBright },
   heroLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  heroSub: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: 5 },
-  heroMiss: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.dangerSoft, marginTop: 8 },
+  heroSub: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: 5 },
+  heroMiss: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.danger, marginTop: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
-  sectionCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
-  notifRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 11 },
-  notifIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
-  notifVeli: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.white },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  sectionCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
+  notifRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 11 },
+  notifIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  notifVeli: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
   notifSub: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textMuted, marginTop: 1 },
   notifStatus: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5 },
-  notifTime: { fontFamily: fontFamily.manropeSemi, fontSize: 10, color: colors.textFaint, marginTop: 2 },
-  callBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
-  smsNote: { borderRadius: 14, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: 'rgba(46,230,168,0.16)', padding: 11, marginTop: spacing.xs },
+  notifTime: { fontFamily: fontFamily.manropeSemi, fontSize: 10, color: colors.textDim, marginTop: 2 },
+  callBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  smsNote: { borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11, marginTop: spacing.xs },
   smsNoteText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.accent },
-  servisRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 11 },
-  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 12.5, color: '#9FE8CE' },
-  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  servisRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 11 },
+  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 12.5, color: avatarColorAt(0).avFg },
+  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   servisSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   servisBtn: { backgroundColor: colors.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12 },
-  servisBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accentOnDark },
-  servisOkBadge: { width: 32, height: 32, borderRadius: 11, backgroundColor: colors.accentTint, alignItems: 'center', justifyContent: 'center' },
+  servisBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
+  servisOkBadge: { width: 32, height: 32, borderRadius: 11, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   servisOkText: { color: colors.accent, fontFamily: fontFamily.archivoBold },
   });
 }

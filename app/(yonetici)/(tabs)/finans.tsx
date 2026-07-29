@@ -229,7 +229,7 @@ export default function FinansScreen() {
                         <View key={m.ay} style={styles.ggBarCol}>
                           <View style={styles.ggBarPair}>
                             <View style={[styles.ggBar, { height: (m.gelir / maxV) * 84, backgroundColor: colors.accent }]} />
-                            <View style={[styles.ggBar, { height: (m.gider / maxV) * 84, backgroundColor: 'rgba(255,107,122,0.8)' }]} />
+                            <View style={[styles.ggBar, { height: (m.gider / maxV) * 84, backgroundColor: colors.danger }]} />
                           </View>
                           <Text style={styles.ggBarLabel}>{m.ay}</Text>
                         </View>
@@ -245,7 +245,7 @@ export default function FinansScreen() {
                     <View style={styles.kategoriList}>
                       {ozet.kategoriler.map((k) => (
                         <View key={k.ad} style={styles.kategoriRow}>
-                          <View style={[styles.kategoriDot, { backgroundColor: k.renk }]} />
+                          <View style={[styles.kategoriDot, { backgroundColor: colors[k.renkAnahtar] }]} />
                           <Text style={styles.kategoriAd}>{k.ad}</Text>
                           <Text style={styles.kategoriTutar}>{k.tutar}</Text>
                           <Text style={styles.kategoriPct}>{k.pct}</Text>
@@ -374,7 +374,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-function DonutChart({ kategoriler, toplam }: { kategoriler: { pct: string; renk: string }[]; toplam: string }) {
+function DonutChart({ kategoriler, toplam }: { kategoriler: { pct: string; renkAnahtar: 'accent' | 'info' | 'warning' | 'purple' }[]; toplam: string }) {
   const colors = useColors();
   const styles = createStyles(colors);
   const size = 108;
@@ -384,7 +384,7 @@ function DonutChart({ kategoriler, toplam }: { kategoriler: { pct: string; renk:
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: [{ rotate: '-90deg' }] }}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1B2E4F" strokeWidth={14} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.border} strokeWidth={14} fill="none" />
         {kategoriler.map((k, i) => {
           const frac = parseInt(k.pct.replace('%', ''), 10) / 100;
           const dash = frac * circumference;
@@ -394,7 +394,7 @@ function DonutChart({ kategoriler, toplam }: { kategoriler: { pct: string; renk:
               cx={size / 2}
               cy={size / 2}
               r={r}
-              stroke={k.renk}
+              stroke={colors[k.renkAnahtar]}
               strokeWidth={14}
               fill="none"
               strokeDasharray={`${dash} ${circumference}`}
@@ -417,42 +417,42 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.lg, paddingBottom: 0 },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 3 },
   payBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, backgroundColor: colors.accent },
-  payBtnIcon: { fontFamily: fontFamily.archivoBold, fontSize: 14, color: colors.accentOnDark },
-  payBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accentOnDark },
-  segmentRow: { flexDirection: 'row', margin: spacing.lg, marginBottom: 0, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, borderRadius: 16, padding: 4 },
+  payBtnIcon: { fontFamily: fontFamily.archivoBold, fontSize: 14, color: colors.onAccent },
+  payBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
+  segmentRow: { flexDirection: 'row', margin: spacing.lg, marginBottom: 0, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
   segmentItemActive: { backgroundColor: colors.accent },
   segmentText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  segmentTextActive: { color: colors.accentOnDark },
+  segmentTextActive: { color: colors.onAccent },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   planRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   planMid: { flex: 1, minWidth: 0 },
-  planAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.white },
+  planAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textBright },
   planAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  planFiyat: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
-  chevron: { color: colors.textFaint, fontSize: 16 },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: spacing.sm },
+  planFiyat: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
+  chevron: { color: colors.textDim, fontSize: 16 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   planFooter: { flexDirection: 'row', justifyContent: 'space-between' },
-  planFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint },
+  planFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
   planFooterValue: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   dashedAdd: {
-    borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong,
+    borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border,
     padding: spacing.lg, alignItems: 'center', justifyContent: 'center',
   },
   dashedAddText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted },
-  tahsilatGrupLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, paddingTop: spacing.sm },
-  tahsilatRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
-  tahsilatIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
-  tahsilatAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.white },
+  tahsilatGrupLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, paddingTop: spacing.sm },
+  tahsilatRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
+  tahsilatIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  tahsilatAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   tahsilatSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   tahsilatTutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.accent },
   tahsilatFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.sm },
-  tahsilatFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
-  tahsilatFooterValue: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  tahsilatFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
+  tahsilatFooterValue: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   ggHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   legendRow: { flexDirection: 'row', gap: spacing.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -465,45 +465,45 @@ function createStyles(colors: AppColors) {
   ggBarLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textMuted },
   donutRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: spacing.md },
   donutCenter: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' },
-  donutValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
-  donutLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textFaint },
+  donutValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
+  donutLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
   kategoriList: { flex: 1, gap: 9 },
   kategoriRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kategoriDot: { width: 8, height: 8, borderRadius: 4 },
-  kategoriAd: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.iconMuted },
+  kategoriAd: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   kategoriTutar: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
-  kategoriPct: { width: 34, textAlign: 'right', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.white },
-  ggSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
-  ggSummaryLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.iconMuted },
-  ggSummaryNote: { fontSize: 10.5, color: colors.textFaint },
+  kategoriPct: { width: 34, textAlign: 'right', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textBright },
+  ggSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  ggSummaryLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted },
+  ggSummaryNote: { fontSize: 10.5, color: colors.textDim },
   ggSummaryValue: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md },
-  ggSummaryLabelBold: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  ggSummaryLabelBold: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   ggSummaryValueBold: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg },
-  payBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
+  payBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   paySheet: {
-    backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '88%',
+    backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '88%',
   },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  paySheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.md, marginBottom: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, marginBottom: spacing.xs },
-  sporcuPick: { flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, borderRadius: 16, padding: 12 },
-  sporcuPickAvatar: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.dangerBg, alignItems: 'center', justifyContent: 'center' },
-  sporcuPickAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.dangerSoft },
-  sporcuPickName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.white },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  paySheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md, marginBottom: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: spacing.xs },
+  sporcuPick: { flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 12 },
+  sporcuPickAvatar: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' },
+  sporcuPickAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.danger },
+  sporcuPickName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   sporcuPickSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   changeLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   yontemRow: { flexDirection: 'row', gap: spacing.xs },
-  yontemChip: { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  yontemChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  yontemChip: { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  yontemChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   yontemChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   yontemChipTextActive: { color: colors.accent },
   paySheetNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-start', padding: spacing.lg, paddingTop: 180 },
-  sheet: { backgroundColor: colors.navySurfaceAlt, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.sm, maxWidth: 300 },
-  sheetTitle: { fontFamily: fontFamily.mono, fontSize: 9.5, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, padding: spacing.sm },
+  modalBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-start', padding: spacing.lg, paddingTop: 180 },
+  sheet: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, maxWidth: 300 },
+  sheetTitle: { fontFamily: fontFamily.mono, fontSize: 9.5, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, padding: spacing.sm },
   sheetRow: { padding: spacing.sm, borderRadius: radius.sm },
-  sheetRowTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.white },
-  sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textFainter },
+  sheetRowTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
+  sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   });
 }

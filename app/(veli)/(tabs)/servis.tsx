@@ -6,29 +6,33 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { Card } from '../../../src/components/Card';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
-import { getKonusmalar, getServisTakip } from '../../../src/data/veliRepo';
+import { useChild } from '../../../src/context/ChildContext';
+import { getServisTakip } from '../../../src/data/veliRepo';
+import { getKonusmalar } from '../../../src/data/mesajRepo';
 import type { ServisTakip } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function ServisScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { selectedChildId } = useChild();
   const [takip, setTakip] = useState<ServisTakip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
 
   const load = useCallback(async () => {
+    if (!selectedChildId) return;
     setLoading(true);
     setError(null);
     try {
-      setTakip(await getServisTakip());
+      setTakip(await getServisTakip(selectedChildId));
     } catch {
       setError('Servis bilgisi yüklenemedi.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedChildId]);
 
   useEffect(() => {
     load();
@@ -60,6 +64,11 @@ export default function ServisScreen() {
 
         {loading && <LoadingState label="Yükleniyor…" />}
         {!loading && error && <ErrorState message={error} onRetry={load} />}
+        {!loading && !error && !takip && (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyBoxText}>Bu sporcu için servis kaydı bulunmuyor.</Text>
+          </View>
+        )}
 
         {!loading && !error && takip && (
           <ScrollView contentContainerStyle={styles.scroll}>
@@ -130,38 +139,40 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: 0 },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.accentTint },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
   liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent, letterSpacing: 0.5 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  mapBox: { height: 160, borderRadius: radius.xxl, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center', gap: 8, position: 'relative' },
+  emptyBox: { margin: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, alignItems: 'center' },
+  emptyBoxText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, textAlign: 'center' },
+  mapBox: { height: 160, borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 8, position: 'relative' },
   busDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.accent },
   mapText: { fontFamily: fontFamily.mono, fontSize: 9.5, letterSpacing: 1, color: colors.textMuted },
-  hatBadge: { position: 'absolute', top: 10, left: 10, right: 10, backgroundColor: 'rgba(19,35,63,0.92)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
-  hatBadgeText: { fontFamily: fontFamily.manropeBold, fontSize: 11, color: colors.iconMuted },
+  hatBadge: { position: 'absolute', top: 10, left: 10, right: 10, backgroundColor: colors.scrim, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
+  hatBadgeText: { fontFamily: fontFamily.manropeBold, fontSize: 11, color: colors.textMuted },
   etaRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  etaLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  etaLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   etaValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 3 },
   etaValue: { fontFamily: fontFamily.archivoBold, fontSize: 34, color: colors.accent, letterSpacing: -1 },
   etaUnit: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textMuted },
   etaNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  busStatus: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white, marginTop: 6 },
+  busStatus: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright, marginTop: 6 },
   busStop: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  progressTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: spacing.md, overflow: 'hidden' },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.border, marginTop: spacing.md, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: colors.accent },
   progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textFaint },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: spacing.md },
+  progressLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   soforRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  soforAvatar: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  soforAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: '#9FE8CE' },
-  soforName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  soforAvatar: { width: 42, height: 42, borderRadius: 15, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  soforAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
+  soforName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   soforSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  iconBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.navyChip, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   callBtnMain: { height: 44, paddingHorizontal: 18, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  callBtnMainText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accentOnDark },
-  confirmBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: 'rgba(46,230,168,0.18)', padding: 12 },
+  callBtnMainText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
+  confirmBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
   confirmText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
   });
 }

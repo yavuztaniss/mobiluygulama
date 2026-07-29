@@ -19,12 +19,12 @@ export function Button({ label, variant = 'primary', loading, disabled, ...props
         styles.base,
         isPrimary ? styles.primary : styles.secondary,
         (disabled || loading) && styles.disabled,
-        pressed && styles.pressed,
+        pressed && (isPrimary ? styles.primaryPressed : styles.pressed),
       ]}
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.accentOnDark : colors.accent} />
+        <ActivityIndicator color={isPrimary ? colors.onAccent : colors.accent} />
       ) : (
         <Text style={isPrimary ? styles.primaryText : styles.secondaryText}>{label}</Text>
       )}
@@ -47,7 +47,7 @@ function createStyles(colors: AppColors) {
     secondary: {
       backgroundColor: 'transparent',
       borderWidth: 1,
-      borderColor: colors.navyBorderStrong,
+      borderColor: colors.border,
     },
     disabled: {
       opacity: 0.5,
@@ -55,13 +55,16 @@ function createStyles(colors: AppColors) {
     pressed: {
       opacity: 0.85,
     },
+    primaryPressed: {
+      backgroundColor: colors.accentPressed,
+    },
     primaryText: {
-      color: colors.accentOnDark,
+      color: colors.onAccent,
       fontFamily: fontFamily.manropeExtra,
       fontSize: fontSize.md,
     },
     secondaryText: {
-      color: colors.white,
+      color: colors.text,
       fontFamily: fontFamily.manropeSemi,
       fontSize: fontSize.md,
     },

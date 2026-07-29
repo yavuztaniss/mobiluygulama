@@ -13,9 +13,9 @@ import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from
 
 function getGunRenk(colors: AppColors): Record<string, { bg: string; c: string }> {
   return {
-    katildi: { bg: colors.accentTint, c: colors.accent },
-    gelmedi: { bg: colors.dangerBg, c: colors.danger },
-    planli: { bg: 'transparent', c: colors.textFaint },
+    katildi: { bg: colors.accentSoft, c: colors.accent },
+    gelmedi: { bg: colors.dangerSoft, c: colors.danger },
+    planli: { bg: 'transparent', c: colors.textDim },
   };
 }
 
@@ -181,7 +181,7 @@ export default function SporcuDetayScreen() {
                 <View style={styles.legendRow}>
                   <LegendDot color={colors.accent} label="Katıldı" />
                   <LegendDot color={colors.danger} label="Gelmedi" />
-                  <LegendDot color={colors.textFaint} label="Planlı" />
+                  <LegendDot color={colors.textDim} label="Planlı" />
                 </View>
               </View>
               <View style={styles.calGrid}>
@@ -289,7 +289,7 @@ function FormField(props: { label: string; value: string; onChangeText: (v: stri
         value={props.value}
         onChangeText={props.onChangeText}
         placeholder={props.placeholder}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textDim}
         keyboardType={props.keyboardType}
         style={styles.input}
       />
@@ -313,41 +313,41 @@ function createStyles(colors: AppColors) {
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
   backBtn: {
-    width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft,
+    width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { flex: 1, fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { flex: 1, fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   editLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accent },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xxl },
   profileCard: {},
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar: { width: 58, height: 58, borderRadius: 19, backgroundColor: 'rgba(90,167,255,0.13)', alignItems: 'center', justifyContent: 'center' },
-  avatarDanger: { backgroundColor: colors.dangerBg },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.dangerSoft },
+  avatar: { width: 58, height: 58, borderRadius: 19, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' },
+  avatarDanger: { backgroundColor: colors.dangerSoft },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.danger },
   profileMid: { flex: 1, minWidth: 0 },
-  profileName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white },
+  profileName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
   profileSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
-  badgeDanger: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.dangerBg },
+  badgeDanger: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.dangerSoft },
   badgeDangerText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.danger },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: spacing.md },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   veliRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  veliAvatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
-  veliAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.iconMuted },
-  veliName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.white },
+  veliAvatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  veliAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.textMuted },
+  veliName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   veliInfo: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   iconBtn: {
-    width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder,
+    width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder,
     alignItems: 'center', justifyContent: 'center',
   },
   iconBtnText: { fontSize: 16 },
   statsGrid: { flexDirection: 'row', gap: spacing.sm },
   statCard: { flex: 1, alignItems: 'center', gap: 4 },
-  statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
-  statLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textFaint },
+  statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
+  statLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
   sectionCard: { gap: spacing.sm },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   legendRow: { flexDirection: 'row', gap: spacing.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
@@ -355,27 +355,27 @@ function createStyles(colors: AppColors) {
   calGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.sm },
   calCell: { width: '12.5%', height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   calCellText: { fontFamily: fontFamily.manropeBold, fontSize: 10 },
-  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
+  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   paymentIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  paymentIconDanger: { backgroundColor: colors.dangerBg },
-  paymentIconOk: { backgroundColor: colors.accentTint },
-  paymentTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.white },
+  paymentIconDanger: { backgroundColor: colors.dangerSoft },
+  paymentIconOk: { backgroundColor: colors.accentSoft },
+  paymentTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   paymentDetail: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   paymentDetailDanger: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.danger, marginTop: 1 },
-  paymentTutar: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.white },
+  paymentTutar: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.textBright },
   paymentAction: { alignItems: 'flex-end', gap: 6 },
   remindBtn: { paddingVertical: 7, paddingHorizontal: 11, borderRadius: 11, backgroundColor: colors.accent },
-  remindBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accentOnDark },
-  noteBox: { backgroundColor: colors.navyChip, borderWidth: 1, borderColor: colors.navyBorder, borderRadius: 16, padding: 13, marginTop: spacing.xs },
-  noteText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.iconMuted, lineHeight: 19 },
-  noteMeta: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint, marginTop: spacing.xs },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '85%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, marginBottom: 7 },
-  input: { backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.white, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
+  remindBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
+  noteBox: { backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 13, marginTop: spacing.xs },
+  noteText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, lineHeight: 19 },
+  noteMeta: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim, marginTop: spacing.xs },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
+  saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   });
 }

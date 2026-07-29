@@ -6,14 +6,14 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { LoadingState, ErrorState, EmptyState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
-import { getKonusmalar, getRehber, sohbetBaslat } from '../../../src/data/veliRepo';
-import type { Konusma, RehberKisi } from '../../../src/data/types-veli';
+import { getKonusmalar, getRehber, sohbetBaslat } from '../../../src/data/mesajRepo';
+import type { KonusmaSatir, RehberKisi } from '../../../src/data/types-mesaj';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
 export default function MesajlarScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const [konusmalar, setKonusmalar] = useState<Konusma[]>([]);
+  const [konusmalar, setKonusmalar] = useState<KonusmaSatir[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -53,9 +53,9 @@ export default function MesajlarScreen() {
   async function onSecKisi(kisi: RehberKisi) {
     setBaslatiliyorId(kisi.id);
     try {
-      const konusma = await sohbetBaslat(kisi.id);
+      const konusmaId = await sohbetBaslat(kisi.id);
       setRehberOpen(false);
-      router.push(`/mesajlar/${konusma.id}`);
+      router.push(`/mesajlar/${konusmaId}`);
     } finally {
       setBaslatiliyorId(null);
     }
@@ -82,7 +82,7 @@ export default function MesajlarScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder="Sohbetlerde ara"
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.textDim}
               value={search}
               onChangeText={setSearch}
             />
@@ -118,7 +118,7 @@ export default function MesajlarScreen() {
                       <Text style={styles.convName}>{k.ad}</Text>
                       <Text style={styles.convTime}>{k.zaman}</Text>
                     </View>
-                    <Text style={[styles.convRole, { color: k.roleColor }]}>{k.role}</Text>
+                    <Text style={styles.convRole}>{k.role}</Text>
                     <View style={styles.convBottomRow}>
                       <Text style={styles.convLast} numberOfLines={1}>{k.son}</Text>
                       {k.unread > 0 && (
@@ -155,7 +155,7 @@ export default function MesajlarScreen() {
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.rehberAd}>{k.ad}</Text>
-                      <Text style={[styles.rehberRol, { color: k.roleColor }]}>{k.role}</Text>
+                      <Text style={styles.rehberRol}>{k.role}</Text>
                     </View>
                     {baslatiliyorId === k.id && <Text style={styles.rehberLoading}>Açılıyor…</Text>}
                   </Pressable>
@@ -176,41 +176,41 @@ function createStyles(colors: AppColors) {
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
-  newBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 44, borderRadius: 15, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, paddingHorizontal: 14 },
-  searchInput: { flex: 1, color: colors.white, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
-  pinnedCard: { borderRadius: 22, backgroundColor: 'rgba(18,58,46,0.6)', borderWidth: 1, borderColor: 'rgba(46,230,168,0.25)', padding: 15 },
+  newBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 44, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14 },
+  searchInput: { flex: 1, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
+  pinnedCard: { borderRadius: 22, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 15 },
   pinnedTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pinnedIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.accentTint, alignItems: 'center', justifyContent: 'center' },
-  pinnedTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  pinnedIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  pinnedTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   pinnedSub: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textMuted },
-  pinnedTime: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint },
-  pinnedMsg: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.iconMuted, marginTop: spacing.sm, lineHeight: 18 },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textFaint, marginTop: spacing.sm },
-  convRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
+  pinnedTime: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  pinnedMsg: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 18 },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm },
+  convRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
   convAvatar: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   convAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md },
   convTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  convName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
-  convTime: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint },
-  convRole: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, marginTop: 1 },
+  convName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
+  convTime: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  convRole: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, marginTop: 1, color: colors.accent },
   convBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
   convLast: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   unreadBadge: { minWidth: 19, height: 19, borderRadius: 10, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  unreadBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accentOnDark },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textFaint, marginTop: spacing.md },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '75%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: spacing.md },
+  unreadBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.md },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '75%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
   sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  rehberRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 12, marginTop: spacing.xs },
+  rehberRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 12, marginTop: spacing.xs },
   rehberAvatar: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   rehberAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm },
-  rehberAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
-  rehberRol: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, marginTop: 1 },
+  rehberAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
+  rehberRol: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, marginTop: 1, color: colors.accent },
   rehberLoading: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent },
   });
 }

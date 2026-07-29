@@ -58,7 +58,7 @@ function createStyles(colors: AppColors) {
     emptyTitle: {
       fontFamily: fontFamily.manropeSemi,
       fontSize: fontSize.md,
-      color: colors.white,
+      color: colors.textBright,
     },
     errorTitle: {
       fontFamily: fontFamily.archivoSemi,

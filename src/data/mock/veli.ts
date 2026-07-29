@@ -1,14 +1,5 @@
 import type { ChildId } from '../../context/ChildContext';
-import type {
-  AnaSayfaOzet,
-  Bildirim,
-  IznAntrenman,
-  Konusma,
-  MagazaUrunVeli,
-  RehberKisi,
-  ServisTakip,
-  VeliProfil,
-} from '../types-veli';
+import type { AnaSayfaOzet, Bildirim, VeliProfil } from '../types-veli';
 
 // supabase/migrations/0004_kurum_ve_sporcular.sql'de Ali/Zeynep Kaya (Küme A)
 // için sabitlenmiş gerçek uuid'ler — Faz 1'de ChildContext artık bunları
@@ -60,52 +51,16 @@ export const ANA_SAYFA: Record<ChildId, AnaSayfaOzet> = {
 // Not: yoklama/gelişim (skills/calDays/pct) artık `yoklama`/`gelisim_degerlendirme` tablolarından
 // canlı okunuyor (bkz. veliRepo.getYoklamaGelisim) — burada ayrı bir mock kopya tutulmuyor.
 
-export const SERVIS_TAKIP: ServisTakip = {
-  hatAdi: 'Akşam Servisi · Hat 3',
-  plaka: '34 KS 1907',
-  soforAdi: 'Hasan Yıldız',
-  soforInit: 'HY',
-  etaMin: 14,
-  etaClock: '18:05',
-  durum: 'Yolda',
-  suankiDurak: 'Bostanlı İskele',
-  routePct: 62,
-  stopsLeft: 2,
-  bindiMesaji: "Ali 17:42'de servise bindi — Mert Hoca onayladı",
-};
+// SERVIS_TAKIP Faz 6'da kalktı — bkz. veliRepo.getServisTakip (gerçek `servis_rota`/
+// `servis_durak`/`servis_sporcu` tabloları). MAGAZA_KATEGORILER/MAGAZA_URUNLER Faz 6'da
+// kalktı — bkz. magazaRepo.ts (gerçek `urun` tablosu, Yönetici ile aynı katalog).
 
-export const MAGAZA_KATEGORILER = ['Tümü', 'Forma', 'Giyim', 'Aksesuar'];
-
-export const MAGAZA_URUNLER: MagazaUrunVeli[] = [
-  { id: 'm1', ad: '2026 Sezon Forması', aciklama: 'İsim + numara baskısı hediye', fiyat: '₺450', fiyatN: 450, kategori: 'Forma', badge: 'YENİ', jersey: true },
-  { id: 'm2', ad: 'Antrenman Eşofmanı', aciklama: 'Nefes alabilir kumaş', fiyat: '₺620', fiyatN: 620, kategori: 'Giyim' },
-  { id: 'm3', ad: 'Kulüp Şapkası', aciklama: 'Ayarlanabilir kayış', fiyat: '₺240', fiyatN: 240, kategori: 'Aksesuar' },
-  { id: 'm4', ad: 'Spor Çantası', aciklama: '40L · su geçirmez', fiyat: '₺380', fiyatN: 380, kategori: 'Aksesuar' },
-  { id: 'm5', ad: 'Kulüp Tişörtü', aciklama: 'Pamuklu · unisex kesim', fiyat: '₺210', fiyatN: 210, kategori: 'Giyim' },
-  { id: 'm6', ad: 'Kulüp Matarası', aciklama: '750ml · paslanmaz çelik', fiyat: '₺120', fiyatN: 120, kategori: 'Aksesuar' },
-];
-
-export const KONUSMALAR: Konusma[] = [
-  { id: 'k1', init: 'MD', ad: 'Mert Demir', role: 'Baş Antrenör', roleColor: '#2EE6A8', avBg: '#1D3560', avFg: '#9FE8CE', son: 'Rica ederim, iyi akşamlar dilerim.', zaman: '14:32', unread: 0 },
-  { id: 'k2', init: 'KY', ad: 'Kulüp Yönetimi', role: 'Kulüp', roleColor: '#5AA7FF', avBg: '#12303F', avFg: '#7DD8F0', son: 'Temmuz aidatınız için teşekkürler.', zaman: 'Dün', unread: 1 },
-  { id: 'k3', init: 'HY', ad: 'Hasan Yıldız', role: 'Servis Şoförü', roleColor: '#FFB454', avBg: '#241A3E', avFg: '#FFD9A0', son: 'Bugün servis 5 dk gecikmeli olacak.', zaman: 'Dün', unread: 0 },
-];
-
+// KONUSMALAR/REHBER Faz 5'te kalktı — bkz. mesajRepo.ts (gerçek `konusma`/`mesaj`
+// tabloları, gerçek `sporcu_antrenor`⋈`veli_sporcu` ilişkisinden türetilen rehber).
 // TUM_DUYURULAR Faz 4'te kalktı — bkz. veliRepo.getTumDuyurular (gerçek `duyuru` tablosu).
 
-export const REHBER: RehberKisi[] = [
-  { id: 'r1', ad: 'Emre Hoca', role: 'Tenis Antrenörü', roleColor: '#2EE6A8', init: 'EH', avBg: '#1D3560', avFg: '#9FE8CE' },
-  { id: 'r2', ad: 'Seda Hoca', role: 'Yüzme Antrenörü', roleColor: '#2EE6A8', init: 'SH', avBg: '#12303F', avFg: '#7DD8F0' },
-  { id: 'r3', ad: 'Aylin Hoca', role: 'Jimnastik Antrenörü', roleColor: '#2EE6A8', init: 'AH', avBg: '#2A2138', avFg: '#FFD9A0' },
-  { id: 'r4', ad: 'Muhasebe', role: 'Kulüp', roleColor: '#5AA7FF', init: 'MH', avBg: '#12303F', avFg: '#7DD8F0' },
-];
-
-export const IZIN_ANTRENMANLAR: IznAntrenman[] = [
-  { id: 'a1', gun1: 'ÇAR', gun2: '22', baslik: 'U12 Basketbol Antrenmanı', detay: '17:00 · Salon 1' },
-  { id: 'a2', gun1: 'CUM', gun2: '24', baslik: 'U12 Basketbol Antrenmanı', detay: '17:00 · Salon 1' },
-  { id: 'a3', gun1: 'PZT', gun2: '27', baslik: 'U12 Basketbol Antrenmanı', detay: '17:00 · Salon 1' },
-];
-
+// IZIN_ANTRENMANLAR Faz 6'da kalktı — bkz. veliRepo.getIznAntrenmanlar (gerçek `antrenman`
+// tablosu). IZIN_SEBEPLERI hâlâ geçerli bir statik seçenek listesi (gerçek bir tablo gerektirmiyor).
 export const IZIN_SEBEPLERI = ['Hastalık', 'Aile etkinliği', 'Okul/Sınav', 'Tatil', 'Diğer'];
 
 // ETKINLIKLER/ETKINLIK_SONUCLARI Faz 4'te kalktı — bkz. veliRepo.getEtkinlikler/

@@ -3,9 +3,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { AppModal } from '../../src/components/AppModal';
+import { Button } from '../../src/components/Button';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
 import { Toast, useToast } from '../../src/components/Toast';
-import { getBasvurular, setBasvuruDurum } from '../../src/data/basvurularRepo';
+import { geriAlBasvuru, getBasvurular, onaylaBasvuru, reddetBasvuru } from '../../src/data/basvurularRepo';
+import { getGruplar } from '../../src/data/etkinlikRepo';
 import type { Basvuru } from '../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
 
@@ -16,6 +19,11 @@ export default function BasvurularScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
+
+  const [grupSheetFor, setGrupSheetFor] = useState<Basvuru | null>(null);
+  const [gruplar, setGruplar] = useState<{ id: string; ad: string }[]>([]);
+  const [seciliGrup, setSeciliGrup] = useState<string | null>(null);
+  const [onaylaniyor, setOnaylaniyor] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,18 +43,45 @@ export default function BasvurularScreen() {
 
   const pendingCount = basvurular.filter((b) => b.durum === 'bekliyor').length;
 
-  async function onKarar(b: Basvuru, durum: 'onaylandi' | 'reddedildi') {
-    await setBasvuruDurum(b.id, durum);
+  async function onaylaVeYenile(b: Basvuru, grupId?: string) {
+    await onaylaBasvuru(b.id, grupId);
     setBasvurular(await getBasvurular());
-    showToast(
-      durum === 'onaylandi'
-        ? `${b.ad.split(' ')[0]} onaylandı · ${b.veli.split(' ')[0]} Hanım/Bey bilgilendirildi`
-        : 'Başvuru reddedildi · veliye iletildi'
-    );
+    showToast(`${b.ad.split(' ')[0]} onaylandı · gerçek sporcu kaydı oluşturuldu`);
+  }
+
+  async function onOnaylaTap(b: Basvuru) {
+    if (!b.grupId) {
+      setSeciliGrup(null);
+      setGrupSheetFor(b);
+      const g = await getGruplar();
+      setGruplar(g);
+      return;
+    }
+    await onaylaVeYenile(b);
+  }
+
+  async function onGrupSheetOnayla() {
+    if (!grupSheetFor || !seciliGrup) {
+      showToast('Grup seçimi gerekli');
+      return;
+    }
+    setOnaylaniyor(true);
+    try {
+      await onaylaVeYenile(grupSheetFor, seciliGrup);
+      setGrupSheetFor(null);
+    } finally {
+      setOnaylaniyor(false);
+    }
+  }
+
+  async function onReddet(b: Basvuru) {
+    await reddetBasvuru(b.id);
+    setBasvurular(await getBasvurular());
+    showToast('Başvuru reddedildi · veliye iletildi');
   }
 
   async function onGeriAl(b: Basvuru) {
-    await setBasvuruDurum(b.id, 'bekliyor');
+    await geriAlBasvuru(b.id);
     setBasvurular(await getBasvurular());
   }
 
@@ -83,7 +118,7 @@ export default function BasvurularScreen() {
                   key={b.id}
                   style={[
                     styles.card,
-                    { borderColor: decided ? 'rgba(255,255,255,0.05)' : 'rgba(255,180,84,0.28)' },
+                    { borderColor: decided ? colors.border : colors.warning },
                   ]}
                 >
                   <View style={styles.topRow}>
@@ -97,10 +132,10 @@ export default function BasvurularScreen() {
                     <View
                       style={[
                         styles.tag,
-                        { backgroundColor: b.tag === 'DENEME' ? 'rgba(90,167,255,0.12)' : colors.accentTint },
+                        { backgroundColor: b.tag === 'DENEME' ? colors.infoSoft : colors.accentSoft },
                       ]}
                     >
-                      <Text style={[styles.tagText, { color: b.tag === 'DENEME' ? '#5AA7FF' : colors.accent }]}>{b.tag}</Text>
+                      <Text style={[styles.tagText, { color: b.tag === 'DENEME' ? colors.info : colors.accent }]}>{b.tag}</Text>
                     </View>
                   </View>
                   <View style={styles.detailRow}>
@@ -110,10 +145,10 @@ export default function BasvurularScreen() {
 
                   {!decided && (
                     <View style={styles.actionRow}>
-                      <Pressable style={styles.approveBtn} onPress={() => onKarar(b, 'onaylandi')}>
+                      <Pressable style={styles.approveBtn} onPress={() => onOnaylaTap(b)}>
                         <Text style={styles.approveBtnText}>✓ Onayla</Text>
                       </Pressable>
-                      <Pressable style={styles.rejectBtn} onPress={() => onKarar(b, 'reddedildi')}>
+                      <Pressable style={styles.rejectBtn} onPress={() => onReddet(b)}>
                         <Text style={styles.rejectBtnText}>✕ Reddet</Text>
                       </Pressable>
                     </View>
@@ -122,7 +157,7 @@ export default function BasvurularScreen() {
                     <View style={[styles.decidedBox, approved ? styles.decidedBoxOk : styles.decidedBoxNo]}>
                       <Text style={[styles.decidedText, { color: approved ? colors.accent : colors.danger }]}>
                         {approved
-                          ? 'Onaylandı · veliye bildirim gitti, grup listesine eklendi'
+                          ? 'Onaylandı · gerçek sporcu kaydı oluşturuldu'
                           : 'Reddedildi · veliye kontenjan bilgisi iletildi'}
                       </Text>
                       <Pressable onPress={() => onGeriAl(b)}>
@@ -133,10 +168,32 @@ export default function BasvurularScreen() {
                 </View>
               );
             })}
-            <Text style={styles.footerNote}>Onaylanan sporcu gruba ve veli uygulamasına otomatik eklenir</Text>
+            <Text style={styles.footerNote}>Onaylanan başvuru gerçek Sporcular listesine eklenir</Text>
           </ScrollView>
         )}
       </SafeAreaView>
+
+      <AppModal visible={!!grupSheetFor} transparent animationType="slide" onRequestClose={() => setGrupSheetFor(null)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setGrupSheetFor(null)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Grup Seç</Text>
+            <Text style={styles.sheetSub}>{grupSheetFor?.ad} için hangi gruba kaydedilecek?</Text>
+            <ScrollView contentContainerStyle={{ gap: 7, paddingTop: spacing.sm }}>
+              <View style={styles.pickRow}>
+                {gruplar.map((g) => (
+                  <Pressable key={g.id} style={[styles.pickChip, seciliGrup === g.id && styles.pickChipActive]} onPress={() => setSeciliGrup(g.id)}>
+                    <Text style={[styles.pickChipText, seciliGrup === g.id && styles.pickChipTextActive]}>{g.ad}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={{ height: spacing.xs }} />
+              <Button label="Onayla ve Kaydet" onPress={onGrupSheetOnayla} loading={onaylaniyor} />
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </AppModal>
+
       <Toast message={toastMessage} />
     </ScreenBackground>
   );
@@ -146,35 +203,45 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   pendingBadge: { minWidth: 26, height: 26, borderRadius: 13, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  pendingBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accentOnDark },
+  pendingBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, paddingBottom: spacing.xxl },
-  card: { borderRadius: radius.xxl, backgroundColor: colors.navySurface, borderWidth: 1, padding: 15 },
+  card: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, padding: 15 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   avatar: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base },
   mid: { flex: 1, minWidth: 0 },
-  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.white },
+  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   altText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   tag: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
   tagText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 11, padding: 11, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  detailText: { flex: 1, fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.iconMuted },
-  whenText: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textFaint, marginTop: 8 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 11, padding: 11, borderRadius: 13, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border },
+  detailText: { flex: 1, fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted },
+  whenText: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: 8 },
   actionRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
   approveBtn: { flex: 1, height: 42, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  approveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accentOnDark },
-  rejectBtn: { flex: 1, height: 42, borderRadius: 13, backgroundColor: colors.dangerBg, borderWidth: 1.5, borderColor: colors.dangerBorder, alignItems: 'center', justifyContent: 'center' },
+  approveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
+  rejectBtn: { flex: 1, height: 42, borderRadius: 13, backgroundColor: colors.dangerSoft, borderWidth: 1.5, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
   rejectBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.danger },
   decidedBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 12, borderRadius: 13, borderWidth: 1 },
-  decidedBoxOk: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
-  decidedBoxNo: { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
+  decidedBoxOk: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  decidedBoxNo: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   decidedText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm },
   undoText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textFaint, marginTop: spacing.xs },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.xs },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '75%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
+  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  pickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  pickChip: { paddingVertical: 10, paddingHorizontal: 13, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  pickChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  pickChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  pickChipTextActive: { color: colors.accent },
   });
 }

@@ -7,13 +7,13 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { getKadro, getKadroBaslik, getKadroYayinDurumu, kadroKilidiAc, kadroYayinla, lcvKatilanlariEkle, toggleKadroSecim } from '../../../src/data/antrenorRepo';
 import type { KadroSatiri } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 function getLcvMeta(colors: AppColors): Record<KadroSatiri['lcv'], { label: string; color: string }> {
   return {
     katiliyor: { label: 'Katılıyor', color: colors.accent },
     katilamiyor: { label: 'Katılamıyor', color: colors.danger },
-    'yanit-yok': { label: 'Yanıt yok', color: colors.textFaint },
+    'yanit-yok': { label: 'Yanıt yok', color: colors.textDim },
   };
 }
 
@@ -181,40 +181,40 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  countPill: { backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 14 },
+  countPill: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 14 },
   countPillText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.accent },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs, paddingBottom: 140 },
-  lcvCard: { borderRadius: radius.xxl, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: spacing.md },
-  lcvLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  lcvCard: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
+  lcvLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   lcvRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  lcvBox: { flex: 1, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: colors.navyBorder, padding: 9, alignItems: 'center' },
-  lcvBoxGreen: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
-  lcvBoxRed: { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
-  lcvValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  lcvBox: { flex: 1, borderRadius: 14, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, padding: 9, alignItems: 'center' },
+  lcvBoxGreen: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  lcvBoxRed: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  lcvValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   lcvBoxLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textMuted, marginTop: 1 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  listLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
-  lcvEkleBtn: { backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 6, paddingHorizontal: 11, borderRadius: radius.pill },
+  listLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  lcvEkleBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 6, paddingHorizontal: 11, borderRadius: radius.pill },
   lcvEkleBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.accent },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 10 },
   rowFaded: { opacity: 0.55 },
-  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 12.5, color: '#9FE8CE' },
-  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
-  num: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textFaint, marginTop: 1 },
+  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 12.5, color: avatarColorAt(0).avFg },
+  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
+  num: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: 1 },
   lcvPill: { paddingVertical: 5, paddingHorizontal: 9, borderRadius: radius.pill },
   lcvPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10 },
-  checkBox: { width: 26, height: 26, borderRadius: 9, borderWidth: 2, borderColor: colors.navyBorderStrong, alignItems: 'center', justifyContent: 'center' },
+  checkBox: { width: 26, height: 26, borderRadius: 9, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkBoxActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  checkMark: { color: colors.accentOnDark, fontSize: 13, fontFamily: fontFamily.archivoBold },
+  checkMark: { color: colors.onAccent, fontSize: 13, fontFamily: fontFamily.archivoBold },
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl },
   pubBtn: { height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  pubBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
-  savedBox: { height: 52, borderRadius: 16, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  pubBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  savedBox: { height: 52, borderRadius: 16, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   savedText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   unlockText: { textAlign: 'center', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
   });

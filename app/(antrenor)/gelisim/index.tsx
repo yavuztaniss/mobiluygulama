@@ -15,7 +15,7 @@ import {
   setGelisimSeviye,
 } from '../../../src/data/antrenorRepo';
 import type { GelisimKaydi, Sporcu } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function GelisimScreen() {
   const colors = useColors();
@@ -143,7 +143,7 @@ export default function GelisimScreen() {
                   <View style={styles.segRow}>
                     {[1, 2, 3, 4, 5].map((lvl) => (
                       <Pressable key={lvl} onPress={() => onSeviyeSec(b.beceriId, lvl)}>
-                        <View style={[styles.segBar, { backgroundColor: lvl <= b.seviye ? colors.accent : colors.navyBorder }]} />
+                        <View style={[styles.segBar, { backgroundColor: lvl <= b.seviye ? colors.accent : colors.border }]} />
                       </Pressable>
                     ))}
                   </View>
@@ -155,7 +155,7 @@ export default function GelisimScreen() {
             <TextInput
               style={styles.noteInput}
               placeholder="Bu ayki gelişimi 2-3 cümleyle özetleyin…"
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.textDim}
               value={not}
               onChangeText={onNotChange}
               editable={!kayit.gonderildi}
@@ -216,47 +216,47 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   sporcuScroll: { flexGrow: 0, marginTop: spacing.xs },
   sporcuRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg },
-  sporcuChip: { alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorder, minWidth: 74 },
-  sporcuChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
-  sporcuAvatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#1B2E4F', alignItems: 'center', justifyContent: 'center' },
+  sporcuChip: { alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, minWidth: 74 },
+  sporcuChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  sporcuAvatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   sporcuAvatarActive: { backgroundColor: colors.accent },
   sporcuAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.textMuted },
-  sporcuAvatarTextActive: { color: colors.accentOnDark },
+  sporcuAvatarTextActive: { color: colors.onAccent },
   sporcuName: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textMuted },
-  sporcuNameActive: { color: colors.white },
+  sporcuNameActive: { color: colors.textBright },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textFaint, marginBottom: spacing.xs },
-  skillCard: { borderRadius: radius.xxl, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, paddingHorizontal: spacing.md },
-  skillRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
-  skillName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
+  skillCard: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
+  skillRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
+  skillName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   skillLvl: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
   segRow: { flexDirection: 'row', gap: 4 },
   segBar: { width: 22, height: 10, borderRadius: 5 },
-  noteInput: { minHeight: 92, borderRadius: 16, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, padding: spacing.md, color: colors.white, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, textAlignVertical: 'top' },
+  noteInput: { minHeight: 92, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, textAlignVertical: 'top' },
   tplScroll: { flexGrow: 0, marginTop: spacing.xs },
   tplRow: { flexDirection: 'row', gap: spacing.xs },
-  tplChip: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 99, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: 'rgba(46,230,168,0.28)' },
-  tplChipText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: '#9FE8CE' },
+  tplChip: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 99, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder },
+  tplChipText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
   sendBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { backgroundColor: colors.navySurface },
-  sendBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
-  sendBtnTextDisabled: { color: colors.textFaint },
-  sentBox: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { backgroundColor: colors.panel },
+  sendBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  sendBtnTextDisabled: { color: colors.textDim },
+  sentBox: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   sentBoxText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   duzenleLink: { textAlign: 'center', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
-  previewCard: { borderRadius: radius.xxl, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
+  previewCard: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
   previewLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.accent },
-  previewNote: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.iconMuted, marginTop: spacing.sm, lineHeight: 20 },
-  previewFooter: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.navyBorder },
-  previewAvatar: { width: 32, height: 32, borderRadius: 11, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  previewAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: '#9FE8CE' },
-  previewCoach: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.white },
-  previewDate: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textFaint },
+  previewNote: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 20 },
+  previewFooter: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  previewAvatar: { width: 32, height: 32, borderRadius: 11, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  previewAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: avatarColorAt(0).avFg },
+  previewCoach: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
+  previewDate: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim },
   });
 }

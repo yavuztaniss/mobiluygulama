@@ -50,6 +50,8 @@ export interface AntrenorTakvimBlok {
   baslik: string;
   sub: string;
   bekliyor?: boolean;
+  rezervasyonId?: string;
+  sonuclandirilabilir?: boolean;
 }
 
 export interface AntrenorTakvimGun {

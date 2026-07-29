@@ -160,7 +160,7 @@ function FormField(props: { label: string; value: string; onChangeText: (v: stri
         value={props.value}
         onChangeText={props.onChangeText}
         placeholder={props.placeholder}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textDim}
         autoCapitalize={props.autoCapitalize}
         style={styles.input}
       />
@@ -172,37 +172,37 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, paddingBottom: spacing.xxl },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  icon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   mid: { flex: 1, minWidth: 0 },
-  rotaAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.white },
+  rotaAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textBright },
   rotaSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  durumBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.navyChip },
-  durumBadgeYolda: { backgroundColor: colors.accentTint },
+  durumBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.chip },
+  durumBadgeYolda: { backgroundColor: colors.accentSoft },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
   durumText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textMuted },
   durumTextYolda: { color: colors.accent },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: 11 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 11 },
   rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   altText: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  sporcuBadge: { backgroundColor: colors.navyChip, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  sporcuBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.iconMuted },
-  dashedAdd: { borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  sporcuBadge: { backgroundColor: colors.chip, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
+  sporcuBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textMuted },
+  dashedAdd: { borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   dashedAddText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted },
-  infoBox: { borderRadius: radius.xl, backgroundColor: 'rgba(46,230,168,0.06)', borderWidth: 1, borderColor: 'rgba(46,230,168,0.2)', padding: spacing.md },
+  infoBox: { borderRadius: radius.xl, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
   infoText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent, lineHeight: 18 },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '85%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, marginBottom: 7 },
-  input: { backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.white, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
+  saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   });
 }

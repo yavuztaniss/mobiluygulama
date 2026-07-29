@@ -15,7 +15,7 @@ export function TextField({ label, error, style, ...props }: TextFieldProps) {
     <View style={styles.wrap}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textDim}
         style={[
           styles.input,
           focused && styles.inputFocused,
@@ -47,22 +47,23 @@ function createStyles(colors: AppColors) {
       fontSize: fontSize.xs,
       fontWeight: '700',
       letterSpacing: 1.4,
-      color: colors.textFaint,
+      color: colors.textDim,
       textTransform: 'uppercase',
     },
     input: {
       height: 52,
       borderRadius: radius.md,
       paddingHorizontal: spacing.lg,
-      backgroundColor: colors.navySurface,
+      backgroundColor: colors.panel,
       borderWidth: 1,
-      borderColor: colors.navyBorder,
-      color: colors.white,
+      borderColor: colors.border,
+      color: colors.text,
       fontFamily: fontFamily.manropeMedium,
       fontSize: fontSize.md,
     },
     inputFocused: {
-      borderColor: colors.accentBorder,
+      borderColor: colors.focusRing,
+      borderWidth: 2,
     },
     inputError: {
       borderColor: colors.danger,

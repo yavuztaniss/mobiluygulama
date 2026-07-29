@@ -6,6 +6,8 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
+import { useChild } from '../../../src/context/ChildContext';
+import { useChildLabel } from '../../../src/components/ChildSwitcher';
 import {
   formatTL,
   getBireyselAntrenor,
@@ -16,12 +18,12 @@ import {
 import type { BireyselAntrenor, BireyselGunSlotlari, BireyselOdemeTipi, BireyselPaketDurumu, BireyselSlot } from '../../../src/data/types-bireysel';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
-const AY = 'Temmuz';
-
 export default function BireyselDersDetay() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { selectedChildId } = useChild();
+  const childLabel = useChildLabel();
   const [antrenor, setAntrenor] = useState<BireyselAntrenor | null>(null);
   const [paket, setPaket] = useState<BireyselPaketDurumu | null>(null);
   const [hafta, setHafta] = useState<BireyselGunSlotlari[]>([]);
@@ -37,11 +39,11 @@ export default function BireyselDersDetay() {
   const [onaySonuc, setOnaySonuc] = useState<{ odemeNotu: string } | null>(null);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id || !selectedChildId) return;
     setLoading(true);
     setError(null);
     try {
-      const [a, p, h] = await Promise.all([getBireyselAntrenor(id), getBireyselPaket(id), getBireyselHafta(id)]);
+      const [a, p, h] = await Promise.all([getBireyselAntrenor(id), getBireyselPaket(id, selectedChildId), getBireyselHafta(id)]);
       setAntrenor(a);
       setPaket(p);
       setHafta(h);
@@ -51,7 +53,7 @@ export default function BireyselDersDetay() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, selectedChildId]);
 
   useEffect(() => {
     load();
@@ -73,14 +75,16 @@ export default function BireyselDersDetay() {
   }
 
   async function onOnayla() {
-    if (!id || !seciliSlot) return;
+    if (!id || !seciliSlot || !selectedChildId) return;
     setOnaylaniyor(true);
     try {
-      const sonuc = await rezervasyonOlustur(id, gunIndex, seciliSlot, odemeTipi);
+      const sonuc = await rezervasyonOlustur(id, selectedChildId, gunIndex, seciliSlot, odemeTipi);
       setPaySheetOpen(false);
       setOnaySonuc({ odemeNotu: sonuc.odemeNotu });
       if (sonuc.kalanPaket !== undefined && paket) setPaket({ ...paket, kalan: sonuc.kalanPaket });
       setHafta(await getBireyselHafta(id));
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Rezervasyon oluşturulamadı, tekrar dene.');
     } finally {
       setOnaylaniyor(false);
     }
@@ -92,7 +96,7 @@ export default function BireyselDersDetay() {
     setOdemeTipi(paket && paket.kalan > 0 ? 'paket' : 'tek');
   }
 
-  const secimEtiketi = gun && seciliSlot ? `${gun.gunAdi} ${gun.gunNo} ${AY} · ${seciliSlot}` : '';
+  const secimEtiketi = gun && seciliSlot ? `${gun.gunAdi} ${gun.gunNo} · ${seciliSlot}` : '';
   const paketVar = !!paket && paket.kalan > 0;
 
   return (
@@ -104,7 +108,7 @@ export default function BireyselDersDetay() {
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.headerTitle}>Antrenör Profili</Text>
-            <Text style={styles.headerSub}>Bireysel ders rezervasyonu</Text>
+            <Text style={styles.headerSub}>Bireysel ders rezervasyonu · {childLabel}</Text>
           </View>
         </View>
 
@@ -149,7 +153,7 @@ export default function BireyselDersDetay() {
 
             <View style={styles.slotHeader}>
               <Text style={styles.slotLabel}>SLOT SEÇİN · 60 DK</Text>
-              {hafta.length === 7 && <Text style={styles.slotRange}>{hafta[0].gunNo}–{hafta[6].gunNo} {AY}</Text>}
+              {hafta.length === 7 && <Text style={styles.slotRange}>{hafta[0].gunNo}–{hafta[6].gunNo}</Text>}
             </View>
 
             <View style={styles.gunRow}>
@@ -205,8 +209,8 @@ export default function BireyselDersDetay() {
 
             <View style={styles.legendRow}>
               <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.accent }]} /><Text style={styles.legendText}>Müsait</Text></View>
-              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#3D4F6E' }]} /><Text style={styles.legendText}>Dolu</Text></View>
-              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#2B4A8F' }]} /><Text style={styles.legendText}>Grup antrenmanı</Text></View>
+              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.border }]} /><Text style={styles.legendText}>Dolu</Text></View>
+              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.info }]} /><Text style={styles.legendText}>Grup antrenmanı</Text></View>
             </View>
           </ScrollView>
         )}
@@ -286,90 +290,90 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl, gap: spacing.sm },
-  profileCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.navyBorderSoft, backgroundColor: colors.navySurfaceAlt, padding: spacing.xl },
+  profileCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.xl },
   profileTop: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   avatar: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 22 },
-  profileName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white },
+  profileName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
   profileMeta: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
   star: { color: colors.warning, fontSize: 12 },
-  puan: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.warningSoft },
-  dersSay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textFaint },
+  puan: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.warning },
+  dersSay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   bio: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, lineHeight: 19, marginTop: spacing.md },
   priceRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  priceBox: { flex: 1, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: colors.navyBorder, padding: 11 },
-  priceLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.textFaint },
-  priceValue: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.white, marginTop: 2 },
-  priceBoxAccent: { flex: 1, borderRadius: 13, backgroundColor: 'rgba(46,230,168,0.07)', borderWidth: 1, borderColor: 'rgba(46,230,168,0.22)', padding: 11 },
+  priceBox: { flex: 1, borderRadius: 13, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, padding: 11 },
+  priceLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.textDim },
+  priceValue: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.textBright, marginTop: 2 },
+  priceBoxAccent: { flex: 1, borderRadius: 13, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11 },
   priceLabelAccent: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.accent },
   priceValueAccent: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.accent, marginTop: 2 },
-  doluBanner: { borderRadius: 14, backgroundColor: 'rgba(255,180,84,0.08)', borderWidth: 1, borderColor: 'rgba(255,180,84,0.22)', padding: 11 },
-  doluBannerText: { textAlign: 'center', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warningSoft },
+  doluBanner: { borderRadius: 14, backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, padding: 11 },
+  doluBannerText: { textAlign: 'center', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warning },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  slotLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
-  slotRange: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
+  slotLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  slotRange: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   gunRow: { flexDirection: 'row', gap: 6 },
-  gunChip: { flex: 1, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  gunChipActive: { backgroundColor: 'rgba(46,230,168,0.10)', borderColor: 'rgba(46,230,168,0.55)' },
-  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textFaint },
+  gunChip: { flex: 1, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  gunChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textDim },
   gunAdActive: { color: colors.accent },
   gunNo: { fontFamily: fontFamily.archivoBold, fontSize: 15, color: colors.textMuted, marginTop: 2 },
-  gunNoActive: { color: colors.white },
+  gunNoActive: { color: colors.textBright },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   slot: { width: '31.5%', borderRadius: 13, paddingVertical: 11, alignItems: 'center', borderWidth: 1.5 },
-  slotMusait: { backgroundColor: 'rgba(46,230,168,0.10)', borderColor: 'rgba(46,230,168,0.4)' },
+  slotMusait: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   slotSeciliMusait: { backgroundColor: colors.accent, borderColor: colors.accent },
-  slotGrup: { backgroundColor: 'rgba(43,74,143,0.35)', borderColor: 'rgba(90,140,230,0.4)' },
-  slotDolu: { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: colors.navyBorder },
+  slotGrup: { backgroundColor: colors.infoSoft, borderColor: colors.info },
+  slotDolu: { backgroundColor: colors.chip, borderColor: colors.border },
   slotSaat: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base },
   slotSaatMusait: { color: colors.accent },
-  slotSaatSeciliMusait: { color: colors.accentOnDark },
-  slotSaatGrup: { color: colors.iconMuted },
-  slotSaatDolu: { color: colors.textFaint },
+  slotSaatSeciliMusait: { color: colors.onAccent },
+  slotSaatGrup: { color: colors.textMuted },
+  slotSaatDolu: { color: colors.textDim },
   slotSub: { fontFamily: fontFamily.manropeExtra, fontSize: 9, marginTop: 2, letterSpacing: 0.4 },
-  slotSubMusait: { color: 'rgba(46,230,168,0.75)' },
-  slotSubSeciliMusait: { color: 'rgba(5,33,23,0.75)' },
-  slotSubGrup: { color: colors.textFaint },
-  slotSubDolu: { color: colors.textFaint },
+  slotSubMusait: { color: colors.accent },
+  slotSubSeciliMusait: { color: colors.onAccent },
+  slotSubGrup: { color: colors.textDim },
+  slotSubDolu: { color: colors.textDim },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 13, marginTop: spacing.xs, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
   legendText: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: spacing.sm },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.sm },
   sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
-  payOption: { marginTop: spacing.md, borderRadius: 16, borderWidth: 1.5, borderColor: colors.navyBorderStrong, backgroundColor: 'rgba(255,255,255,0.03)', padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  payOptionActive: { borderColor: 'rgba(46,230,168,0.55)', backgroundColor: 'rgba(46,230,168,0.06)' },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  payOption: { marginTop: spacing.md, borderRadius: 16, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.chip, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  payOptionActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { borderColor: colors.accent },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-  payOptionTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  payOptionTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   payOptionSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
-  payOptionAmount: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
-  payOptionBadge: { backgroundColor: colors.accentTint, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
+  payOptionAmount: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
+  payOptionBadge: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
   payOptionBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent },
-  warnBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: 'rgba(255,180,84,0.07)', borderWidth: 1, borderColor: 'rgba(255,180,84,0.2)', padding: 11 },
-  warnText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11.5, color: colors.warningSoft },
+  warnBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, padding: 11 },
+  warnText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11.5, color: colors.warning },
   confirmBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  confirmBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
-  onayOverlay: { position: 'absolute', inset: 0, zIndex: 90, backgroundColor: 'rgba(4,10,20,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  onayIconCircle: { width: 64, height: 64, borderRadius: 22, backgroundColor: colors.accentTint, alignItems: 'center', justifyContent: 'center' },
+  confirmBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  onayOverlay: { position: 'absolute', inset: 0, zIndex: 90, backgroundColor: colors.scrim, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  onayIconCircle: { width: 64, height: 64, borderRadius: 22, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   onayIconCheck: { color: colors.accent, fontSize: 28 },
-  onayTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.md },
+  onayTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md },
   onaySub: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs, lineHeight: 19 },
-  onayInfoBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.navySurfaceAlt, borderWidth: 1, borderColor: 'rgba(46,230,168,0.32)', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 15, marginTop: spacing.md },
+  onayInfoBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accentBorder, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 15, marginTop: spacing.md },
   onayInfoText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
-  onayWarnBox: { borderColor: 'rgba(255,180,84,0.32)', marginTop: spacing.xs },
-  onayWarnText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warningSoft },
+  onayWarnBox: { borderColor: colors.warning, marginTop: spacing.xs },
+  onayWarnText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warning },
   onayKapatBtn: { marginTop: spacing.xl, height: 48, paddingHorizontal: 26, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  onayKapatBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accentOnDark },
+  onayKapatBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   });
 }

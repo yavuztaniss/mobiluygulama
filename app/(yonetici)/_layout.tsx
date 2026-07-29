@@ -9,7 +9,7 @@ export default function YoneticiLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navyBg }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgDeep }}>
         <ActivityIndicator color={colors.accent} />
       </View>
     );

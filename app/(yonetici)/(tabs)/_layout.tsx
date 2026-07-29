@@ -6,7 +6,7 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
   const colors = useColors();
   const styles = createStyles(colors);
   return (
-    <Text style={[styles.icon, { color: focused ? colors.accent : colors.textFaint }]}>{symbol}</Text>
+    <Text style={[styles.icon, { color: focused ? colors.accent : colors.textDim }]}>{symbol}</Text>
   );
 }
 
@@ -19,7 +19,7 @@ export default function YoneticiTabsLayout() {
         headerShown: false,
         tabBarStyle: styles.bar,
         tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textFaint,
+        tabBarInactiveTintColor: colors.textDim,
         tabBarLabelStyle: styles.label,
       }}
     >
@@ -50,8 +50,8 @@ export default function YoneticiTabsLayout() {
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     bar: {
-      backgroundColor: colors.navySurface,
-      borderTopColor: colors.navyBorder,
+      backgroundColor: colors.panel,
+      borderTopColor: colors.border,
       height: 64,
       paddingBottom: 8,
       paddingTop: 8,

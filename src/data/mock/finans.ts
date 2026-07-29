@@ -13,10 +13,10 @@ const GG_AYLAR: GelirGiderAy[] = [
 ];
 
 const KATEGORILER: GelirKategori[] = [
-  { ad: 'Aidatlar', tutar: '₺154.400', pct: '%72', renk: '#2EE6A8' },
-  { ad: 'Bireysel Ders', tutar: '₺30.000', pct: '%14', renk: '#5AA7FF' },
-  { ad: 'Mağaza', tutar: '₺19.300', pct: '%9', renk: '#FFB454' },
-  { ad: 'Etkinlik/Kamp', tutar: '₺10.800', pct: '%5', renk: '#5D708C' },
+  { ad: 'Aidatlar', tutar: '₺154.400', pct: '%72', renkAnahtar: 'accent' },
+  { ad: 'Bireysel Ders', tutar: '₺30.000', pct: '%14', renkAnahtar: 'info' },
+  { ad: 'Mağaza', tutar: '₺19.300', pct: '%9', renkAnahtar: 'warning' },
+  { ad: 'Etkinlik/Kamp', tutar: '₺10.800', pct: '%5', renkAnahtar: 'purple' },
 ];
 
 export function finansAggregates() {

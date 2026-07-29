@@ -1,4 +1,4 @@
-import type { AntrenorBildirim, AntrenorKonusma, AntrenorProfil, VeliBildirimi } from '../types-antrenor';
+import type { AntrenorBildirim, AntrenorProfil, VeliBildirimi } from '../types-antrenor';
 
 // Roster (U12_SPORCULAR), bugünkü program (BUGUNKU_GRUPLAR), yoklama başlangıç durumu ve
 // gelişim varsayılanları Faz 3'te; Maç Kadrosu (KADRO_VARSAYILAN) Faz 4'te gerçek tabloya
@@ -17,11 +17,7 @@ export const VELI_BILDIRIMLERI: VeliBildirimi[] = [
 // seçebileceği hazır cümle şablonları, veri değil sabit UI önerisi).
 export const GELISIM_NOT_SABLONLARI = ['Belirgin ilerleme var', 'Disiplinli çalışıyor', 'Takım oyununa katkısı arttı'];
 
-export const ANTRENOR_KONUSMALAR: AntrenorKonusma[] = [
-  { id: 'a1', init: 'EK', ad: 'Elif Kaya', role: 'Veli · Ali Kaya', avBg: '#1D3560', avFg: '#9FE8CE', son: 'Teşekkürler hocam, Cuma erken geliriz.', zaman: '14:32', unread: 0 },
-  { id: 'a2', init: 'MA', ad: 'Merve Aksoy', role: 'Veli · Deniz Aksoy', avBg: '#241A3E', avFg: '#E2C8FF', son: 'Deniz bugün hastalığı nedeniyle katılamayacak.', zaman: '09:12', unread: 1 },
-  { id: 'a3', init: 'SY', ad: 'Serdar Koç', role: 'Yönetim', avBg: '#12303F', avFg: '#7DD8F0', son: 'Cuma antrenman saati değişikliği onaylandı.', zaman: 'Dün', unread: 0 },
-];
+// ANTRENOR_KONUSMALAR Faz 5'te kalktı — bkz. mesajRepo.ts (gerçek `konusma`/`mesaj` tabloları).
 
 export const ANTRENOR_BILDIRIMLER: AntrenorBildirim[] = [
   { id: 'ab1', grup: 'bugun', baslik: 'Deniz Aksoy için izin bildirimi', aciklama: 'Merve Aksoy: "Ateşi var, evde dinlenecek" · U12 Basketbol', zaman: '09:12', tur: 'izin', okundu: false },

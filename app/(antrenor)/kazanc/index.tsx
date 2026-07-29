@@ -14,18 +14,22 @@ export default function KazancScreen() {
   const styles = createStyles(colors);
   const { profile } = useAuth();
   const [aylar, setAylar] = useState<KazancAySecenegi[]>([]);
-  const [ay, setAy] = useState('tem');
+  const [ay, setAy] = useState<string | null>(null);
   const [ozet, setOzet] = useState<KazancOzet | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (ayId: string) => {
+  const load = useCallback(async (ayId: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const [a, o] = await Promise.all([getKazancAylar(), getKazancOzet(ayId)]);
+      const a = await getKazancAylar();
       setAylar(a);
-      setOzet(o);
+      const secilecekAy = ayId ?? a[a.length - 1]?.id ?? null;
+      if (secilecekAy) {
+        setAy(secilecekAy);
+        setOzet(await getKazancOzet(secilecekAy));
+      }
     } catch {
       setError('Kazanç bilgisi yüklenemedi.');
     } finally {
@@ -34,8 +38,9 @@ export default function KazancScreen() {
   }, []);
 
   useEffect(() => {
-    load(ay);
-  }, [ay, load]);
+    load(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <ScreenBackground>
@@ -57,7 +62,7 @@ export default function KazancScreen() {
               {aylar.map((a) => {
                 const on = a.id === ay;
                 return (
-                  <Pressable key={a.id} style={[styles.ayChip, on && styles.ayChipActive]} onPress={() => setAy(a.id)}>
+                  <Pressable key={a.id} style={[styles.ayChip, on && styles.ayChipActive]} onPress={() => load(a.id)}>
                     <Text style={[styles.ayChipText, on && styles.ayChipTextActive]}>{a.ad}</Text>
                   </Pressable>
                 );
@@ -121,7 +126,7 @@ export default function KazancScreen() {
                 </View>
                 <View style={{ gap: 9, marginTop: spacing.md }}>
                   <DistRow renk={colors.accent} etiket="Tamamlanan" sayi={ozet.tamamlanan} pct={ozet.tamamlananPct} />
-                  <DistRow renk="#FFB454" etiket="İptal · süresinde" sayi={ozet.iptal} pct={ozet.iptalPct} />
+                  <DistRow renk={colors.warning} etiket="İptal · süresinde" sayi={ozet.iptal} pct={ozet.iptalPct} />
                   <DistRow renk={colors.danger} etiket="No-show · seans yandı" sayi={ozet.noshow} pct={ozet.noshowPct} />
                 </View>
               </View>
@@ -139,7 +144,7 @@ export default function KazancScreen() {
                         <View
                           style={[
                             styles.bar,
-                            { height: `${h.pct}%`, backgroundColor: h.aktif ? 'rgba(46,230,168,0.35)' : 'rgba(46,230,168,0.12)', borderColor: h.aktif ? 'rgba(46,230,168,0.8)' : 'rgba(46,230,168,0.25)' },
+                            { height: `${h.pct}%`, backgroundColor: h.aktif ? colors.accent : colors.accentSoft, borderColor: h.aktif ? colors.accent : colors.accentBorder },
                           ]}
                         />
                       </View>
@@ -178,51 +183,51 @@ function createStyles(colors: AppColors) {
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   header: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
   brand: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white, marginTop: 3 },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright, marginTop: 3 },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
   ayRow: { flexDirection: 'row', gap: 6 },
-  ayChip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  ayChipActive: { backgroundColor: 'rgba(46,230,168,0.12)', borderColor: 'rgba(46,230,168,0.5)' },
+  ayChip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  ayChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   ayChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textMuted },
   ayChipTextActive: { color: colors.accent },
-  netCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.navyBorderSoft, backgroundColor: colors.navySurfaceAlt, padding: spacing.xl, marginTop: spacing.xs },
+  netCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.xl, marginTop: spacing.xs },
   netTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   netLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  trendPill: { backgroundColor: colors.accentTint, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
+  trendPill: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
   trendText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent },
-  netAmount: { fontFamily: fontFamily.archivoBold, fontSize: 44, color: colors.white, letterSpacing: -1.5, marginTop: 10 },
+  netAmount: { fontFamily: fontFamily.archivoBold, fontSize: 44, color: colors.textBright, letterSpacing: -1.5, marginTop: 10 },
   netNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: spacing.md },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   netRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs },
   netRowLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted },
-  netRowValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
+  netRowValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
   statRow: { flexDirection: 'row', gap: spacing.sm },
-  statBox: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' },
-  statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white },
-  statLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5, color: colors.textFaint, marginTop: 2, textAlign: 'center' },
-  card: { borderRadius: radius.xxl, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: spacing.lg },
+  statBox: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' },
+  statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
+  statLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5, color: colors.textDim, marginTop: 2, textAlign: 'center' },
+  card: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, letterSpacing: -0.2 },
-  cardHeaderSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
+  cardTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, letterSpacing: -0.2 },
+  cardHeaderSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   distBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: spacing.md, gap: 2 },
   distSeg: { height: '100%' },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   distDot: { width: 9, height: 9, borderRadius: 5 },
-  distEtiket: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.iconMuted },
-  distSayi: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
-  distPct: { width: 38, textAlign: 'right', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
+  distEtiket: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted },
+  distSayi: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
+  distPct: { width: 38, textAlign: 'right', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   barChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 110, marginTop: spacing.md },
   barCol: { flex: 1, alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' },
   barVal: { fontFamily: fontFamily.manropeExtra, fontSize: 10 },
   barTrack: { width: '100%', maxWidth: 44, height: 70, justifyContent: 'flex-end' },
   bar: { width: '100%', borderRadius: 9, borderTopLeftRadius: 9, borderTopRightRadius: 9, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, borderWidth: 1 },
-  barAd: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textFaint },
-  altNotBox: { borderRadius: 14, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: 'rgba(46,230,168,0.16)', padding: 12 },
+  barAd: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  altNotBox: { borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
   altNotText: { fontFamily: fontFamily.manropeSemi, fontSize: 11.5, color: colors.accent, lineHeight: 16, textAlign: 'center' },
   });
 }

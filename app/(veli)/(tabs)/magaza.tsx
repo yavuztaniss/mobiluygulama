@@ -1,38 +1,41 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
-import { getMagazaKategoriler, getMagazaUrunler } from '../../../src/data/veliRepo';
-import type { MagazaUrunVeli, SepetKalem } from '../../../src/data/types-veli';
+import { useChild } from '../../../src/context/ChildContext';
+import { getUrunler, olusturSiparis } from '../../../src/data/magazaRepo';
+import type { SepetKalemGirdi, Urun } from '../../../src/data/types-magaza';
+import type { SepetKalem } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
 const BEDENLER = ['XS', 'S', 'M', 'L', 'XL'];
+const KATEGORILER = ['Tümü', 'Forma', 'Giyim', 'Aksesuar'];
 
 export default function MagazaScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const [kategoriler, setKategoriler] = useState<string[]>([]);
-  const [urunler, setUrunler] = useState<MagazaUrunVeli[]>([]);
+  const { selectedChildId } = useChild();
+  const [urunler, setUrunler] = useState<Urun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seciliKat, setSeciliKat] = useState('Tümü');
   const { toastMessage, showToast } = useToast();
 
-  const [urunSheet, setUrunSheet] = useState<MagazaUrunVeli | null>(null);
+  const [urunSheet, setUrunSheet] = useState<Urun | null>(null);
   const [seciliBeden, setSeciliBeden] = useState<string | null>(null);
   const [sepet, setSepet] = useState<SepetKalem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [odemeYapiliyor, setOdemeYapiliyor] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [k, u] = await Promise.all([getMagazaKategoriler(), getMagazaUrunler()]);
-      setKategoriler(k);
-      setUrunler(u);
+      setUrunler((await getUrunler()).filter((u) => u.aktif));
     } catch {
       setError('Mağaza yüklenemedi.');
     } finally {
@@ -49,7 +52,7 @@ export default function MagazaScreen() {
     [urunler, seciliKat]
   );
 
-  function openUrun(u: MagazaUrunVeli) {
+  function openUrun(u: Urun) {
     setUrunSheet(u);
     setSeciliBeden(null);
   }
@@ -85,14 +88,19 @@ export default function MagazaScreen() {
             <Text style={styles.title}>Kulüp Mağazası</Text>
             <Text style={styles.subtitle}>Resmi ürünler · kulübe destek olur</Text>
           </View>
-          <Pressable style={styles.cartBtn} onPress={() => setCartOpen(true)}>
-            <Text style={styles.cartIcon}>🛍</Text>
-            {sepet.length > 0 && (
-              <View style={styles.cartDot}>
-                <Text style={styles.cartDotText}>{sepet.length}</Text>
-              </View>
-            )}
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            <Pressable style={styles.cartBtn} onPress={() => router.push('/magaza-siparisler')}>
+              <Text style={styles.cartIcon}>📦</Text>
+            </Pressable>
+            <Pressable style={styles.cartBtn} onPress={() => setCartOpen(true)}>
+              <Text style={styles.cartIcon}>🛍</Text>
+              {sepet.length > 0 && (
+                <View style={styles.cartDot}>
+                  <Text style={styles.cartDotText}>{sepet.length}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
         </View>
 
         {loading && <LoadingState label="Yükleniyor…" />}
@@ -107,7 +115,7 @@ export default function MagazaScreen() {
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.katScroll} contentContainerStyle={styles.katRow}>
-              {kategoriler.map((k) => (
+              {KATEGORILER.map((k) => (
                 <Pressable key={k} style={[styles.katChip, seciliKat === k && styles.katChipActive]} onPress={() => setSeciliKat(k)}>
                   <Text style={[styles.katChipText, seciliKat === k && styles.katChipTextActive]}>{k}</Text>
                 </Pressable>
@@ -220,14 +228,34 @@ export default function MagazaScreen() {
                   <Text style={styles.cartTotalValue}>₺{cartTotal.toLocaleString('tr-TR')}</Text>
                 </View>
                 <Pressable
-                  style={styles.checkoutBtn}
-                  onPress={() => {
-                    setSepet([]);
-                    setCartOpen(false);
-                    showToast('Siparişin alındı · salonda teslim edilecek');
+                  style={[styles.checkoutBtn, odemeYapiliyor && styles.checkoutBtnDisabled]}
+                  disabled={odemeYapiliyor}
+                  onPress={async () => {
+                    if (!selectedChildId) {
+                      showToast('Önce bir çocuk seçin');
+                      return;
+                    }
+                    setOdemeYapiliyor(true);
+                    try {
+                      const kalemler: SepetKalemGirdi[] = sepet.map((c) => ({
+                        urunId: c.urunId,
+                        beden: c.beden,
+                        adet: 1,
+                        fiyatN: c.fiyatN,
+                        not: c.not,
+                      }));
+                      await olusturSiparis(selectedChildId, kalemler);
+                      setSepet([]);
+                      setCartOpen(false);
+                      showToast('Siparişin alındı · salonda teslim edilecek');
+                    } catch {
+                      showToast('Sipariş oluşturulamadı, tekrar dene');
+                    } finally {
+                      setOdemeYapiliyor(false);
+                    }
                   }}
                 >
-                  <Text style={styles.checkoutBtnText}>Ödemeye Geç</Text>
+                  <Text style={styles.checkoutBtnText}>{odemeYapiliyor ? 'Gönderiliyor…' : 'Ödemeye Geç'}</Text>
                 </Pressable>
               </>
             )}
@@ -244,67 +272,68 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.lg, paddingBottom: 0 },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  cartBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
+  cartBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   cartIcon: { fontSize: 18 },
-  cartDot: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.navyBg, paddingHorizontal: 3 },
-  cartDotText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accentOnDark },
+  cartDot: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bgDeep, paddingHorizontal: 3 },
+  cartDotText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  bannerCard: { borderRadius: 22, backgroundColor: 'rgba(18,58,46,0.6)', borderWidth: 1, borderColor: 'rgba(46,230,168,0.25)', padding: 16 },
+  bannerCard: { borderRadius: 22, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 16 },
   bannerLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: colors.accent },
-  bannerTitle: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.white, marginTop: 4 },
-  bannerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textFainter, marginTop: 3 },
+  bannerTitle: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.textBright, marginTop: 4 },
+  bannerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: 3 },
   katScroll: { flexGrow: 0 },
   katRow: { flexDirection: 'row', gap: spacing.xs },
-  katChip: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: radius.pill, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  katChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  katChip: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: radius.pill, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  katChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   katChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   katChipTextActive: { color: colors.accent },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  productCard: { width: '47%', borderRadius: 20, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, overflow: 'hidden' },
-  productThumb: { aspectRatio: 1, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  productCard: { width: '47%', borderRadius: 20, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  productThumb: { aspectRatio: 1, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   productBadge: { position: 'absolute', top: 9, left: 9, backgroundColor: colors.accent, paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill },
-  productBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9, color: colors.accentOnDark },
+  productBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9, color: colors.onAccent },
   productInfo: { padding: 12 },
-  productName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.white, minHeight: 32 },
+  productName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright, minHeight: 32 },
   productBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 },
-  productPrice: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.white },
-  productAddBtn: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.accentTint, alignItems: 'center', justifyContent: 'center' },
+  productPrice: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.textBright },
+  productAddBtn: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   productAddBtnText: { color: colors.accent, fontSize: 16, fontFamily: fontFamily.archivoBold },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '85%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center', marginBottom: spacing.md },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
   detailTop: { flexDirection: 'row', gap: 14 },
-  detailThumb: { width: 92, height: 92, borderRadius: 18, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
-  detailName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  detailThumb: { width: 92, height: 92, borderRadius: 18, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  detailName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   detailDesc: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
   detailPrice: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.accent, marginTop: 6 },
   bedenHeader: { marginTop: spacing.md },
   bedenLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 0.6, color: colors.textMuted },
   bedenRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
-  bedenChip: { flex: 1, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  bedenChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  bedenChip: { flex: 1, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  bedenChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   bedenChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   bedenChipTextActive: { color: colors.accent },
-  jerseyNote: { marginTop: spacing.sm, borderRadius: 14, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: 'rgba(46,230,168,0.18)', padding: 11 },
+  jerseyNote: { marginTop: spacing.sm, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11 },
   jerseyNoteText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
   addBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  addBtnDisabled: { backgroundColor: colors.navySurface },
-  addBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
-  addBtnTextDisabled: { color: colors.textFaint },
-  cartTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginBottom: spacing.sm },
+  addBtnDisabled: { backgroundColor: colors.panel },
+  addBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  addBtnTextDisabled: { color: colors.textDim },
+  cartTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginBottom: spacing.sm },
   emptyCartText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted },
-  cartRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
-  cartThumb: { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
-  cartItemName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  cartRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  cartThumb: { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  cartItemName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   cartItemNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  cartItemPrice: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.white },
+  cartItemPrice: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.textBright },
   cartRemove: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.danger },
   cartTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
   cartTotalLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
-  cartTotalValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white },
+  cartTotalValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
   checkoutBtn: { marginTop: spacing.sm, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  checkoutBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
+  checkoutBtnDisabled: { opacity: 0.6 },
+  checkoutBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   });
 }

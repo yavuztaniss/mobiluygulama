@@ -82,16 +82,7 @@ export interface ServisTakip {
   bindiMesaji: string;
 }
 
-export interface MagazaUrunVeli {
-  id: string;
-  ad: string;
-  aciklama: string;
-  fiyat: string;
-  fiyatN: number;
-  kategori: string;
-  badge?: string;
-  jersey?: boolean;
-}
+// MagazaUrunVeli Faz 6'da src/data/types-magaza.ts'teki rol-bağımsız Urun'a taşındı.
 
 export interface SepetKalem {
   urunId: string;
@@ -102,34 +93,8 @@ export interface SepetKalem {
   not: string;
 }
 
-export interface Konusma {
-  id: string;
-  init: string;
-  ad: string;
-  role: string;
-  roleColor: string;
-  avBg: string;
-  avFg: string;
-  son: string;
-  zaman: string;
-  unread: number;
-}
-
-export interface RehberKisi {
-  id: string;
-  ad: string;
-  role: string;
-  roleColor: string;
-  init: string;
-  avBg: string;
-  avFg: string;
-}
-
-export interface ChatMesaj {
-  who: 'c' | 'p';
-  text: string;
-  time: string;
-}
+// Konusma/RehberKisi/ChatMesaj Faz 5'te src/data/types-mesaj.ts'e taşındı (rol-bağımsız,
+// hem Veli hem Antrenör tarafından kullanılıyor).
 
 export interface IznAntrenman {
   id: string;
@@ -151,9 +116,7 @@ export interface Etkinlik {
 
 export interface EtkinlikSonuc {
   id: string;
-  r: string;
-  rBg: string;
-  rFg: string;
+  sonuc: 'galibiyet' | 'maglubiyet' | 'beraberlik';
   score: string;
   opp: string;
   date: string;

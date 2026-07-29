@@ -19,7 +19,7 @@ export function TabPlaceholder({ title, note }: { title: string; note?: string }
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     wrap: { flex: 1, padding: spacing.lg, gap: spacing.xs },
-    title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+    title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
     subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted },
   });
 }

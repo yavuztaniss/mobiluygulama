@@ -10,7 +10,7 @@ import { TextField } from '../../../src/components/TextField';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { addUrun, getSiparisler, getUrunler, setSiparisDurum, toggleUrunAktif } from '../../../src/data/magazaRepo';
-import type { MagazaSiparis, MagazaUrun, SiparisDurum } from '../../../src/data/types';
+import type { Siparis, SiparisDurum, Urun } from '../../../src/data/types-magaza';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
 type Segment = 'urun' | 'siparis';
@@ -19,7 +19,7 @@ const DURUM_LABEL: Record<SiparisDurum, string> = { hazirlaniyor: 'Hazırlanıyo
 const DURUM_SIRA: SiparisDurum[] = ['hazirlaniyor', 'hazir', 'teslim'];
 
 function getDurumColor(colors: AppColors): Record<SiparisDurum, string> {
-  return { hazirlaniyor: colors.warning, hazir: colors.accent, teslim: colors.textFaint };
+  return { hazirlaniyor: colors.warning, hazir: colors.accent, teslim: colors.textDim };
 }
 
 export default function MagazaScreen() {
@@ -27,8 +27,8 @@ export default function MagazaScreen() {
   const styles = createStyles(colors);
   const DURUM_COLOR = getDurumColor(colors);
   const [segment, setSegment] = useState<Segment>('urun');
-  const [urunler, setUrunler] = useState<MagazaUrun[]>([]);
-  const [siparisler, setSiparisler] = useState<MagazaSiparis[]>([]);
+  const [urunler, setUrunler] = useState<Urun[]>([]);
+  const [siparisler, setSiparisler] = useState<Siparis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
@@ -127,14 +127,14 @@ export default function MagazaScreen() {
                             {u.stok === 0 ? 'Stokta yok' : `${u.stok} adet`}
                           </Text>
                         </View>
-                        <Text style={[styles.urunDurum, { color: u.aktif ? colors.accent : colors.textFaint }]}>
+                        <Text style={[styles.urunDurum, { color: u.aktif ? colors.accent : colors.textDim }]}>
                           {u.aktif ? 'Yayında' : 'Pasif'}
                         </Text>
                       </View>
                       <Switch
                         value={u.aktif}
                         onValueChange={() => onToggle(u.id)}
-                        trackColor={{ true: colors.accent, false: colors.navyBorderStrong }}
+                        trackColor={{ true: colors.accent, false: colors.border }}
                         thumbColor="#FFFFFF"
                       />
                     </Card>
@@ -153,7 +153,7 @@ export default function MagazaScreen() {
                   <Card key={s.id} style={{ gap: 0 }}>
                     <View style={styles.siparisTop}>
                       <View style={styles.siparisIcon}>
-                        <Text style={styles.siparisIconText}>{s.id}</Text>
+                        <Text style={styles.siparisIconText}>#{s.id.slice(0, 4).toUpperCase()}</Text>
                       </View>
                       <View style={styles.mid}>
                         <Text style={styles.siparisUrun}>{s.urun}</Text>
@@ -224,49 +224,49 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
-  segmentRow: { flexDirection: 'row', marginHorizontal: spacing.lg, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, borderRadius: 16, padding: 4 },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
+  segmentRow: { flexDirection: 'row', marginHorizontal: spacing.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
   segmentItemActive: { backgroundColor: colors.accent },
   segmentText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  segmentTextActive: { color: colors.accentOnDark },
+  segmentTextActive: { color: colors.onAccent },
   scroll: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   urunRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   urunRowPasif: { opacity: 0.6 },
-  urunThumb: { width: 62, height: 62, borderRadius: 15, backgroundColor: colors.navyChip, borderWidth: 1, borderColor: colors.navyBorder },
+  urunThumb: { width: 62, height: 62, borderRadius: 15, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border },
   mid: { flex: 1, minWidth: 0 },
-  urunAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  urunAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   urunMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 3 },
   urunFiyat: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.accent },
-  dotSep: { color: colors.textFaint },
+  dotSep: { color: colors.textDim },
   urunStok: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
-  urunStokBos: { color: colors.dangerSoft },
+  urunStokBos: { color: colors.danger },
   urunDurum: { fontFamily: fontFamily.manropeExtra, fontSize: 10, marginTop: 3 },
-  dashedAdd: { borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  dashedAdd: { borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   dashedAddText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted },
   siparisTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
-  siparisIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
-  siparisIconText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: colors.iconMuted },
-  siparisUrun: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
+  siparisIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  siparisIconText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: colors.textMuted },
+  siparisUrun: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   siparisVeli: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  siparisTarih: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textFaint, marginTop: 2 },
-  siparisTutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: 11 },
+  siparisTarih: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: 2 },
+  siparisTutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 11 },
   durumRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  durumLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: colors.textFaint },
+  durumLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim },
   durumPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
   durumDot: { width: 7, height: 7, borderRadius: 4 },
   durumText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm },
   durumChevron: { fontSize: 12 },
-  durumDropdown: { marginTop: spacing.sm, backgroundColor: colors.navySurfaceAlt, borderWidth: 1, borderColor: colors.navyBorderStrong, borderRadius: 16, padding: 6, gap: 2 },
+  durumDropdown: { marginTop: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 6, gap: 2 },
   durumOption: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 11, borderRadius: 11 },
-  durumOptionText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.iconMuted },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textFaint, paddingVertical: 4 },
-  addBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  addSheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '85%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  addTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.md, marginBottom: spacing.md },
+  durumOptionText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim, paddingVertical: 4 },
+  addBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  addSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  addTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md, marginBottom: spacing.md },
   });
 }

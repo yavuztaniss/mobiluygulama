@@ -112,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function devSignInAs(role: Profile['role']) {
+    if (!__DEV__) return;
     setProfile({
       id: 'dev-' + role,
       role,

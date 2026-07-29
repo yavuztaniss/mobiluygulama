@@ -1,14 +1,12 @@
 import { supabase } from '../lib/supabase';
 import {
   ANTRENOR_BILDIRIMLER,
-  ANTRENOR_KONUSMALAR,
   ANTRENOR_PROFIL,
   GELISIM_NOT_SABLONLARI,
   VELI_BILDIRIMLERI,
 } from './mock/antrenor';
 import type {
   AntrenorBildirim,
-  AntrenorKonusma,
   AntrenorProfil,
   BugunkuGrup,
   GelisimKaydi,
@@ -29,7 +27,10 @@ function initialsOf(ad: string): string {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  // toISOString() UTC'ye çevirdiği için UTC+3'te 00:00-03:00 arası bir önceki günü
+  // verir (Faz 7'de takvimRepo/bireyselRepo'da düzeltilen aynı kayma) — yerel bileşenlerden kur.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatDateTR(dateStr: string): string {
@@ -117,13 +118,64 @@ async function getTodayAntrenmanId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
-export async function getYoklamaSatirlari(): Promise<YoklamaSatiri[]> {
+// Yoklama ekranının açılma kilidi: şu an saat aralığı içinde olan (devam eden) antrenman.
+// yoklama_kaydedildi'ye bakılmaz — kaydedilmiş antrenman da saat bitene dek açık kalır
+// ("Düzenle" akışı). Aralık dışındaysa null döner ve ekran kilitli görünür.
+export interface AktifAntrenman {
+  id: string;
+  ad: string;
+  saat1: string;
+  saat2: string;
+  tesis: string;
+}
+
+export async function getAktifAntrenman(): Promise<AktifAntrenman | null> {
+  const { data, error } = await supabase
+    .from('antrenman')
+    .select('id, saat1, saat2, tesis, yoklama_kaydedildi, grup:grup(ad)')
+    .eq('tarih', todayStr());
+  if (error) throw error;
+  const now = new Date();
+  const rows = (data ?? []) as any[];
+  const adaylar = rows.filter((r) => {
+    if (!r.saat1 || !r.saat2) return false;
+    const [h1, m1] = r.saat1.split(':').map(Number);
+    const [h2, m2] = r.saat2.split(':').map(Number);
+    const start = new Date(now);
+    start.setHours(h1, m1, 0, 0);
+    const end = new Date(now);
+    end.setHours(h2, m2, 0, 0);
+    return now >= start && now <= end;
+  });
+  // Aynı saat aralığında birden fazla grup varsa Bugün ekranının 'simdi' mantığıyla
+  // tutarlı davran: önce yoklaması HENÜZ kaydedilmemiş olanı seç.
+  const aktif = adaylar.find((r) => !r.yoklama_kaydedildi) ?? adaylar[0];
+  if (!aktif) return null;
+  return { id: aktif.id, ad: aktif.grup?.ad ?? '', saat1: aktif.saat1, saat2: aktif.saat2, tesis: aktif.tesis ?? '' };
+}
+
+// Yoklama satırlarının roster'ı antrenmanın KENDİ grubuna daraltılır — aynı gün
+// birden fazla grup antrenmanı olduğunda tüm RLS-görünür sporcular karışmasın.
+async function rosterForAntrenman(antrenmanId: string | null): Promise<{ id: string; ad: string; init: string }[]> {
+  if (antrenmanId) {
+    const { data: ant } = await supabase.from('antrenman').select('grup_id').eq('id', antrenmanId).maybeSingle();
+    const grupId = (ant as { grup_id: string } | null)?.grup_id;
+    if (grupId) {
+      const { data } = await supabase.from('sporcular').select('id, ad').eq('grup_id', grupId).order('ad');
+      return ((data ?? []) as { id: string; ad: string }[]).map((s) => ({ id: s.id, ad: s.ad, init: initialsOf(s.ad) }));
+    }
+  }
   const roster = await getSporcular();
-  const antrenmanId = await getTodayAntrenmanId();
-  if (!antrenmanId) {
+  return roster.map((s) => ({ id: s.id, ad: s.ad, init: s.init }));
+}
+
+export async function getYoklamaSatirlari(antrenmanId?: string): Promise<YoklamaSatiri[]> {
+  const id = antrenmanId ?? (await getTodayAntrenmanId());
+  const roster = await rosterForAntrenman(id);
+  if (!id) {
     return roster.map((s) => ({ id: s.id, ad: s.ad, init: s.init, durum: null, izinli: false }));
   }
-  const { data } = await supabase.from('yoklama').select('sporcu_id, durum, izinli, izin_detay').eq('antrenman_id', antrenmanId);
+  const { data } = await supabase.from('yoklama').select('sporcu_id, durum, izinli, izin_detay').eq('antrenman_id', id);
   const rows = (data ?? []) as { sporcu_id: string; durum: string | null; izinli: boolean; izin_detay: string | null }[];
   return roster.map((s) => {
     const row = rows.find((r) => r.sporcu_id === s.id);
@@ -138,34 +190,34 @@ export async function getYoklamaSatirlari(): Promise<YoklamaSatiri[]> {
   });
 }
 
-export async function setYoklamaDurum(id: string, durum: YoklamaDurum): Promise<void> {
-  const antrenmanId = await getTodayAntrenmanId();
-  if (!antrenmanId) return;
+export async function setYoklamaDurum(id: string, durum: YoklamaDurum, antrenmanId?: string): Promise<void> {
+  const hedefId = antrenmanId ?? (await getTodayAntrenmanId());
+  if (!hedefId) return;
   const dbDurum = durum === 'in' ? 'katildi' : durum === 'out' ? 'katilmadi' : null;
   const { error } = await supabase
     .from('yoklama')
-    .upsert({ antrenman_id: antrenmanId, sporcu_id: id, durum: dbDurum }, { onConflict: 'antrenman_id,sporcu_id' });
+    .upsert({ antrenman_id: hedefId, sporcu_id: id, durum: dbDurum }, { onConflict: 'antrenman_id,sporcu_id' });
   if (error) throw error;
 }
 
-export async function tumunuKatildiYap(): Promise<void> {
-  const antrenmanId = await getTodayAntrenmanId();
-  if (!antrenmanId) return;
-  const roster = await getSporcular();
-  const rows = roster.map((s) => ({ antrenman_id: antrenmanId, sporcu_id: s.id, durum: 'katildi' }));
+export async function tumunuKatildiYap(antrenmanId?: string): Promise<void> {
+  const hedefId = antrenmanId ?? (await getTodayAntrenmanId());
+  if (!hedefId) return;
+  const roster = await rosterForAntrenman(hedefId);
+  const rows = roster.map((s) => ({ antrenman_id: hedefId, sporcu_id: s.id, durum: 'katildi' }));
   const { error } = await supabase.from('yoklama').upsert(rows, { onConflict: 'antrenman_id,sporcu_id' });
   if (error) throw error;
 }
 
-export async function getYoklamaKayitDurumu(): Promise<{ kaydedildi: boolean; zaman: string | null }> {
-  const antrenmanId = await getTodayAntrenmanId();
-  if (!antrenmanId) return { kaydedildi: false, zaman: null };
-  const { data } = await supabase.from('antrenman').select('yoklama_kaydedildi, yoklama_kayit_zamani').eq('id', antrenmanId).single();
+export async function getYoklamaKayitDurumu(antrenmanId?: string): Promise<{ kaydedildi: boolean; zaman: string | null }> {
+  const hedefId = antrenmanId ?? (await getTodayAntrenmanId());
+  if (!hedefId) return { kaydedildi: false, zaman: null };
+  const { data } = await supabase.from('antrenman').select('yoklama_kaydedildi, yoklama_kayit_zamani').eq('id', hedefId).single();
   return { kaydedildi: data?.yoklama_kaydedildi ?? false, zaman: data?.yoklama_kayit_zamani ?? null };
 }
 
-export async function yoklamaKaydet(): Promise<{ inCount: number; outCount: number }> {
-  const antrenmanId = await getTodayAntrenmanId();
+export async function yoklamaKaydet(antrenmanIdParam?: string): Promise<{ inCount: number; outCount: number }> {
+  const antrenmanId = antrenmanIdParam ?? (await getTodayAntrenmanId());
   if (!antrenmanId) return { inCount: 0, outCount: 0 };
   const zaman = new Date();
   const zamanStr = String(zaman.getHours()).padStart(2, '0') + ':' + String(zaman.getMinutes()).padStart(2, '0');
@@ -182,8 +234,8 @@ export async function yoklamaKaydet(): Promise<{ inCount: number; outCount: numb
   };
 }
 
-export async function yoklamaKilidiAc(): Promise<void> {
-  const antrenmanId = await getTodayAntrenmanId();
+export async function yoklamaKilidiAc(antrenmanIdParam?: string): Promise<void> {
+  const antrenmanId = antrenmanIdParam ?? (await getTodayAntrenmanId());
   if (!antrenmanId) return;
   const { error } = await supabase.from('antrenman').update({ yoklama_kaydedildi: false, yoklama_kayit_zamani: null }).eq('id', antrenmanId);
   if (error) throw error;
@@ -348,14 +400,7 @@ export async function kadroKilidiAc(): Promise<void> {
   if (error) throw error;
 }
 
-export async function getAntrenorKonusmalar(): Promise<AntrenorKonusma[]> {
-  return delay(ANTRENOR_KONUSMALAR);
-}
-export async function getAntrenorKonusma(id: string): Promise<AntrenorKonusma> {
-  const k = ANTRENOR_KONUSMALAR.find((c) => c.id === id);
-  if (!k) throw new Error('Konuşma bulunamadı');
-  return delay(k);
-}
+// Mesajlaşma Faz 5'te src/data/mesajRepo.ts'e taşındı — bkz. antrenör mesajlar ekranları.
 
 let antrenorProfil: AntrenorProfil = { ...ANTRENOR_PROFIL };
 export async function getAntrenorProfil(): Promise<AntrenorProfil> {

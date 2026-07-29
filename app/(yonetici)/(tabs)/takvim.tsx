@@ -8,10 +8,14 @@ import { TextField } from '../../../src/components/TextField';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { addAntrenman, getTakvim, TESIS_LISTESI } from '../../../src/data/takvimRepo';
+import { getGruplar } from '../../../src/data/etkinlikRepo';
 import type { TakvimBlok, TakvimGun } from '../../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
-const BUGUN_INDEX = 1;
+function bugunIndex(): number {
+  const day = new Date().getDay();
+  return day === 0 ? 6 : day - 1;
+}
 
 export default function TakvimScreen() {
   const colors = useColors();
@@ -19,13 +23,13 @@ export default function TakvimScreen() {
   const [gunler, setGunler] = useState<TakvimGun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState(BUGUN_INDEX);
+  const [selectedDay, setSelectedDay] = useState(bugunIndex());
   const [selectedTesis, setSelectedTesis] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);
-  const [grup, setGrup] = useState('');
-  const [antrenor, setAntrenor] = useState('');
+  const [gruplar, setGruplar] = useState<{ id: string; ad: string }[]>([]);
+  const [grupId, setGrupId] = useState<string | null>(null);
   const [tesis, setTesis] = useState(TESIS_LISTESI[0]);
   const [saat1, setSaat1] = useState('16:00');
   const [saat2, setSaat2] = useState('17:30');
@@ -36,7 +40,9 @@ export default function TakvimScreen() {
     setLoading(true);
     setError(null);
     try {
-      setGunler(await getTakvim());
+      const [g, t] = await Promise.all([getTakvim(), getGruplar()]);
+      setGunler(g);
+      setGruplar(t);
     } catch {
       setError('Takvim yüklenemedi.');
     } finally {
@@ -55,22 +61,21 @@ export default function TakvimScreen() {
   }, [gun, selectedTesis]);
 
   async function onKaydetAntrenman() {
-    if (!grup || !antrenor) {
-      showToast('Grup ve antrenör bilgisi gerekli');
+    if (!grupId) {
+      showToast('Grup seçimi gerekli');
       return;
     }
     setSaving(true);
     setConflict(null);
     try {
-      const result = await addAntrenman({ gunIndex: selectedDay, grup, antrenor, tesis, saat1, saat2 });
+      const result = await addAntrenman({ gunIndex: selectedDay, grupId, tesis, saat1, saat2 });
       if (result.conflict) {
         setConflict(result.conflict);
         return;
       }
       await load();
       setAddOpen(false);
-      setGrup('');
-      setAntrenor('');
+      setGrupId(null);
       showToast('Antrenman eklendi');
     } catch {
       showToast('Antrenman eklenemedi, tekrar dene');
@@ -85,10 +90,10 @@ export default function TakvimScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Takvim</Text>
-            <Text style={styles.subtitle}>20 – 26 Temmuz</Text>
+            <Text style={styles.subtitle}>{gunler[0]?.tarih ?? ''} – {gunler[6]?.tarih ?? ''}</Text>
           </View>
           <View style={styles.headerRight}>
-            <Pressable style={styles.todayBtn} onPress={() => setSelectedDay(BUGUN_INDEX)}>
+            <Pressable style={styles.todayBtn} onPress={() => setSelectedDay(bugunIndex())}>
               <Text style={styles.todayBtnText}>Bugün</Text>
             </Pressable>
             <Pressable
@@ -165,6 +170,11 @@ export default function TakvimScreen() {
                             <Text style={styles.bireyselBadgeText}>Bireysel</Text>
                           </View>
                         )}
+                        {b.turEtiketi && (
+                          <View style={styles.bireyselBadge}>
+                            <Text style={styles.bireyselBadgeText}>{b.turEtiketi}</Text>
+                          </View>
+                        )}
                       </View>
                       <Text style={styles.blokAlt}>{b.alt} · {b.tesis}</Text>
                     </View>
@@ -182,8 +192,14 @@ export default function TakvimScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.addTitle}>Antrenman Ekle</Text>
             <ScrollView contentContainerStyle={{ gap: spacing.sm }} keyboardShouldPersistTaps="handled">
-              <TextField label="Grup" value={grup} onChangeText={setGrup} placeholder="Örn. U16 Basketbol" />
-              <TextField label="Antrenör" value={antrenor} onChangeText={setAntrenor} placeholder="Örn. Emre Hoca" />
+              <Text style={styles.fieldLabel}>GRUP</Text>
+              <View style={styles.tesisPickRow}>
+                {gruplar.map((g) => (
+                  <Pressable key={g.id} style={[styles.tesisPickChip, grupId === g.id && styles.tesisPickChipActive]} onPress={() => setGrupId(g.id)}>
+                    <Text style={[styles.tesisPickChipText, grupId === g.id && styles.tesisPickChipTextActive]}>{g.ad}</Text>
+                  </Pressable>
+                ))}
+              </View>
 
               <Text style={styles.fieldLabel}>TESİS</Text>
               <View style={styles.tesisPickRow}>
@@ -227,64 +243,64 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.lg, paddingBottom: 0 },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 3 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  todayBtn: { paddingVertical: 11, paddingHorizontal: 13, borderRadius: 14, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft },
-  todayBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
+  todayBtn: { paddingVertical: 11, paddingHorizontal: 13, borderRadius: 14, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
+  todayBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   addBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  addBtnText: { fontFamily: fontFamily.archivoBold, fontSize: 18, color: colors.accentOnDark },
+  addBtnText: { fontFamily: fontFamily.archivoBold, fontSize: 18, color: colors.onAccent },
   dayStripScroll: { flexGrow: 0, marginTop: spacing.md },
   dayStrip: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.lg },
-  dayCell: { width: 46, alignItems: 'center', gap: 3, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder },
+  dayCell: { width: 46, alignItems: 'center', gap: 3, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
   dayCellActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  dayCellDow: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textFaint },
-  dayCellDowActive: { color: colors.accentOnDark },
-  dayCellNum: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
-  dayCellNumActive: { color: colors.accentOnDark },
+  dayCellDow: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textDim },
+  dayCellDowActive: { color: colors.onAccent },
+  dayCellNum: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
+  dayCellNumActive: { color: colors.onAccent },
   tesisScroll: { flexGrow: 0, marginTop: spacing.sm },
   tesisRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg, paddingVertical: 2 },
-  tesisChip: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: radius.pill, backgroundColor: colors.navySurfaceAlt, borderWidth: 1, borderColor: colors.navyBorderSoft },
-  tesisChipActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentTint },
-  tesisChipText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFainter },
+  tesisChip: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tesisChipActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+  tesisChipText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   tesisChipTextActive: { color: colors.accent },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   dayHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dayHeaderLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  dayHeaderLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   dayHeaderCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   emptyBox: {
-    marginTop: spacing.sm, borderRadius: radius.xxl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong,
-    backgroundColor: colors.navySheet, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    marginTop: spacing.sm, borderRadius: radius.xxl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border,
+    backgroundColor: colors.surface, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
   },
   emptyBoxIcon: { fontSize: 22 },
-  emptyBoxTitle: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.white },
+  emptyBoxTitle: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.textBright },
   emptyBoxSubtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
   blokRow: { flexDirection: 'row', gap: spacing.sm },
   blokTimeCol: { width: 44, alignItems: 'flex-end', gap: 2, paddingTop: spacing.sm },
-  blokTime1: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
-  blokTime2: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textFaint },
-  blokCard: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 13 },
-  blokCardLive: { borderColor: colors.accentBorder, backgroundColor: 'rgba(46,230,168,0.06)' },
+  blokTime1: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  blokTime2: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  blokCard: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 13 },
+  blokCardLive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
   blokTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  blokTitle: { flex: 1, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.white },
-  liveBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentTint },
+  blokTitle: { flex: 1, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
+  liveBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
   liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.accent },
-  bireyselBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentTint },
+  bireyselBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
   bireyselBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.accent },
   blokAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 4 },
-  addBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  addSheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg, maxHeight: '88%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  addTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.md, marginBottom: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
+  addBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  addSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  addTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md, marginBottom: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   tesisPickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  tesisPickChip: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  tesisPickChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  tesisPickChip: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  tesisPickChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   tesisPickChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   tesisPickChipTextActive: { color: colors.accent },
   saatRow: { flexDirection: 'row', gap: spacing.sm },
-  conflictBox: { borderRadius: 14, backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.dangerBorder, padding: 13 },
-  conflictText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.dangerSoft, lineHeight: 18 },
-  conflictBold: { color: colors.white, fontFamily: fontFamily.manropeExtra },
+  conflictBox: { borderRadius: 14, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, padding: 13 },
+  conflictText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.danger, lineHeight: 18 },
+  conflictBold: { color: colors.textBright, fontFamily: fontFamily.manropeExtra },
   });
 }

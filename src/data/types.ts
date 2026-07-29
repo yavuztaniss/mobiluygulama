@@ -91,7 +91,7 @@ export interface GelirKategori {
   ad: string;
   tutar: string;
   pct: string;
-  renk: string;
+  renkAnahtar: 'accent' | 'info' | 'warning' | 'purple';
 }
 
 export interface TakvimBlok {
@@ -103,6 +103,8 @@ export interface TakvimBlok {
   tesis: string;
   live?: boolean;
   bireysel?: boolean;
+  kaynak?: 'antrenman' | 'etkinlik';
+  turEtiketi?: string;
 }
 
 export interface TakvimGun {
@@ -146,25 +148,8 @@ export interface ServisRota {
   sporcular: ServisSporcu[];
 }
 
-export interface MagazaUrun {
-  id: string;
-  ad: string;
-  fiyat: string;
-  stok: number;
-  aktif: boolean;
-}
-
-export type SiparisDurum = 'hazirlaniyor' | 'hazir' | 'teslim';
-
-export interface MagazaSiparis {
-  id: string;
-  urun: string;
-  veli: string;
-  sporcu: string;
-  tarih: string;
-  tutar: string;
-  durum: SiparisDurum;
-}
+// MagazaUrun/MagazaSiparis/SiparisDurum Faz 6'da src/data/types-magaza.ts'e taşındı
+// (rol-bağımsız Urun/Siparis — hem Yönetici hem Veli aynı gerçek katalogu kullanıyor).
 
 export type EtkinlikTuru = 'mac' | 'turnuva' | 'kamp';
 
@@ -196,6 +181,7 @@ export interface Basvuru {
   avBg: string;
   avFg: string;
   durum: BasvuruDurum;
+  grupId?: string | null;
 }
 
 export interface AntrenorKalem {

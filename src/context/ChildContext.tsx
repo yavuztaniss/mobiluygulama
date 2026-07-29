@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { avatarColorAt } from '../theme/avatarPalette';
 
 export interface ChildInfo {
   id: string;
@@ -17,20 +18,11 @@ export interface ChildInfo {
 // veriye taşınınca bu alias kaldırılabilir).
 export type ChildId = string;
 
-// Dekoratif avatar renkleri sabit bir paletten döngüsel atanıyor (temadan bağımsız,
-// bkz. tema entegrasyonu sırasındaki "dekoratif renkler sabit kalır" kararı).
-const AVATAR_PALETTE = [
-  { avBg: '#1D3560', avFg: '#9FE8CE' },
-  { avBg: '#241A3E', avFg: '#E2C8FF' },
-  { avBg: '#12303F', avFg: '#7DD8F0' },
-  { avBg: '#3A2412', avFg: '#FFD9A0' },
-];
-
 // devSignInAs('veli') ile gerçek Supabase oturumu olmadan test edilirken
 // (bkz. AuthContext.tsx) gösterilecek sabit örnek veri.
 const DEV_CHILDREN: ChildInfo[] = [
-  { id: 'dev-ali', ad: 'Ali', init: 'AK', brans: 'Basketbol U12', avBg: '#1D3560', avFg: '#9FE8CE' },
-  { id: 'dev-zeynep', ad: 'Zeynep', init: 'ZK', brans: 'Yüzme U10', avBg: '#241A3E', avFg: '#E2C8FF' },
+  { id: 'dev-ali', ad: 'Ali', init: 'AK', brans: 'Basketbol U12', ...avatarColorAt(0) },
+  { id: 'dev-zeynep', ad: 'Zeynep', init: 'ZK', brans: 'Yüzme U10', ...avatarColorAt(1) },
 ];
 
 function initialsOf(ad: string): string {
@@ -83,7 +75,7 @@ export function ChildProvider({ children: reactChildren }: { children: ReactNode
           ad: s.ad,
           init: initialsOf(s.ad),
           brans: [s.brans?.ad, s.grup?.ad].filter(Boolean).join(' · ') || s.grup?.ad || '',
-          ...AVATAR_PALETTE[i % AVATAR_PALETTE.length],
+          ...avatarColorAt(i),
         }));
       setChildren(list);
       setSelectedChildId((prev) => (list.some((c) => c.id === prev) ? prev : (list[0]?.id ?? '')));

@@ -1,31 +1,16 @@
 import { supabase } from '../lib/supabase';
 import type { ChildId } from '../context/ChildContext';
-import {
-  ANA_SAYFA,
-  BILDIRIMLER,
-  IZIN_ANTRENMANLAR,
-  IZIN_SEBEPLERI,
-  KONUSMALAR,
-  MAGAZA_KATEGORILER,
-  MAGAZA_URUNLER,
-  REHBER,
-  SERVIS_TAKIP,
-  VELI_PROFIL,
-} from './mock/veli';
+import { ANA_SAYFA, BILDIRIMLER, IZIN_SEBEPLERI, VELI_PROFIL } from './mock/veli';
 import type {
   AnaSayfaOzet,
   Bildirim,
-  ChatMesaj,
   Etkinlik,
   EtkinlikSonuc,
   GelisimBeceri,
   IznAntrenman,
-  Konusma,
   KulupDuyurusu,
-  MagazaUrunVeli,
   OdemeGecmisKalem,
   OdemeOzet,
-  RehberKisi,
   ServisTakip,
   VeliProfil,
   YoklamaGelisim,
@@ -243,89 +228,120 @@ export async function getYoklamaGelisim(childId: ChildId): Promise<YoklamaGelisi
   };
 }
 
-export async function getServisTakip(): Promise<ServisTakip> {
-  return delay(SERVIS_TAKIP);
+// Servis artık gerçek `servis_rota`/`servis_durak`/`servis_sporcu` tablolarından (bkz.
+// supabase/migrations/0012_servis_magaza_izin.sql) — seçili çocuğun bağlı olduğu rotayı
+// çözüyor. Gerçek GPS/canlı konum yok (mock'ta da yoktu); ETA yalnızca varış durağının
+// planlı saatinden hesaplanan tek seferlik bir tahmin.
+function initialsOf2(ad: string): string {
+  return ad.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+}
+function dakikaFarki(saat: string): number {
+  const [h, m] = saat.split(':').map((n) => parseInt(n, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return 0;
+  const hedef = new Date();
+  hedef.setHours(h, m, 0, 0);
+  const fark = Math.round((hedef.getTime() - Date.now()) / 60000);
+  return fark > 0 ? fark : 0;
 }
 
-export async function getMagazaKategoriler(): Promise<string[]> {
-  return delay(MAGAZA_KATEGORILER);
-}
-export async function getMagazaUrunler(): Promise<MagazaUrunVeli[]> {
-  return delay(MAGAZA_URUNLER);
-}
+export async function getServisTakip(childId: ChildId): Promise<ServisTakip | null> {
+  if (!childId) return null;
+  const { data: ss } = await supabase.from('servis_sporcu').select('rota_id, durak_id').eq('sporcu_id', childId).maybeSingle();
+  const baglanti = ss as { rota_id: string; durak_id: string | null } | null;
+  if (!baglanti) return null;
 
-let konusmalar: Konusma[] = [...KONUSMALAR];
-export async function getKonusmalar(): Promise<Konusma[]> {
-  return delay(konusmalar);
-}
-export async function getKonusma(id: string): Promise<Konusma> {
-  const k = konusmalar.find((c) => c.id === id);
-  if (!k) throw new Error('Konuşma bulunamadı');
-  return delay(k);
-}
+  const [{ data: rotaRow }, { data: durakRows }] = await Promise.all([
+    supabase.from('servis_rota').select('*').eq('id', baglanti.rota_id).maybeSingle(),
+    supabase.from('servis_durak').select('id, ad, saat').eq('rota_id', baglanti.rota_id).order('sira'),
+  ]);
+  if (!rotaRow) return null;
+  const rota = rotaRow as { ad: string; plaka: string; sofor: string; durum_txt: string; yolda: boolean };
+  const duraklar = (durakRows ?? []) as { id: string; ad: string; saat: string | null }[];
+  const suankiIdx = duraklar.findIndex((d) => d.id === baglanti.durak_id);
+  const varis = duraklar[duraklar.length - 1];
 
-export async function getRehber(): Promise<RehberKisi[]> {
-  const mevcutAdlar = new Set(konusmalar.map((k) => k.ad));
-  return delay(REHBER.filter((r) => !mevcutAdlar.has(r.ad)));
-}
-
-export async function sohbetBaslat(rehberId: string): Promise<Konusma> {
-  const kisi = REHBER.find((r) => r.id === rehberId);
-  if (!kisi) throw new Error('Kişi bulunamadı');
-  const mevcut = konusmalar.find((k) => k.ad === kisi.ad);
-  if (mevcut) return delay(mevcut);
-  const yeni: Konusma = {
-    id: 'k' + Date.now(),
-    init: kisi.init,
-    ad: kisi.ad,
-    role: kisi.role,
-    roleColor: kisi.roleColor,
-    avBg: kisi.avBg,
-    avFg: kisi.avFg,
-    son: 'Yeni sohbet başlattınız',
-    zaman: 'Şimdi',
-    unread: 0,
+  return {
+    hatAdi: rota.ad,
+    plaka: rota.plaka,
+    soforAdi: rota.sofor,
+    soforInit: initialsOf2(rota.sofor),
+    etaMin: varis?.saat ? dakikaFarki(varis.saat) : 0,
+    etaClock: varis?.saat ?? '—',
+    durum: rota.durum_txt,
+    suankiDurak: suankiIdx >= 0 ? duraklar[suankiIdx].ad : (duraklar[0]?.ad ?? ''),
+    routePct: rota.yolda && duraklar.length > 1 && suankiIdx >= 0 ? Math.round((suankiIdx / (duraklar.length - 1)) * 100) : 0,
+    stopsLeft: suankiIdx >= 0 ? Math.max(duraklar.length - 1 - suankiIdx, 0) : Math.max(duraklar.length - 1, 0),
+    bindiMesaji: rota.yolda ? `${rota.ad} yolda, takip edebilirsiniz` : 'Servis henüz yola çıkmadı',
   };
-  konusmalar = [yeni, ...konusmalar];
-  return delay(yeni);
 }
 
-const BASE_CHAT: ChatMesaj[] = [
-  { who: 'c', text: 'Merhaba Elif Hanım, Ali bugün şut çalışmasında çok iyiydi. Kısa videosunu veli kanalına yükledim.', time: '14:20' },
-  { who: 'c', text: "Cuma antrenmanı 30 dk erken başlayacak, 16:30'da salonda olalım.", time: '14:21' },
-  { who: 'p', text: 'Merhaba hocam, harika haber! Cuma erken geliriz.', time: '14:32' },
-];
-let chatMessages = [...BASE_CHAT];
-const AUTO_REPLIES = ['Rica ederim, iyi akşamlar dilerim.', 'Not aldım, teşekkür ederim.', 'Tamamdır, Cuma görüşürüz.'];
-let replyIdx = 0;
+// Mesajlaşma (konuşmalar/mesajlar) Faz 5'te src/data/mesajRepo.ts'e taşındı — gerçek
+// `konusma`/`mesaj` tabloları + Realtime, hem Veli hem Antrenör ekranları oradan okuyor.
+// Mağaza artık src/data/magazaRepo.ts'te — Yönetici ile aynı gerçek katalog/sipariş kaynağı.
 
-export async function getChatMesajlari(): Promise<ChatMesaj[]> {
-  return delay(chatMessages);
+// İzin Bildir — hedef zaten Faz 3'ten beri vardı (yoklama.izinli/izin_detay), yalnızca
+// Veli'nin yazma izni yoktu (bkz. 0012_servis_magaza_izin.sql'deki 2 yeni policy).
+type IznAntrenmanRow = { id: string; tarih: string; saat1: string | null; saat2: string | null; grup: { ad: string } | null };
+
+function gunKisaltma(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'short' }).toUpperCase().replace('.', '');
 }
 
-function nowClock() {
-  const n = new Date();
-  return String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+export async function getIznAntrenmanlar(childId: ChildId): Promise<IznAntrenman[]> {
+  if (!childId) return [];
+  const { data: sporcuRow } = await supabase.from('sporcular').select('grup_id').eq('id', childId).maybeSingle();
+  const grupId = (sporcuRow as { grup_id: string | null } | null)?.grup_id;
+  if (!grupId) return [];
+
+  const { data: antrenmanlar, error } = await supabase
+    .from('antrenman')
+    .select('id, tarih, saat1, saat2, grup:grup(ad)')
+    .eq('grup_id', grupId)
+    .gte('tarih', new Date().toISOString().slice(0, 10))
+    .order('tarih');
+  if (error) throw error;
+  const aRows = (antrenmanlar ?? []) as unknown as IznAntrenmanRow[];
+  if (aRows.length === 0) return [];
+
+  const { data: yoklamalar } = await supabase
+    .from('yoklama')
+    .select('antrenman_id, durum, izinli')
+    .eq('sporcu_id', childId)
+    .in('antrenman_id', aRows.map((a) => a.id));
+  const kapali = new Set(
+    ((yoklamalar ?? []) as { antrenman_id: string; durum: string | null; izinli: boolean }[])
+      .filter((y) => y.durum !== null || y.izinli)
+      .map((y) => y.antrenman_id)
+  );
+
+  return aRows
+    .filter((a) => !kapali.has(a.id))
+    .map((a) => ({
+      id: a.id,
+      gun1: gunKisaltma(a.tarih),
+      gun2: String(new Date(a.tarih + 'T00:00:00').getDate()),
+      baslik: a.grup?.ad ?? 'Antrenman',
+      detay: a.saat1 && a.saat2 ? `${a.saat1} – ${a.saat2}` : formatDateTR(a.tarih),
+    }));
 }
 
-export async function sendChatMesaj(text: string): Promise<ChatMesaj[]> {
-  chatMessages = [...chatMessages, { who: 'p', text, time: nowClock() }];
-  return delay(chatMessages);
-}
-
-export function scheduleAutoReply(onReply: (mesajlar: ChatMesaj[]) => void) {
-  return setTimeout(() => {
-    chatMessages = [...chatMessages, { who: 'c', text: AUTO_REPLIES[replyIdx % AUTO_REPLIES.length], time: nowClock() }];
-    replyIdx += 1;
-    onReply(chatMessages);
-  }, 1600);
-}
-
-export async function getIznAntrenmanlar(): Promise<IznAntrenman[]> {
-  return delay(IZIN_ANTRENMANLAR);
-}
 export async function getIznSebepleri(): Promise<string[]> {
   return delay(IZIN_SEBEPLERI);
+}
+
+export async function izinGonder(antrenmanId: string, sporcuId: ChildId, sebep: string, detay: string): Promise<void> {
+  if (!sporcuId) return;
+  const izinDetay = detay.trim() ? `${sebep} · veli notu: "${detay.trim()}"` : sebep;
+  const { error } = await supabase
+    .from('yoklama')
+    .upsert(
+      { antrenman_id: antrenmanId, sporcu_id: sporcuId, izinli: true, izin_detay: izinDetay },
+      { onConflict: 'antrenman_id,sporcu_id' }
+    );
+  if (error) {
+    if (error.code === '42501') throw new Error('Bu antrenman için yoklama zaten alındı.');
+    throw error;
+  }
 }
 
 // Etkinlik (maç/turnuva) + RSVP artık gerçek `etkinlik`/`etkinlik_katilim` tablolarından
@@ -383,12 +399,6 @@ export async function setKatilimDurumu(etkinlikId: string, sporcuId: ChildId, du
   if (error) throw error;
 }
 
-const SONUC_RENK: Record<string, { r: string; rBg: string; rFg: string }> = {
-  galibiyet: { r: 'G', rBg: 'rgba(46,230,168,0.14)', rFg: '#2EE6A8' },
-  maglubiyet: { r: 'M', rBg: 'rgba(255,107,122,0.14)', rFg: '#FF6B7A' },
-  beraberlik: { r: 'B', rBg: 'rgba(255,180,84,0.14)', rFg: '#FFB454' },
-};
-
 export async function getEtkinlikSonuclari(): Promise<EtkinlikSonuc[]> {
   const { data, error } = await supabase
     .from('etkinlik')
@@ -396,19 +406,14 @@ export async function getEtkinlikSonuclari(): Promise<EtkinlikSonuc[]> {
     .not('sonuc', 'is', null)
     .order('tarih', { ascending: false });
   if (error) throw error;
-  return ((data ?? []) as any[]).map((r) => {
-    const renk = SONUC_RENK[r.sonuc as string] ?? SONUC_RENK.beraberlik;
-    return {
-      id: r.id,
-      r: renk.r,
-      rBg: renk.rBg,
-      rFg: renk.rFg,
-      score: `${r.skor_biz ?? 0} – ${r.skor_rakip ?? 0}`,
-      opp: r.rakip ?? '',
-      date: formatDateTR(r.tarih),
-      note: r.sonuc_notu ?? '',
-    };
-  });
+  return ((data ?? []) as any[]).map((r) => ({
+    id: r.id,
+    sonuc: (r.sonuc as EtkinlikSonuc['sonuc']) ?? 'beraberlik',
+    score: `${r.skor_biz ?? 0} – ${r.skor_rakip ?? 0}`,
+    opp: r.rakip ?? '',
+    date: formatDateTR(r.tarih),
+    note: r.sonuc_notu ?? '',
+  }));
 }
 
 let bildirimler = [...BILDIRIMLER];

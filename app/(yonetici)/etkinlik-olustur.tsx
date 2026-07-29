@@ -164,14 +164,14 @@ export default function EtkinlikOlusturScreen() {
                   <Text style={styles.toggleTitle}>Velilerden LCV iste</Text>
                   <Text style={styles.toggleSub}>Katılır / katılmaz yanıtı toplanır</Text>
                 </View>
-                <Switch value={lcv} onValueChange={setLcv} trackColor={{ true: colors.accent, false: colors.navyBorderStrong }} thumbColor="#FFFFFF" />
+                <Switch value={lcv} onValueChange={setLcv} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
               </View>
               <View style={[styles.toggleRow, { borderBottomWidth: ucretli ? 1 : 0 }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.toggleTitle}>Ücretli etkinlik</Text>
                   <Text style={styles.toggleSub}>Tutar veli uygulamasında ödemeye düşer</Text>
                 </View>
-                <Switch value={ucretli} onValueChange={setUcretli} trackColor={{ true: colors.accent, false: colors.navyBorderStrong }} thumbColor="#FFFFFF" />
+                <Switch value={ucretli} onValueChange={setUcretli} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
               </View>
               {ucretli && (
                 <View style={{ paddingBottom: spacing.md }}>
@@ -209,43 +209,43 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, color: colors.textFaint, marginBottom: spacing.xs },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
   chipRow: { flexDirection: 'row', gap: spacing.xs },
-  turChip: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  turChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  turChip: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  turChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   turChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   turChipTextActive: { color: colors.accent },
-  smallChip: { flex: 1, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  smallChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  smallChip: { flex: 1, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  smallChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   smallChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   smallChipTextActive: { color: colors.accent },
   rowGap: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  toggleCard: { marginTop: spacing.md, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, paddingHorizontal: spacing.md },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomColor: colors.navyBorder },
-  toggleTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  toggleCard: { marginTop: spacing.md, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomColor: colors.border },
+  toggleTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   toggleSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   publishBtn: { marginTop: spacing.lg, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  publishBtnDisabled: { backgroundColor: colors.navySurface },
-  publishBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
-  publishBtnTextDisabled: { color: colors.textFaint },
+  publishBtnDisabled: { backgroundColor: colors.panel },
+  publishBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  publishBtnTextDisabled: { color: colors.textDim },
   doneWrap: { flex: 1, alignItems: 'center', padding: spacing.xl, paddingTop: 56 },
-  doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentTint, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentSoft, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   doneCheckmark: { fontSize: 40, color: colors.accent },
-  doneTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.lg },
-  doneOzet: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.iconMuted, marginTop: spacing.xs, textAlign: 'center' },
-  timeline: { width: '100%', borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: spacing.md, marginTop: spacing.xl, gap: 8 },
+  doneTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.lg },
+  doneOzet: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs, textAlign: 'center' },
+  timeline: { width: '100%', borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.xl, gap: 8 },
   timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   timelineDot: { width: 8, height: 8, borderRadius: 4 },
   timelineDotDone: { backgroundColor: colors.accent },
-  timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong },
-  timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.white },
-  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint },
+  timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border },
+  timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
+  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
   resetBtn: { width: '100%', marginTop: spacing.md, height: 48, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  resetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accentOnDark },
+  resetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   });
 }

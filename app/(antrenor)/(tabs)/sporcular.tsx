@@ -7,7 +7,7 @@ import { LoadingState, ErrorState, EmptyState } from '../../../src/components/St
 import { Toast, useToast } from '../../../src/components/Toast';
 import { getSporcular } from '../../../src/data/antrenorRepo';
 import type { Sporcu } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function AntrenorSporcularScreen() {
   const colors = useColors();
@@ -49,7 +49,7 @@ export default function AntrenorSporcularScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Sporcu ara..."
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={colors.textDim}
             value={search}
             onChangeText={setSearch}
           />
@@ -96,18 +96,18 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { padding: spacing.lg, paddingBottom: 0 },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: 3 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 44, borderRadius: 15, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, marginHorizontal: spacing.lg, marginTop: spacing.md, paddingHorizontal: 14 },
-  searchInput: { flex: 1, color: colors.white, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 44, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, marginHorizontal: spacing.lg, marginTop: spacing.md, paddingHorizontal: 14 },
+  searchInput: { flex: 1, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs, paddingBottom: spacing.xxl },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 12 },
-  avatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: '#9FE8CE' },
-  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 12 },
+  avatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
+  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   sub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
-  pctBadge: { backgroundColor: colors.accentTint, paddingVertical: 5, paddingHorizontal: 9, borderRadius: 99 },
+  pctBadge: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 9, borderRadius: 99 },
   pctText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.accent },
-  callBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  callBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   });
 }

@@ -72,7 +72,7 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     flex: { flex: 1 },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xxl, gap: spacing.sm },
-    title: { fontFamily: fontFamily.archivoBold, fontSize: 32, color: colors.white, letterSpacing: -0.5 },
+    title: { fontFamily: fontFamily.archivoBold, fontSize: 32, color: colors.textBright, letterSpacing: -0.5 },
     subtitle: {
       fontFamily: fontFamily.manropeMedium,
       fontSize: fontSize.base,

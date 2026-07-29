@@ -5,12 +5,13 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
+import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePicker';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { getAntrenorProfil, updateAntrenorProfil } from '../../../src/data/antrenorRepo';
 import type { AntrenorProfil } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function AntrenorProfilScreen() {
   const colors = useColors();
@@ -106,6 +107,11 @@ export default function AntrenorProfilScreen() {
               ))}
             </Card>
 
+            <Text style={styles.sectionLabel}>GÖRÜNÜM</Text>
+            <Card>
+              <ThemePreferencePicker />
+            </Card>
+
             <Text style={styles.sectionLabel}>BİLDİRİM TERCİHLERİ</Text>
             <Card style={{ gap: 0 }}>
               <PrefRow label="Yoklama hatırlatmaları" sub="Antrenman saatinde bildir" value={prefYoklama} onChange={setPrefYoklama} />
@@ -129,15 +135,15 @@ export default function AntrenorProfilScreen() {
             <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               <View>
                 <Text style={styles.fieldLabel}>AD SOYAD</Text>
-                <TextInput value={editAd} onChangeText={setEditAd} placeholderTextColor={colors.textFaint} style={styles.input} />
+                <TextInput value={editAd} onChangeText={setEditAd} placeholderTextColor={colors.textDim} style={styles.input} />
               </View>
               <View>
                 <Text style={styles.fieldLabel}>TELEFON</Text>
-                <TextInput value={editTelefon} onChangeText={setEditTelefon} keyboardType="phone-pad" placeholderTextColor={colors.textFaint} style={styles.input} />
+                <TextInput value={editTelefon} onChangeText={setEditTelefon} keyboardType="phone-pad" placeholderTextColor={colors.textDim} style={styles.input} />
               </View>
               <View>
                 <Text style={styles.fieldLabel}>E-POSTA</Text>
-                <TextInput value={editEposta} onChangeText={setEditEposta} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textFaint} style={styles.input} />
+                <TextInput value={editEposta} onChangeText={setEditEposta} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textDim} style={styles.input} />
               </View>
             </View>
             <Pressable style={styles.saveBtn} onPress={onSaveEdit} disabled={kaydediliyor}>
@@ -173,7 +179,7 @@ function PrefRow({
         <Text style={styles.prefLabel}>{label}</Text>
         <Text style={styles.prefSub}>{sub}</Text>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.navyBorderStrong }} thumbColor="#FFFFFF" />
+      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
     </View>
   );
 }
@@ -182,30 +188,30 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  avatar: { width: 54, height: 54, borderRadius: 19, backgroundColor: '#1D3560', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: '#9FE8CE' },
-  name: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.white },
+  avatar: { width: 54, height: 54, borderRadius: 19, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: avatarColorAt(0).avFg },
+  name: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textBright },
   role: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent, marginTop: 2 },
   contact: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   editLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textFaint, marginTop: spacing.sm },
-  groupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
-  groupName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm },
+  groupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  groupName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   groupCount: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  prefRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
-  prefLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  prefRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  prefLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   prefSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   signOutWrap: { marginTop: spacing.md },
-  versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textFaint, marginTop: spacing.sm },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center' },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint, marginBottom: 7 },
-  input: { backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.white, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
+  versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.sm },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
+  saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   });
 }

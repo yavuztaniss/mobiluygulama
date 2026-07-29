@@ -16,6 +16,12 @@ import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from
 
 type Sekme = 'yaklasan' | 'sonuclar';
 
+function sonucGorunum(colors: AppColors, sonuc: EtkinlikSonuc['sonuc']): { harf: string; bg: string; fg: string } {
+  if (sonuc === 'galibiyet') return { harf: 'G', bg: colors.accentSoft, fg: colors.accent };
+  if (sonuc === 'maglubiyet') return { harf: 'M', bg: colors.dangerSoft, fg: colors.danger };
+  return { harf: 'B', bg: colors.warningSoft, fg: colors.warning };
+}
+
 export default function EtkinliklerScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
@@ -156,21 +162,24 @@ export default function EtkinliklerScreen() {
               </>
             ) : (
               <>
-                {sonuclar.map((rs) => (
-                  <View key={rs.id} style={styles.resultRow}>
-                    <View style={[styles.resultBadge, { backgroundColor: rs.rBg }]}>
-                      <Text style={[styles.resultBadgeText, { color: rs.rFg }]}>{rs.r}</Text>
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={styles.resultTopRow}>
-                        <Text style={styles.resultScore}>{rs.score}</Text>
-                        <Text style={styles.resultDate}>{rs.date}</Text>
+                {sonuclar.map((rs) => {
+                  const g = sonucGorunum(colors, rs.sonuc);
+                  return (
+                    <View key={rs.id} style={styles.resultRow}>
+                      <View style={[styles.resultBadge, { backgroundColor: g.bg }]}>
+                        <Text style={[styles.resultBadgeText, { color: g.fg }]}>{g.harf}</Text>
                       </View>
-                      <Text style={styles.resultOpp}>{rs.opp}</Text>
-                      <Text style={styles.resultNote}>{rs.note}</Text>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={styles.resultTopRow}>
+                          <Text style={styles.resultScore}>{rs.score}</Text>
+                          <Text style={styles.resultDate}>{rs.date}</Text>
+                        </View>
+                        <Text style={styles.resultOpp}>{rs.opp}</Text>
+                        <Text style={styles.resultNote}>{rs.note}</Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
                 <Text style={styles.footerNote}>Sezon fikstürünün tamamı kulüp panosunda</Text>
               </>
             )}
@@ -234,83 +243,83 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  segmentRow: { flexDirection: 'row', marginHorizontal: spacing.lg, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, borderRadius: 16, padding: 5 },
+  segmentRow: { flexDirection: 'row', marginHorizontal: spacing.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 5 },
   segmentItem: { flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   segmentItemActive: { backgroundColor: colors.accent },
   segmentText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  segmentTextActive: { color: colors.accentOnDark },
+  segmentTextActive: { color: colors.onAccent },
   scroll: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   matchTop: { flexDirection: 'row', justifyContent: 'flex-start' },
-  tagPill: { backgroundColor: colors.accentTint, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
+  tagPill: { backgroundColor: colors.accentSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
   tagPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 1, color: colors.accent },
-  matchTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white, marginTop: 9 },
-  matchSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.iconMuted, marginTop: 3 },
+  matchTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: 9 },
+  matchSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
   matchVenue: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 6 },
   matchExtra: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 4 },
-  divider: { height: 1, backgroundColor: colors.navyBorder, marginVertical: spacing.sm },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   lcvRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
-  lcvText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.iconMuted },
-  lcvBtn: { height: 38, paddingHorizontal: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  lcvBtnActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  lcvText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
+  lcvBtn: { height: 38, paddingHorizontal: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  lcvBtnActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   lcvBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   lcvBtnTextActive: { color: colors.accent },
-  lcvBtnOut: { height: 38, paddingHorizontal: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  lcvBtnOutActive: { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
+  lcvBtnOut: { height: 38, paddingHorizontal: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  lcvBtnOutActive: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   lcvBtnOutText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   lcvBtnOutTextActive: { color: colors.danger },
-  kampCard: { borderRadius: 22, backgroundColor: 'rgba(18,58,46,0.6)', borderWidth: 1, borderColor: 'rgba(46,230,168,0.25)', padding: 16 },
+  kampCard: { borderRadius: 22, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 16 },
   kampTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   kampLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: colors.accent },
-  kampBadgeWarn: { backgroundColor: 'rgba(255,180,84,0.12)', paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
+  kampBadgeWarn: { backgroundColor: colors.warningSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
   kampBadgeWarnText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.warning },
-  kampBadgeOk: { backgroundColor: colors.accentTint, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
+  kampBadgeOk: { backgroundColor: colors.accentSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
   kampBadgeOkText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent },
-  kampTitle: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.white, marginTop: 7 },
-  kampSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textFainter, marginTop: 3 },
+  kampTitle: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.textBright, marginTop: 7 },
+  kampSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: 3 },
   kampBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 13, flexWrap: 'wrap', gap: spacing.xs },
   kampPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
   kampPrice: { fontFamily: fontFamily.archivoBold, fontSize: 21, color: colors.accent },
-  kampPriceOld: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint, textDecorationLine: 'line-through' },
+  kampPriceOld: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim, textDecorationLine: 'line-through' },
   kampPriceNote: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent },
   kampBtn: { height: 40, paddingHorizontal: 17, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  kampBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accentOnDark },
-  kampOkBox: { marginTop: 12, borderRadius: 13, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentBorder, padding: 11 },
+  kampBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
+  kampOkBox: { marginTop: 12, borderRadius: 13, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11 },
   kampOkText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
-  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 20, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: 15 },
+  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 20, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 15 },
   resultBadge: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   resultBadgeText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg },
   resultTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  resultScore: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
-  resultDate: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint },
+  resultScore: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
+  resultDate: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
   resultOpp: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   resultNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent, marginTop: 3 },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textFaint, marginTop: spacing.sm },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,20,0.62)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.navySheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.navyBorderStrong, padding: spacing.lg },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center', marginBottom: spacing.md },
-  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
+  sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  kampTable: { borderRadius: 16, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, paddingHorizontal: 14, marginTop: spacing.md },
-  kampTableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.navyBorder },
+  kampTable: { borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, marginTop: spacing.md },
+  kampTableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   kampTableLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  kampTableValue: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.white },
+  kampTableValue: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
   sheetPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: spacing.md },
   sheetPrice: { fontFamily: fontFamily.archivoBold, fontSize: 26, color: colors.accent },
-  sheetPriceOld: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textFaint, textDecorationLine: 'line-through' },
-  sheetPriceBadge: { backgroundColor: colors.accentTint, paddingVertical: 3, paddingHorizontal: 8, borderRadius: radius.pill },
+  sheetPriceOld: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textDim, textDecorationLine: 'line-through' },
+  sheetPriceBadge: { backgroundColor: colors.accentSoft, paddingVertical: 3, paddingHorizontal: 8, borderRadius: radius.pill },
   sheetPriceBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent },
-  taksitRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: spacing.md, marginBottom: spacing.md, borderRadius: 16, borderWidth: 1, borderColor: colors.navyBorderStrong, backgroundColor: 'rgba(255,255,255,0.04)', padding: 13 },
-  radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.navyBorderStrong, alignItems: 'center', justifyContent: 'center' },
+  taksitRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: spacing.md, marginBottom: spacing.md, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.chip, padding: 13 },
+  radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioOuterActive: { borderColor: colors.accent },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-  taksitTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  taksitTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   taksitSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  faizPill: { backgroundColor: colors.accentTint, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
+  faizPill: { backgroundColor: colors.accentSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
   faizPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent },
-  sheetNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textFaint, marginTop: spacing.sm },
+  sheetNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: spacing.sm },
   });
 }

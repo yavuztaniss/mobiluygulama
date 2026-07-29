@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { useChildLabel } from '../../../src/components/ChildSwitcher';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { getIznAntrenmanlar, getIznSebepleri } from '../../../src/data/veliRepo';
+import { useChild } from '../../../src/context/ChildContext';
+import { getIznAntrenmanlar, getIznSebepleri, izinGonder } from '../../../src/data/veliRepo';
 import type { IznAntrenman } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
 
@@ -13,6 +14,7 @@ export default function IzinBildirScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const childLabel = useChildLabel();
+  const { selectedChildId } = useChild();
   const [antrenmanlar, setAntrenmanlar] = useState<IznAntrenman[]>([]);
   const [sebepler, setSebepler] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,12 +25,14 @@ export default function IzinBildirScreen() {
   const [not, setNot] = useState('');
   const [gonderildi, setGonderildi] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!selectedChildId) return;
     setLoading(true);
     setError(null);
     try {
-      const [a, s] = await Promise.all([getIznAntrenmanlar(), getIznSebepleri()]);
+      const [a, s] = await Promise.all([getIznAntrenmanlar(selectedChildId), getIznSebepleri()]);
       setAntrenmanlar(a);
       setSebepler(s);
       setSeciliAntrenman(a[0]?.id ?? null);
@@ -37,7 +41,7 @@ export default function IzinBildirScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedChildId]);
 
   useEffect(() => {
     load();
@@ -47,17 +51,24 @@ export default function IzinBildirScreen() {
   const secilenAntrenman = antrenmanlar.find((a) => a.id === seciliAntrenman);
 
   async function onSend() {
-    if (!canSend) return;
+    if (!canSend || !seciliAntrenman || !seciliSebep) return;
     setSending(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSending(false);
-    setGonderildi(true);
+    setSendError(null);
+    try {
+      await izinGonder(seciliAntrenman, selectedChildId, seciliSebep, not);
+      setGonderildi(true);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'İzin gönderilemedi, tekrar dene.');
+    } finally {
+      setSending(false);
+    }
   }
 
   function reset() {
     setGonderildi(false);
     setSeciliSebep(null);
     setNot('');
+    setSendError(null);
   }
 
   return (
@@ -136,7 +147,7 @@ export default function IzinBildirScreen() {
                 <TextInput
                   style={styles.noteInput}
                   placeholder="Örn. ateşi var, evde dinlenecek"
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.textDim}
                   value={not}
                   onChangeText={setNot}
                 />
@@ -146,6 +157,12 @@ export default function IzinBildirScreen() {
                     Antrenöre anında iletilir, yoklamada <Text style={{ fontFamily: fontFamily.manropeExtra }}>izinli</Text> olarak işlenir ve devamsızlık puanını etkilemez.
                   </Text>
                 </View>
+
+                {sendError && (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorBoxText}>{sendError}</Text>
+                  </View>
+                )}
 
                 <Pressable style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]} disabled={!canSend || sending} onPress={onSend}>
                   <Text style={[styles.sendBtnText, !canSend && styles.sendBtnTextDisabled]}>
@@ -177,51 +194,53 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: colors.iconMuted, fontSize: 22, marginTop: -2 },
-  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
+  headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textFaint, marginBottom: spacing.xs },
-  optionalNote: { color: colors.textFaint, letterSpacing: 0.4 },
-  sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft, padding: 12, marginBottom: spacing.xs },
-  sessionRowActive: { borderColor: colors.accentBorder, backgroundColor: 'rgba(46,230,168,0.06)' },
-  sessionDateBox: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.navyChip, alignItems: 'center', justifyContent: 'center' },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
+  optionalNote: { color: colors.textDim, letterSpacing: 0.4 },
+  sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, padding: 12, marginBottom: spacing.xs },
+  sessionRowActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+  sessionDateBox: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   sessionDateD1: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textMuted },
-  sessionDateD2: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.white },
-  sessionTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.white },
+  sessionDateD2: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
+  sessionTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   sessionDetay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.navyBorderStrong, alignItems: 'center', justifyContent: 'center' },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioOuterActive: { borderColor: colors.accent },
   radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.accent },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  reasonChip: { paddingVertical: 10, paddingHorizontal: 15, borderRadius: 99, backgroundColor: colors.navySurface, borderWidth: 1.5, borderColor: colors.navyBorderSoft },
-  reasonChipActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
+  reasonChip: { paddingVertical: 10, paddingHorizontal: 15, borderRadius: 99, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  reasonChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   reasonChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   reasonChipTextActive: { color: colors.accent },
-  noteInput: { height: 48, borderRadius: 16, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorderSoft, paddingHorizontal: 15, color: colors.white, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
-  infoBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: 'rgba(46,230,168,0.16)', padding: 12 },
+  noteInput: { height: 48, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
+  infoBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
   infoText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.accent, lineHeight: 19 },
+  errorBox: { marginTop: spacing.sm, borderRadius: 14, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, padding: 12 },
+  errorBoxText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.danger, lineHeight: 19 },
   sendBtn: { marginTop: spacing.lg, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { backgroundColor: colors.navySurface },
-  sendBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.accentOnDark },
-  sendBtnTextDisabled: { color: colors.textFaint },
+  sendBtnDisabled: { backgroundColor: colors.panel },
+  sendBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  sendBtnTextDisabled: { color: colors.textDim },
   doneWrap: { flex: 1, alignItems: 'center', padding: spacing.xl, paddingTop: 56 },
-  doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentTint, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
+  doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentSoft, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   doneCheckmark: { fontSize: 40, color: colors.accent },
-  doneTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.white, marginTop: spacing.lg },
-  doneSum: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.iconMuted, marginTop: spacing.xs },
+  doneTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.lg },
+  doneSum: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs },
   doneCoachTo: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
-  timeline: { width: '100%', borderRadius: 18, backgroundColor: colors.navySurface, borderWidth: 1, borderColor: colors.navyBorder, padding: spacing.md, marginTop: spacing.xl, gap: 8 },
+  timeline: { width: '100%', borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.xl, gap: 8 },
   timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   timelineDot: { width: 8, height: 8, borderRadius: 4 },
-  timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.navyBorderStrong },
-  timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.white },
-  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textFaint },
+  timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border },
+  timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
+  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
   doneActions: { flexDirection: 'row', gap: spacing.sm, width: '100%', marginTop: spacing.md },
-  undoBtn: { flex: 1, height: 48, borderRadius: 15, borderWidth: 1, borderColor: colors.navyBorderStrong, alignItems: 'center', justifyContent: 'center' },
-  undoBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
+  undoBtn: { flex: 1, height: 48, borderRadius: 15, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  undoBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   okBtn: { flex: 1, height: 48, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  okBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accentOnDark },
+  okBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
   });
 }

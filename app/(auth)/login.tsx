@@ -119,7 +119,7 @@ function createStyles(colors: AppColors) {
     title: {
       fontFamily: fontFamily.archivoBold,
       fontSize: 32,
-      color: colors.white,
+      color: colors.textBright,
       letterSpacing: -0.5,
     },
     subtitle: {
@@ -160,7 +160,7 @@ function createStyles(colors: AppColors) {
     devBox: {
       marginTop: spacing.xxl,
       borderTopWidth: 1,
-      borderTopColor: colors.navyBorder,
+      borderTopColor: colors.border,
       paddingTop: spacing.lg,
       gap: spacing.sm,
     },
@@ -169,7 +169,7 @@ function createStyles(colors: AppColors) {
       fontSize: 9.5,
       fontWeight: '700',
       letterSpacing: 1.2,
-      color: colors.textFaint,
+      color: colors.textDim,
       textAlign: 'center',
     },
     devRow: {

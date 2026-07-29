@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { Slot } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -13,13 +13,33 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { AuthProvider } from '../src/context/AuthContext';
-import { ThemeProvider, useThemeMode } from '../src/theme';
+import { ThemeProvider, useThemeMode, useThemeReady } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function ThemedStatusBar() {
   const mode = useThemeMode();
   return <StatusBar style={mode === 'light' ? 'dark' : 'light'} />;
+}
+
+// Splash ekranı hem fontlar YÜKLENENE hem de kayıtlı tema tercihi AsyncStorage'dan
+// OKUNANA kadar açık kalır — tema flaşını (yanlış modun bir an görünüp değişmesini) önler.
+function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const themeReady = useThemeReady();
+  const ready = fontsLoaded && themeReady;
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) return null;
+
+  return (
+    <AuthProvider>
+      <ThemedStatusBar />
+      <Slot />
+    </AuthProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -33,23 +53,10 @@ export default function RootLayout() {
   });
   const fontsLoaded = archivoLoaded && manropeLoaded;
 
-  const onLayout = useCallback(async () => {
-    if (fontsLoaded) await SplashScreen.hideAsync();
-  }, [fontsLoaded]);
-
-  useEffect(() => {
-    onLayout();
-  }, [onLayout]);
-
-  if (!fontsLoaded) return null;
-
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <ThemedStatusBar />
-          <Slot />
-        </AuthProvider>
+        <AppGate fontsLoaded={fontsLoaded} />
       </ThemeProvider>
     </SafeAreaProvider>
   );

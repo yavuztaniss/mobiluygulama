@@ -11,9 +11,9 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     card: {
       borderRadius: radius.xl,
-      backgroundColor: colors.navySurface,
+      backgroundColor: colors.panel,
       borderWidth: 1,
-      borderColor: colors.navyBorder,
+      borderColor: colors.border,
       padding: spacing.lg,
     },
   });

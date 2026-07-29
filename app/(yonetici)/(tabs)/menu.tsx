@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
+import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePicker';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
@@ -65,6 +66,11 @@ export default function MenuScreen() {
             )}
           </Card>
 
+          <Text style={styles.sectionLabel}>GÖRÜNÜM</Text>
+          <Card>
+            <ThemePreferencePicker />
+          </Card>
+
           <View style={styles.list}>
             {MENU_ITEMS.map((item) => (
               <Pressable key={item.label} style={styles.row} onPress={() => router.push(item.href)}>
@@ -88,21 +94,22 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.white },
+  title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   profileCard: { gap: 4 },
-  profileName: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.lg, color: colors.white },
+  profileName: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.lg, color: colors.textBright },
   profileRole: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted },
-  rolDivider: { height: 1, backgroundColor: colors.navyBorder, marginTop: spacing.md, marginBottom: spacing.sm },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim },
+  rolDivider: { height: 1, backgroundColor: colors.border, marginTop: spacing.md, marginBottom: spacing.sm },
   rolHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rolLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textFaint },
-  rolCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textFaint },
+  rolLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  rolCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   rolRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  rolCard: { flex: 1, borderRadius: 14, backgroundColor: colors.navyChip, borderWidth: 1.5, borderColor: colors.navyBorderSoft, padding: 11 },
-  rolCardActive: { backgroundColor: colors.accentTint, borderColor: colors.accentBorder },
-  rolCardTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.white },
+  rolCard: { flex: 1, borderRadius: 14, backgroundColor: colors.chip, borderWidth: 1.5, borderColor: colors.border, padding: 11 },
+  rolCardActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  rolCardTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textBright },
   rolCardSubActive: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.accent, marginTop: 1 },
-  rolCardTitleMuted: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.iconMuted },
-  rolCardSub: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textFaint, marginTop: 1 },
+  rolCardTitleMuted: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  rolCardSub: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim, marginTop: 1 },
   list: { gap: spacing.xs },
   row: {
     flexDirection: 'row',
@@ -111,12 +118,12 @@ function createStyles(colors: AppColors) {
     paddingVertical: 14,
     paddingHorizontal: spacing.lg,
     borderRadius: 15,
-    backgroundColor: colors.navySurface,
+    backgroundColor: colors.panel,
     borderWidth: 1,
-    borderColor: colors.navyBorder,
+    borderColor: colors.border,
   },
-  rowLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.md, color: colors.white },
-  chevron: { color: colors.textFaint, fontSize: 16 },
+  rowLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.md, color: colors.textBright },
+  chevron: { color: colors.textDim, fontSize: 16 },
   signOutWrap: { marginTop: spacing.lg },
   });
 }

@@ -63,17 +63,7 @@ export interface KadroSatiri {
   secili: boolean;
 }
 
-export interface AntrenorKonusma {
-  id: string;
-  init: string;
-  ad: string;
-  role: string;
-  avBg: string;
-  avFg: string;
-  son: string;
-  zaman: string;
-  unread: number;
-}
+// AntrenorKonusma Faz 5'te src/data/types-mesaj.ts'e taşındı (rol-bağımsız KonusmaSatir).
 
 export interface AntrenorProfil {
   ad: string;

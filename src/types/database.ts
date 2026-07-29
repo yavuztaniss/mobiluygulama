@@ -1,4 +1,6 @@
-export type AppRole = 'yonetici' | 'veli' | 'antrenor';
+// 'muhasebeci' 0015 migration'ıyla eklendi — yalnızca web yönetim panelini kullanır,
+// mobil uygulamada arayüzü yoktur (bkz. app/index.tsx yönlendirmesi).
+export type AppRole = 'yonetici' | 'veli' | 'antrenor' | 'muhasebeci';
 
 export interface Profile {
   id: string;

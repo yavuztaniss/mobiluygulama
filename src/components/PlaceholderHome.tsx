@@ -32,7 +32,7 @@ function createStyles(colors: AppColors) {
       color: colors.accent,
       marginBottom: spacing.sm,
     },
-    title: { fontFamily: fontFamily.archivoBold, fontSize: 28, color: colors.white },
+    title: { fontFamily: fontFamily.archivoBold, fontSize: 28, color: colors.textBright },
     subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs },
     spacer: { height: spacing.xxl },
   });

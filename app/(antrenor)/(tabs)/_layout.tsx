@@ -5,7 +5,7 @@ import { useColors, type AppColors, fontFamily } from '../../../src/theme';
 function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
   const colors = useColors();
   const styles = createStyles(colors);
-  return <Text style={[styles.icon, { color: focused ? colors.accent : colors.textFaint }]}>{symbol}</Text>;
+  return <Text style={[styles.icon, { color: focused ? colors.accent : colors.textDim }]}>{symbol}</Text>;
 }
 
 export default function AntrenorTabsLayout() {
@@ -17,7 +17,7 @@ export default function AntrenorTabsLayout() {
         headerShown: false,
         tabBarStyle: styles.bar,
         tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textFaint,
+        tabBarInactiveTintColor: colors.textDim,
         tabBarLabelStyle: styles.label,
       }}
     >
@@ -31,7 +31,7 @@ export default function AntrenorTabsLayout() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    bar: { backgroundColor: colors.navySurface, borderTopColor: colors.navyBorder, height: 64, paddingBottom: 8, paddingTop: 8 },
+    bar: { backgroundColor: colors.panel, borderTopColor: colors.border, height: 64, paddingBottom: 8, paddingTop: 8 },
     label: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5 },
     icon: { fontSize: 16 },
   });
