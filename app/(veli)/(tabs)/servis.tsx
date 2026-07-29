@@ -7,6 +7,7 @@ import { Card } from '../../../src/components/Card';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useChild } from '../../../src/context/ChildContext';
+import { useOzellik } from '../../../src/context/OzellikContext';
 import { getServisTakip } from '../../../src/data/veliRepo';
 import { getKonusmalar } from '../../../src/data/mesajRepo';
 import type { ServisTakip } from '../../../src/data/types-veli';
@@ -16,6 +17,7 @@ export default function ServisScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { selectedChildId } = useChild();
+  const { ozellikAcik } = useOzellik();
   const [takip, setTakip] = useState<ServisTakip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,9 +116,13 @@ export default function ServisScreen() {
                   <Text style={styles.soforName}>{takip.soforAdi}</Text>
                   <Text style={styles.soforSub}>Servis şoförü</Text>
                 </View>
-                <Pressable style={styles.iconBtn} onPress={onMesajSofor}>
-                  <Text>💬</Text>
-                </Pressable>
+                {/* Mesajlaşma bayrağı kapalıysa buton da gizlenir — kapatılmış özelliğe
+                    uygulama içinden görünür bir giriş kapısı bırakma. */}
+                {ozellikAcik('mesajlar') && (
+                  <Pressable style={styles.iconBtn} onPress={onMesajSofor}>
+                    <Text>💬</Text>
+                  </Pressable>
+                )}
                 {!!takip.soforTelefon && (
                   <Pressable
                     style={styles.callBtnMain}

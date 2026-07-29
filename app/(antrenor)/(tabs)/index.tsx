@@ -6,6 +6,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useOzellik } from '../../../src/context/OzellikContext';
 import { getAntrenorBildirimler, getBugunkuGruplar } from '../../../src/data/antrenorRepo';
 import type { AntrenorBildirim, BugunkuGrup } from '../../../src/data/types-antrenor';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
@@ -19,6 +20,7 @@ export default function AntrenorBugun() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { profile } = useAuth();
+  const { ozellikAcik } = useOzellik();
   const [gruplar, setGruplar] = useState<BugunkuGrup[]>([]);
   const [bildirimler, setBildirimler] = useState<AntrenorBildirim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,27 +174,32 @@ export default function AntrenorBugun() {
                 </Pressable>
               </View>
 
-              <Pressable style={styles.bireyselCard} onPress={() => router.push('/takvim')}>
-                <View style={styles.bireyselIcon}>
-                  <Text style={{ fontSize: 18 }}>🧑‍🏫</Text>
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={styles.bireyselTitleRow}>
-                    <Text style={styles.bireyselTitle}>Bireysel Ders Takvimi</Text>
-                    <View style={styles.yeniPill}>
-                      <Text style={styles.yeniPillText}>YENİ</Text>
+              {/* Takvim + kazanç bireysel ders akışının parçaları — ikisi de aynı bayrağa bağlı. */}
+              {ozellikAcik('bireysel_ders') && (
+                <>
+                  <Pressable style={styles.bireyselCard} onPress={() => router.push('/takvim')}>
+                    <View style={styles.bireyselIcon}>
+                      <Text style={{ fontSize: 18 }}>🧑‍🏫</Text>
                     </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={styles.bireyselTitleRow}>
+                        <Text style={styles.bireyselTitle}>Bireysel Ders Takvimi</Text>
+                        <View style={styles.yeniPill}>
+                          <Text style={styles.yeniPillText}>YENİ</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.bireyselSub}>Rezervasyonları onayla, müsaitliğini düzenle</Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </Pressable>
+                  <View style={styles.quickActionsRow}>
+                    <Pressable style={styles.quickActionBtn} onPress={() => router.push('/kazanc')}>
+                      <Text style={styles.quickActionIcon}>💰</Text>
+                      <Text style={styles.quickActionText}>Kazanç Özeti</Text>
+                    </Pressable>
                   </View>
-                  <Text style={styles.bireyselSub}>Rezervasyonları onayla, müsaitliğini düzenle</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </Pressable>
-              <View style={styles.quickActionsRow}>
-                <Pressable style={styles.quickActionBtn} onPress={() => router.push('/kazanc')}>
-                  <Text style={styles.quickActionIcon}>💰</Text>
-                  <Text style={styles.quickActionText}>Kazanç Özeti</Text>
-                </Pressable>
-              </View>
+                </>
+              )}
             </>
           )}
         </ScrollView>

@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
+import { useOzellik } from '../../../src/context/OzellikContext';
 import { useColors, type AppColors, fontFamily } from '../../../src/theme';
 
 function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
@@ -11,6 +12,7 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
 export default function AntrenorTabsLayout() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { ozellikAcik } = useOzellik();
   return (
     <Tabs
       screenOptions={{
@@ -23,7 +25,11 @@ export default function AntrenorTabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Bugün', tabBarIcon: ({ focused }) => <TabIcon symbol="▦" focused={focused} /> }} />
       <Tabs.Screen name="sporcular" options={{ title: 'Sporcular', tabBarIcon: ({ focused }) => <TabIcon symbol="●" focused={focused} /> }} />
-      <Tabs.Screen name="mesajlar" options={{ title: 'Mesajlar', tabBarIcon: ({ focused }) => <TabIcon symbol="💬" focused={focused} /> }} />
+      {/* href: null sekmeyi tab bar'dan gizler (expo-router'ın dokümante yöntemi) — bayrak kapalıyken uygulanır. */}
+      <Tabs.Screen
+        name="mesajlar"
+        options={{ title: 'Mesajlar', href: ozellikAcik('mesajlar') ? undefined : null, tabBarIcon: ({ focused }) => <TabIcon symbol="💬" focused={focused} /> }}
+      />
       <Tabs.Screen name="profil" options={{ title: 'Profil', tabBarIcon: ({ focused }) => <TabIcon symbol="◍" focused={focused} /> }} />
     </Tabs>
   );

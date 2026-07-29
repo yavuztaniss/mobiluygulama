@@ -9,6 +9,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useChild } from '../../../src/context/ChildContext';
+import { useOzellik } from '../../../src/context/OzellikContext';
 import { getAnaSayfa, getBildirimler } from '../../../src/data/veliRepo';
 import type { AnaSayfaOzet, Bildirim } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
@@ -20,6 +21,7 @@ export default function VeliAnaSayfa() {
   const styles = createStyles(colors);
   const { profile } = useAuth();
   const { selectedChildId } = useChild();
+  const { ozellikAcik } = useOzellik();
   const [ozet, setOzet] = useState<AnaSayfaOzet | null>(null);
   const [bildirimler, setBildirimler] = useState<Bildirim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,31 +186,35 @@ export default function VeliAnaSayfa() {
                 </Pressable>
               )}
 
-              <Pressable style={styles.bireyselCard} onPress={() => router.push('/bireysel-ders')}>
-                <View style={styles.bireyselIcon}>
-                  <Text style={{ fontSize: 18 }}>🧑‍🏫</Text>
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={styles.bireyselTitleRow}>
-                    <Text style={styles.bireyselTitle}>Bireysel Ders Al</Text>
-                    <View style={styles.yeniPill}>
-                      <Text style={styles.yeniPillText}>YENİ</Text>
-                    </View>
+              {ozellikAcik('bireysel_ders') && (
+                <Pressable style={styles.bireyselCard} onPress={() => router.push('/bireysel-ders')}>
+                  <View style={styles.bireyselIcon}>
+                    <Text style={{ fontSize: 18 }}>🧑‍🏫</Text>
                   </View>
-                  <Text style={styles.bireyselSub}>Kulüp antrenörlerinden birebir ders rezerve et</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </Pressable>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={styles.bireyselTitleRow}>
+                      <Text style={styles.bireyselTitle}>Bireysel Ders Al</Text>
+                      <View style={styles.yeniPill}>
+                        <Text style={styles.yeniPillText}>YENİ</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.bireyselSub}>Kulüp antrenörlerinden birebir ders rezerve et</Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
+              )}
 
               <View style={styles.quickActionsRow}>
                 <Pressable style={styles.quickActionBtn} onPress={() => router.push('/izin-bildir')}>
                   <Text style={styles.quickActionIcon}>📋</Text>
                   <Text style={styles.quickActionText}>İzin Bildir</Text>
                 </Pressable>
-                <Pressable style={styles.quickActionBtn} onPress={() => router.push('/etkinlikler')}>
-                  <Text style={styles.quickActionIcon}>🏆</Text>
-                  <Text style={styles.quickActionText}>Etkinlikler</Text>
-                </Pressable>
+                {ozellikAcik('etkinlikler') && (
+                  <Pressable style={styles.quickActionBtn} onPress={() => router.push('/etkinlikler')}>
+                    <Text style={styles.quickActionIcon}>🏆</Text>
+                    <Text style={styles.quickActionText}>Etkinlikler</Text>
+                  </Pressable>
+                )}
               </View>
 
               <View style={styles.duyuruHeader}>

@@ -13,6 +13,7 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { AuthProvider } from '../src/context/AuthContext';
+import { OzellikProvider } from '../src/context/OzellikContext';
 import { ThemeProvider, useThemeMode, useThemeReady } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -36,8 +37,10 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
 
   return (
     <AuthProvider>
-      <ThemedStatusBar />
-      <Slot />
+      <OzellikProvider>
+        <ThemedStatusBar />
+        <Slot />
+      </OzellikProvider>
     </AuthProvider>
   );
 }
