@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { registerPushToken, unregisterPushToken } from '../data/pushRepo';
 import type { Profile } from '../types/database';
 
 interface AuthContextValue {
@@ -45,7 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(async ({ data }) => {
         if (!mounted) return;
         setSession(data.session);
-        if (data.session) await loadProfile(data.session.user.id);
+        if (data.session) {
+          await loadProfile(data.session.user.id);
+          // Push token kaydı — fire-and-forget; web/emülatör/EAS'sız kurulumda sessizce atlar.
+          registerPushToken();
+        }
       })
       .catch(() => {
         // Supabase'e ulaşılamıyor (örn. .env henüz gerçek proje bilgileriyle doldurulmadı) —
@@ -59,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession);
       if (newSession) {
         await loadProfile(newSession.user.id);
+        registerPushToken();
       } else {
         setProfile(null);
       }
@@ -97,6 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Çıkış yapılmış cihaza push gitmesin — token kaydı oturum kapanmadan silinir
+    // (silme RLS gereği oturum gerektirir).
+    await unregisterPushToken();
     await supabase.auth.signOut().catch(() => {});
     setProfile(null);
     setSession(null);

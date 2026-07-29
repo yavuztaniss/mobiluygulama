@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getVeliPushTokenlari, sendExpoPush } from './pushRepo';
 import type { DuyuruGonderSonuc, DuyuruHedefi, DuyuruTuru, Sube, YoneticiOzet } from './types';
 
 const AY_KISA = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -169,6 +170,11 @@ export async function duyuruGonder(input: {
     if (e2) throw e2;
   }
 
+  // Gerçek push gönderimi (0020): hedef velilerin kayıtlı cihaz token'larına
+  // Expo Push API üzerinden — kayıtlı cihaz yoksa 0 döner, akış etkilenmez.
+  const tokenlar = await getVeliPushTokenlari(tumVeliler ? 'tum' : input.hedefIds);
+  const pushCihaz = await sendExpoPush(tokenlar, input.baslik, input.mesaj);
+
   const hedefler = await getDuyuruHedefleri();
-  return { veliSayisi: duyuruHedefSayisi(hedefler, input.hedefIds), smsIle: input.smsIle };
+  return { veliSayisi: duyuruHedefSayisi(hedefler, input.hedefIds), smsIle: input.smsIle, pushCihaz };
 }

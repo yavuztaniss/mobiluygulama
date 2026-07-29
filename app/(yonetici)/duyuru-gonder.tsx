@@ -65,10 +65,14 @@ export default function DuyuruGonderScreen() {
     }
     setGonderiliyor(true);
     try {
-      // Dürüst metin: push/SMS altyapısı yok — duyuru kaydedilir ve veliler
-      // uygulama içinde görür. SMS tercihi kayda işlenir (sms_ile kolonu).
       const sonuc = await duyuruGonder({ hedefIds: seciliHedefler, baslik: baslik.trim(), mesaj: mesaj.trim(), tur, smsIle });
-      showToast(`Duyuru yayınlandı ✓ ${sonuc.veliSayisi} veli uygulamada görebilecek`);
+      // Push artık gerçek (0020) — kayıtlı cihaz varsa sayısı gösterilir; yoksa
+      // yalnızca uygulama içi görünürlük bildirilir (SMS hâlâ yalnızca kayıt).
+      showToast(
+        sonuc.pushCihaz > 0
+          ? `Duyuru yayınlandı ✓ ${sonuc.veliSayisi} veli · ${sonuc.pushCihaz} cihaza push gönderildi`
+          : `Duyuru yayınlandı ✓ ${sonuc.veliSayisi} veli uygulamada görebilecek`
+      );
     } finally {
       setGonderiliyor(false);
     }

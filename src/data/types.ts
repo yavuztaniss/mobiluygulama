@@ -257,4 +257,6 @@ export type DuyuruTuru = 'kamp' | 'servis' | 'basari' | 'genel';
 export interface DuyuruGonderSonuc {
   veliSayisi: number;
   smsIle: boolean;
+  /** Expo Push API'ye gerçekten iletilen cihaz sayısı — kayıtlı token yoksa 0. */
+  pushCihaz: number;
 }
