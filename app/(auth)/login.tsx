@@ -76,6 +76,13 @@ export default function LoginScreen() {
             </Link>
           </View>
 
+          {/* Çok kulüplü kurulumda kayıt DAVET BAĞLANTISI gerektirir (0022): kulüp ve rol
+              bilgisi bağlantıdan gelir. Kullanıcı bunu kayıt denemesi başarısız olduğunda
+              değil, öncesinde bilsin. */}
+          <Text style={styles.davetNot}>
+            Kulübünüzden davet bağlantısı aldıysanız hesabınızı o bağlantıdan oluşturun.
+          </Text>
+
           {__DEV__ && (
             <View style={styles.devBox}>
               <Text style={styles.devLabel}>DEV · SUPABASE BAĞLANMADAN TEST</Text>
@@ -156,6 +163,14 @@ function createStyles(colors: AppColors) {
       fontFamily: fontFamily.manropeExtra,
       fontSize: fontSize.base,
       color: colors.accent,
+    },
+    davetNot: {
+      marginTop: spacing.md,
+      textAlign: 'center',
+      fontFamily: fontFamily.manropeMedium,
+      fontSize: fontSize.sm,
+      color: colors.textDim,
+      lineHeight: 18,
     },
     devBox: {
       marginTop: spacing.xxl,

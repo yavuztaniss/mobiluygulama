@@ -13,7 +13,12 @@ interface AuthContextValue {
     email: string;
     password: string;
     ad: string;
-    role: Profile['role'];
+    /**
+     * Davet linkinden gelen tek kullanımlık token (karsiyakasporokulu://davet/<token>).
+     * Verilirse kullanıcının KULÜBÜ ve ROLÜ bu token'ın işaret ettiği davet satırından
+     * belirlenir. Verilmezse kayıt yalnızca tek kulüplü kurulumlarda kabul edilir.
+     */
+    davetToken?: string;
   }) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -85,19 +90,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email,
     password,
     ad,
-    role,
+    davetToken,
   }: {
     email: string;
     password: string;
     ad: string;
-    role: Profile['role'];
+    davetToken?: string;
   }) {
     // profiles satırı auth.users insert tetikleyicisiyle (handle_new_user) otomatik oluşur,
-    // bkz. supabase/migrations — user_metadata.ad / user_metadata.role okunuyor.
+    // bkz. supabase/migrations/0022_davet.sql.
+    //
+    // ROL ARTIK GÖNDERİLMİYOR. Eskiden options.data içinde `role` de vardı; 0016'dan beri
+    // handle_new_user bu alanı OKUMUYOR — metadata self-signup'ta istemci kontrollüdür,
+    // oradan okunsaydı herkes data:{role:'yonetici'} yazıp kendini yönetici yapabilirdi.
+    // 0022 ile rol (ve kulüp) DAVET SATIRINDAN geliyor.
+    //
+    // Metadata'ya konan tek yeni alan `davet_token`. Bu güvenlidir, çünkü token bir İDDİA
+    // değil KANITTIR: 16 rastgele bayt, uydurulan bir değer hiçbir davet satırıyla
+    // eşleşmez ve tetikleyici kaydı reddeder. Anahtar adı sunucudaki okumayla birebir
+    // aynı olmalı: raw_user_meta_data ->> 'davet_token'.
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { ad, role } },
+      options: { data: davetToken ? { ad, davet_token: davetToken } : { ad } },
     });
     return { error: error?.message ?? null };
   }
