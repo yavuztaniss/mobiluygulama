@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import Constants from 'expo-constants';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
@@ -22,9 +23,6 @@ export default function ProfilScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
-  const [prefYok, setPrefYok] = useState(true);
-  const [prefOdeme, setPrefOdeme] = useState(true);
-  const [prefDuyuru, setPrefDuyuru] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editAd, setEditAd] = useState('');
@@ -121,17 +119,28 @@ export default function ProfilScreen() {
               <ThemePreferencePicker />
             </Card>
 
-            <Text style={styles.sectionLabel}>BİLDİRİM TERCİHLERİ</Text>
-            <Card style={{ gap: 0 }}>
-              <PrefRow label="Yoklama Bildirimleri" sub="Antrenmana katılım/gelmedi" value={prefYok} onChange={setPrefYok} />
-              <PrefRow label="Ödeme Hatırlatmaları" sub="Aidat son ödeme tarihi" value={prefOdeme} onChange={setPrefOdeme} />
-              <PrefRow label="Kulüp Duyuruları" sub="Genel duyuru ve kampanyalar" value={prefDuyuru} onChange={setPrefDuyuru} last />
-            </Card>
+            {/* BİLDİRİM TERCİHLERİ KALDIRILDI.
+                Üç anahtar da yalnızca useState'te tutuluyordu: hiçbir yere
+                yazılmıyor, hiçbir gönderim kararında okunmuyordu. Veli
+                "Ödeme Hatırlatmaları"nı kapatıyor, bildirim gelmeye devam
+                ediyordu — çalışmayan bir ayar, olmayan bir ayardan kötüdür.
+                Gerçekten çalışması için şemada bir tercih tablosu ve gönderim
+                tarafında (duyuruRepo/push) o tercihi süzen bir adım gerekiyor;
+                o kurulana kadar ekranda söz verilmiyor.
+                Sistem düzeyinde bildirim kapatma zaten telefonun ayarlarından
+                yapılabiliyor. */}
 
             <View style={styles.signOutWrap}>
               <Button label="Çıkış Yap" variant="secondary" onPress={signOut} />
             </View>
-            <Text style={styles.versionText}>Sürüm 2.4.1 · KVKK aydınlatma metni</Text>
+            {/* Sürüm SABİT DEĞİL: '2.4.1' uydurma bir değerdi, app.json'daki
+                gerçek sürüm 1.0.0. Destek istendiğinde "hangi sürümdesiniz"
+                sorusunun cevabı buradan okunuyor; yanlış olması teşhisi doğrudan
+                yanlış yöne çeker. expo-constants zaten kurulu bir bağımlılık,
+                yeni paket eklemeye gerek yok. */}
+            <Text style={styles.versionText}>
+              Sürüm {Constants.expoConfig?.version ?? '—'} · KVKK aydınlatma metni
+            </Text>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -164,31 +173,6 @@ export default function ProfilScreen() {
   );
 }
 
-function PrefRow({
-  label,
-  sub,
-  value,
-  onChange,
-  last,
-}: {
-  label: string;
-  sub: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-  last?: boolean;
-}) {
-  const colors = useColors();
-  const styles = createStyles(colors);
-  return (
-    <View style={[styles.prefRow, last && { borderBottomWidth: 0 }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.prefLabel}>{label}</Text>
-        <Text style={styles.prefSub}>{sub}</Text>
-      </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
-    </View>
-  );
-}
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
@@ -209,9 +193,6 @@ function createStyles(colors: AppColors) {
   childBrans: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   addChildRow: { borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, padding: 13, alignItems: 'center' },
   addChildText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  prefRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  prefLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  prefSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   signOutWrap: { marginTop: spacing.md },
   versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },

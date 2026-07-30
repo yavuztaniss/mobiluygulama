@@ -26,7 +26,10 @@ export default function DuyuruGonderScreen() {
   const [tur, setTur] = useState<DuyuruTuru>('genel');
   const [baslik, setBaslik] = useState('');
   const [mesaj, setMesaj] = useState('');
-  const [smsIle, setSmsIle] = useState(true);
+  // SMS anahtarı devre dışı olduğu için değer sabit false: kayda "SMS gönderildi"
+  // anlamına gelen bir bayrak yazılmıyor. Sağlayıcı bağlandığında burası tekrar
+  // durum değişkenine dönecek.
+  const smsIle = false;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
@@ -154,14 +157,18 @@ export default function DuyuruGonderScreen() {
               style={styles.messageInput}
             />
 
-            <Pressable style={styles.smsRow} onPress={() => setSmsIle((v) => !v)}>
+            {/* SMS ANAHTARI DEVRE DIŞI — panel tarafındaki aynı kutuyla tutarlı.
+                Anahtar hiçbir SMS göndermiyor, yalnızca duyuru kaydına bayrak
+                yazıyordu. Açılabilir olması, acil bir duyuruda yöneticiye
+                "SMS de gitti" hissi veriyordu. Bir SMS sağlayıcısı bağlanana
+                kadar kapalı ve sebebi yazılı. */}
+            <View style={[styles.smsRow, { opacity: 0.55 }]}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.smsTitle}>SMS ile de gönder</Text>
-                {/* Dürüst not: SMS gönderim altyapısı henüz yok — tercih kaydedilir. */}
-                <Text style={styles.smsSub}>SMS altyapısı bağlandığında gönderilir</Text>
+                <Text style={styles.smsTitle}>SMS ile de gönder (yakında)</Text>
+                <Text style={styles.smsSub}>SMS sağlayıcısı bağlanmadan mesaj iletilmez</Text>
               </View>
-              <Switch value={smsIle} onValueChange={setSmsIle} trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
-            </Pressable>
+              <Switch value={false} disabled trackColor={{ true: colors.accent, false: colors.border }} thumbColor="#FFFFFF" />
+            </View>
 
             <Text style={styles.fieldLabel}>BİLDİRİM ÖNİZLEMESİ</Text>
             <View style={styles.previewCard}>
