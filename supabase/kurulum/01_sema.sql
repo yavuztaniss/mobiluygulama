@@ -721,7 +721,10 @@ create table siparis_kalem (
   siparis_id uuid not null references siparis(id) on delete cascade,
   urun_id uuid not null references urun(id),
   beden text,
-  adet int not null default 1,
+  -- 0036: negatif adet toplami da negatif yapardi ('-5 forma' ile siparisi
+  -- bedavaya getirmek). Kisit yoktu.
+  adet int not null default 1 check (adet > 0),
+  -- 0036: bu deger ISTEMCIDEN KABUL EDILMIYOR; tetikleyici urun.fiyat'tan yaziyor.
   birim_fiyat numeric not null,
   not_metni text,
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
@@ -1612,11 +1615,21 @@ create policy "siparis_kalem: erişim siparis üzerinden okunur" on siparis_kale
   ));
 create policy "siparis_kalem: yönetici tümünü yönetir" on siparis_kalem for all
   using (private.current_profile_role() = 'yonetici') with check (private.current_profile_role() = 'yonetici');
+-- 0036: veli YALNIZCA SATIŞTAKİ ürünü sipariş edebilir.
+-- Kulüp bir ürünü listeden kaldırdığında (stok bitti, sezon kapandı) o ürünün
+-- yeni siparişi de durmalı; eski bir ekran açık kalmış istemci aksi halde
+-- sipariş göndermeye devam ederdi.
+-- Bu kural TETİKLEYİCİYE DEĞİL POLİTİKAYA konuldu: RLS yalnızca gerçek
+-- kullanıcıya uygulanır, postgres/service_role için baypas edilir — yani seed
+-- ve veri taşıma geçmiş siparişleri (ürünü bugün pasif olsa bile) yazabilir.
 create policy "siparis_kalem: veli kendi siparişine kalem ekler" on siparis_kalem for insert
-  with check (exists (
-    select 1 from siparis s join veli_sporcu vs on vs.sporcu_id = s.sporcu_id
-    where s.id = siparis_kalem.siparis_id and vs.veli_id = auth.uid()
-  ));
+  with check (
+    exists (
+      select 1 from siparis s join veli_sporcu vs on vs.sporcu_id = s.sporcu_id
+      where s.id = siparis_kalem.siparis_id and vs.veli_id = auth.uid()
+    )
+    and exists (select 1 from urun u where u.id = siparis_kalem.urun_id and u.aktif)
+  );
 
 
 -- ---------------------------------------------------------------------------
@@ -2896,6 +2909,170 @@ end $$;
 drop trigger if exists on_kulup_basvurusu_hiz on public.kulup_basvurusu;
 create trigger on_kulup_basvurusu_hiz before insert on public.kulup_basvurusu
   for each row execute procedure public.hiz_kulup_basvurusu();
+
+
+
+
+
+-- ===========================================================================
+-- 20) PARA TUTARLARI SUNUCUDA BELIRLENIR
+--     Kaynak: 0036
+-- ===========================================================================
+-- Siparis tutari ve bireysel ders ucreti ISTEMCIDE hesaplanip yaziliyordu; RLS
+-- yalnizca sahiplige bakiyor, tutara bakmiyordu. Degistirilmis bir istemci
+-- 'birim_fiyat: 0.01' gonderip siparisi bedavaya getirebilirdi ve odeme
+-- havale/EFT oldugu icin kulup tahsilati DOGRUDAN bu rakamdan yapiliyor.
+-- Tetikleyiciler tutari DOGRULAMIYOR, yetkili kaynaktan UZERINE YAZIYOR.
+
+create or replace function public.siparis_kalem_fiyatla()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_fiyat numeric;
+begin
+  select u.fiyat into v_fiyat
+    from public.urun u where u.id = new.urun_id;
+
+  if v_fiyat is null then
+    raise exception 'Ürün bulunamadı.';
+  end if;
+
+  -- AKTİFLİK KONTROLÜ BURADA DEĞİL, RLS POLİTİKASINDA.
+  -- İki kez yanlış yere konuldu, ikisi de sessizce çalışmadı:
+  --   · current_user = 'authenticated' → bu fonksiyon SECURITY DEFINER, gövdede
+  --     current_user ÇAĞIRANI DEĞİL SAHİBİNİ (postgres) verir; koşul hiç tutmadı.
+  --   · auth.uid() is not null → demo/seed dosyaları kiracı bağlamı kurabilmek
+  --     için kasten bir yönetici kimliği set ediyor; orada da auth.uid() dolu.
+  -- Doğru ayrım "kim çağırdı" değil, KURALIN CİNSİ:
+  --   · fiyatın üründen yazılması bir GÜVENLİK DEĞİŞMEZİdir → herkese uygulanır,
+  --     yeri tetikleyicidir (aşağıda).
+  --   · "pasif ürün sipariş edilemez" bir İŞ KURALIdır → yalnızca gerçek
+  --     kullanıcıya uygulanmalı, yeri RLS politikasıdır. RLS zaten postgres ve
+  --     service_role için baypas edilir, yani seed ve veri taşıma etkilenmez.
+
+  -- İSTEMCİNİN GÖNDERDİĞİ DEĞER YOK SAYILIYOR.
+  new.birim_fiyat := v_fiyat;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_siparis_kalem_fiyatla on public.siparis_kalem;
+create trigger on_siparis_kalem_fiyatla
+  before insert or update on public.siparis_kalem
+  for each row execute procedure public.siparis_kalem_fiyatla();
+
+
+-- ===========================================================================
+-- 2) siparis.tutar — KALEMLERDEN TÜRETİLİR
+-- ===========================================================================
+-- Sipariş satırı kalemlerden ÖNCE yazıldığı için tutar insert anında
+-- hesaplanamaz; sıfırlanıp kalemler geldikçe güncelleniyor.
+create or replace function public.siparis_tutar_sifirla()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- INSERT: kalem yok, tutar 0. UPDATE: kalemlerden yeniden hesapla —
+  -- böylece istemcinin doğrudan `update siparis set tutar = 1` denemesi de
+  -- etkisiz kalıyor.
+  select coalesce(sum(sk.adet * sk.birim_fiyat), 0) into new.tutar
+    from public.siparis_kalem sk where sk.siparis_id = new.id;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_siparis_tutar on public.siparis;
+create trigger on_siparis_tutar
+  before insert or update on public.siparis
+  for each row execute procedure public.siparis_tutar_sifirla();
+
+-- Kalem eklendiğinde/değiştiğinde/silindiğinde başlık tutarını tazele.
+create or replace function public.siparis_tutar_tazele()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_siparis uuid := coalesce(new.siparis_id, old.siparis_id);
+begin
+  -- Bu UPDATE, siparis üzerindeki BEFORE UPDATE tetikleyicisini çalıştırır ve
+  -- o da tutarı kalemlerden hesaplar. Döngü yok: siparis tetikleyicisi
+  -- siparis_kalem'e yazmıyor.
+  update public.siparis set tutar = 0 where id = v_siparis;
+  return null;   -- AFTER trigger, dönüş değeri kullanılmıyor
+end;
+$$;
+
+drop trigger if exists on_siparis_kalem_tutar on public.siparis_kalem;
+create trigger on_siparis_kalem_tutar
+  after insert or update or delete on public.siparis_kalem
+  for each row execute procedure public.siparis_tutar_tazele();
+
+
+-- ===========================================================================
+-- 3) bireysel_rezervasyon.tutar — ANTRENÖRÜN İLAN ETTİĞİ ÜCRETTEN
+-- ===========================================================================
+create or replace function public.rezervasyon_fiyatla()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tek    numeric;
+  v_paket  numeric;
+  v_adet   int;
+begin
+  -- 0029'dan sonra antrenor_id NULL olabiliyor (antrenör hesabı silinince
+  -- `on delete set null`). O UPDATE geldiğinde ücret yeniden hesaplanamaz ve
+  -- hesaplanmamalı da: geçmiş rezervasyonun tutarı olduğu gibi kalmalı.
+  if new.antrenor_id is null then
+    return new;
+  end if;
+
+  -- Yalnızca tutarı etkileyen alanlar değiştiğinde yeniden hesapla. Durum
+  -- güncellemeleri (onayla/reddet/tamamlandi) tutara dokunmasın — antrenörün
+  -- ilan ettiği ücret sonradan değişse bile geçmiş rezervasyon etkilenmemeli
+  -- (sipariş satırındaki aynı "sözleşme" mantığı).
+  if TG_OP = 'UPDATE'
+     and new.antrenor_id is not distinct from old.antrenor_id
+     and new.odeme_tipi  is not distinct from old.odeme_tipi
+     and new.tutar       is not distinct from old.tutar then
+    return new;
+  end if;
+
+  select ba.tek_fiyat, ba.paket_fiyat, ba.paket_ders_sayisi
+    into v_tek, v_paket, v_adet
+    from public.bireysel_antrenor ba
+   where ba.antrenor_id = new.antrenor_id;
+
+  if v_tek is null then
+    raise exception 'Bu antrenörün bireysel ders ücreti tanımlı değil.';
+  end if;
+
+  -- İSTEMCİNİN GÖNDERDİĞİ DEĞER YOK SAYILIYOR.
+  if new.odeme_tipi = 'paket' then
+    -- Paket dersinin birim maliyeti. nullif ile sıfıra bölme korunuyor:
+    -- paket_ders_sayisi 0 olsaydı sorgu hata verirdi.
+    new.tutar := round(v_paket / nullif(v_adet, 0));
+  else
+    new.tutar := v_tek;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_rezervasyon_fiyatla on public.bireysel_rezervasyon;
+create trigger on_rezervasyon_fiyatla
+  before insert or update on public.bireysel_rezervasyon
+  for each row execute procedure public.rezervasyon_fiyatla();
 
 
 

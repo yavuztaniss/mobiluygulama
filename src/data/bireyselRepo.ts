@@ -225,10 +225,12 @@ export async function rezervasyonOlustur(
       .maybeSingle();
     if (paketRow) {
       const p = paketRow as { id: string; kalan: number; toplam: number };
-      const tutar = ant ? Math.round(ant.paket_fiyat / ant.paket_ders_sayisi) : 0;
+      // TUTAR GÖNDERİLMİYOR — sunucu antrenörün ilan ettiği ücretten yazıyor (0036).
+      // Eskiden istemcinin daha önce okuduğu paket_fiyat üzerinden hesaplanıp
+      // gönderiliyordu; değiştirilmiş bir istemci istediği rakamı yazdırabilirdi.
       const { error } = await supabase
         .from('bireysel_rezervasyon')
-        .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'paket', paket_id: p.id, tutar });
+        .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'paket', paket_id: p.id });
       if (error) throw mapRezervasyonError(error);
       const kalan = p.kalan - 1;
       // 0016 trigger'ı (yalnızca kalan-1'e izin verir) bu update'i reddedebilir (ör.
@@ -244,9 +246,12 @@ export async function rezervasyonOlustur(
   // Uygulama içi kart tahsilatı YOK — ücret kulüp tarafından (resepsiyon/havale) tahsil edilir,
   // sahte "kart •••• ile ödendi" iddiası gösterilmez.
   const odemeNotu = `Ödeme kulüp üzerinden tahsil edilecektir · ${formatTL(tekFiyat)}`;
+  // TUTAR GÖNDERİLMİYOR (0036). tekFiyat yalnızca kullanıcıya gösterilen
+  // ödeme notunu kurmak için okunuyor; veritabanına yazılan rakamı sunucu
+  // bireysel_antrenor.tek_fiyattan belirliyor.
   const { error } = await supabase
     .from('bireysel_rezervasyon')
-    .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'tek', tutar: tekFiyat, odeme_notu: odemeNotu });
+    .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'tek', odeme_notu: odemeNotu });
   if (error) throw mapRezervasyonError(error);
   return { odemeNotu };
 }

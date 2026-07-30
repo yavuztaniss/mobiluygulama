@@ -100,16 +100,31 @@ export async function setSiparisDurum(id: string, durum: SiparisDurum): Promise<
 // Veli — checkout: sepetteki kalemlerden gerçek `siparis`+`siparis_kalem` oluşturur.
 export async function olusturSiparis(sporcuId: string, kalemler: SepetKalemGirdi[]): Promise<void> {
   if (!sporcuId || kalemler.length === 0) return;
-  const tutar = kalemler.reduce((a, k) => a + k.fiyatN * k.adet, 0);
-  const { data: siparis, error: e1 } = await supabase.from('siparis').insert({ sporcu_id: sporcuId, tutar }).select('id').single();
+
+  // FİYAT GÖNDERİLMİYOR — sunucu belirliyor (0036).
+  //
+  // Eskiden hem siparis.tutar hem siparis_kalem.birim_fiyat İSTEMCİDEN
+  // geliyordu: sepetteki fiyat neyse o yazılıyordu. RLS yalnızca sahipliğe
+  // baktığı için değiştirilmiş bir istemci "birim_fiyat: 0.01" gönderip
+  // siparişi bedavaya getirebilirdi — ve ödeme havale/EFT olduğu için kulüp
+  // tahsilatı doğrudan bu rakamdan yapıyor.
+  //
+  // Artık tetikleyici birim fiyatı urun.fiyattan yazıyor, sipariş toplamını
+  // da kalemlerden hesaplıyor. Buradan gönderilen bir değer YOK SAYILIRDI;
+  // hiç göndermemek, kararın nerede verildiğini kodda da görünür kılıyor.
+  const { data: siparis, error: e1 } = await supabase
+    .from("siparis")
+    .insert({ sporcu_id: sporcuId })
+    .select("id")
+    .single();
   if (e1) throw e1;
-  const { error: e2 } = await supabase.from('siparis_kalem').insert(
+
+  const { error: e2 } = await supabase.from("siparis_kalem").insert(
     kalemler.map((k) => ({
       siparis_id: (siparis as { id: string }).id,
       urun_id: k.urunId,
       beden: k.beden,
       adet: k.adet,
-      birim_fiyat: k.fiyatN,
       not_metni: k.not,
     }))
   );
