@@ -160,6 +160,10 @@ create table kulup (
   plan           text,
   sporcu_limiti  int,
   abonelik_bitis date,
+  -- 0034: true = yönetici davetini YALNIZCA platform_admin çıkarabilir.
+  -- Kulüp kendi antrenör/muhasebeci/veli davetlerini çıkarmaya devam eder.
+  -- Büyük bir müşteride "kendi yöneticilerinizi siz yönetin" denecekse false yapılır.
+  yonetici_davet_kilitli boolean not null default true,
   created_at     timestamptz not null default now()
 );
 
@@ -2769,6 +2773,117 @@ create policy "sikayet: yönetici günceller" on public.sikayet for update
 --    where schemaname='public' and tablename in ('engelleme','sikayet')
 --    group by tablename;
 -- ===========================================================================
+
+
+
+
+-- ===========================================================================
+-- 19) YONETICI KONTROLU VE KULUP BASVURUSU
+--     Kaynak: 0034
+-- ===========================================================================
+-- Yonetici hesabi acmanin tek yolu platform konsolu. Kayit olan hic kimse
+-- yonetici olamaz (handle_new_user davetsiz kaydi her zaman veli acar) ve
+-- kulubun kendi yoneticisi de yeni yonetici davet edemez.
+
+create or replace function public.protect_yonetici_daveti()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_kilitli boolean;
+  v_rol     text;
+begin
+  if new.rol <> 'yonetici' then
+    return new;   -- antrenör/muhasebeci/veli daveti serbest
+  end if;
+
+  select k.yonetici_davet_kilitli into v_kilitli
+    from public.kulup k where k.id = new.kulup_id;
+
+  if coalesce(v_kilitli, true) = false then
+    return new;   -- bu kulüp için kilit açılmış
+  end if;
+
+  -- private.current_profile_role() oturumdaki rolü verir. service_role ile
+  -- (platform konsolu) auth.uid() NULL olduğu için NULL döner — o yol serbest.
+  v_rol := private.current_profile_role();
+
+  if v_rol = 'yonetici' then
+    raise exception 'Yönetici hesapları yalnızca yazılım sağlayıcısı tarafından açılabilir. Yeni yönetici için sağlayıcınızla iletişime geçin.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_davet_yonetici_kontrol on public.davet;
+create trigger on_davet_yonetici_kontrol
+  before insert on public.davet
+  for each row execute procedure public.protect_yonetici_daveti();
+
+
+-- ===========================================================================
+-- 2) KULÜP BAŞVURUSU — "e-postanı ver, ben açayım"
+-- ===========================================================================
+-- Bugün yeni kulüp açmanın tek yolu, platform konsolundaki formu Yavuz'un elle
+-- doldurması. Talep eden kişinin bilgisi hiçbir yerde tutulmuyor: WhatsApp'ta,
+-- e-postada ya da akılda kalıyor. Bu tablo talebi kayda alıyor ve konsolda
+-- "onayla" akışına bağlıyor.
+--
+-- PLATFORMA AİT, KİRACIYA DEĞİL: başvuru henüz bir kulübe ait değil (kulüp
+-- ONAY SONRASI doğuyor). Bu yüzden kulup_id YOK ve 0021'in restrictive kiracı
+-- duvarına dahil değil.
+create table if not exists public.kulup_basvurusu (
+  id           uuid primary key default gen_random_uuid(),
+  kulup_adi    text not null,
+  ad_soyad     text not null,
+  eposta       text not null,
+  telefon      text,
+  sehir        text,
+  not_metni    text,
+  durum        text not null default 'yeni' check (durum in ('yeni', 'gorusuldu', 'onaylandi', 'reddedildi')),
+  -- Onaylanınca açılan kulüp. Başvuru ile kulüp arasındaki iz.
+  kulup_id     uuid references public.kulup(id) on delete set null,
+  platform_notu text,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists kulup_basvurusu_durum_idx on public.kulup_basvurusu (durum, created_at desc);
+
+-- ⚠ YENİ TABLO KURAN HER MIGRATION KENDİ GRANT'İNİ VERMELİ (0031'de öğrenildi):
+-- 01_sema sonundaki toplu grant yalnızca o an var olan tablolara uygulanır.
+grant all on public.kulup_basvurusu to anon, authenticated, service_role;
+
+alter table public.kulup_basvurusu enable row level security;
+
+-- YAZMA HERKESE AÇIK, OKUMA HİÇ KİMSEYE.
+--   Başvuru formu tanıtım sitesine konulabilsin diye anon INSERT açık. Ama
+--   SELECT politikası YOK: politikası olmayan işlem RLS altında reddedilir,
+--   yani ne anon ne authenticated bu tabloyu OKUYAMAZ. Okuyabilseydi tablo
+--   rakiplerin müşteri adaylarını toplayabileceği bir listeye dönerdi.
+--   Platform konsolu service_role ile okuyor; service_role RLS'i baypas eder.
+drop policy if exists "kulup_basvurusu: herkes başvuru gönderir" on public.kulup_basvurusu;
+create policy "kulup_basvurusu: herkes başvuru gönderir" on public.kulup_basvurusu for insert
+  with check (true);
+
+-- Hız sınırı (0032): açık bir uç, spam'e karşı korunmalı. Kimlik olmadığı için
+-- IP'ye göre sayılıyor — bu, kimliksiz isteklerde IP'nin doğru araç olduğu
+-- ender durumlardan biri.
+create or replace function public.hiz_kulup_basvurusu()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  perform private.hiz_kontrol('kulup_basvurusu', 3, interval '1 hour',
+    'Kısa sürede çok fazla başvuru gönderildi. Lütfen bir süre sonra tekrar deneyin.');
+  return new;
+end $$;
+
+drop trigger if exists on_kulup_basvurusu_hiz on public.kulup_basvurusu;
+create trigger on_kulup_basvurusu_hiz before insert on public.kulup_basvurusu
+  for each row execute procedure public.hiz_kulup_basvurusu();
+
 
 
 
