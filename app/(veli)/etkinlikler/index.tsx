@@ -104,25 +104,43 @@ export default function EtkinliklerScreen() {
                     <Text style={styles.matchTitle} numberOfLines={1}>{mt.title}</Text>
                     <Text style={styles.matchSub}>{mt.sub}</Text>
                     <Text style={styles.matchVenue}>📍 {mt.venue}</Text>
-                    <Text style={styles.matchExtra}>ℹ️ {mt.extra}</Text>
-                    <View style={styles.divider} />
-                    <View style={styles.lcvRow}>
-                      <Text style={styles.lcvText}>
-                        {mt.katilimDurumu === 'bekliyor' ? 'Katılım durumu bekleniyor' : mt.katilimDurumu === 'katilir' ? 'Katılıyor ✓' : 'Katılmıyor'}
+                    {!!mt.extra && <Text style={styles.matchExtra}>ℹ️ {mt.extra}</Text>}
+
+                    {/* ÜCRET BİLGİSİ — şemada vardı, sorguda hiç seçilmiyordu.
+                        Yönetici ücretli bir kamp yayınlıyor, veli ekranında
+                        ücretsiz görünüyordu; veli parayı ancak etkinlik günü
+                        öğreniyordu. */}
+                    {mt.ucretli && (
+                      <Text style={styles.matchUcret}>
+                        💳 Ücretli{mt.tutar ? ` · ${mt.tutar}` : ''}
                       </Text>
-                      <Pressable
-                        style={[styles.lcvBtn, mt.katilimDurumu === 'katilir' && styles.lcvBtnActive]}
-                        onPress={() => onKatilim(mt.id, 'katilir')}
-                      >
-                        <Text style={[styles.lcvBtnText, mt.katilimDurumu === 'katilir' && styles.lcvBtnTextActive]}>✓ Katılır</Text>
-                      </Pressable>
-                      <Pressable
-                        style={[styles.lcvBtnOut, mt.katilimDurumu === 'katilmaz' && styles.lcvBtnOutActive]}
-                        onPress={() => onKatilim(mt.id, 'katilmaz')}
-                      >
-                        <Text style={[styles.lcvBtnOutText, mt.katilimDurumu === 'katilmaz' && styles.lcvBtnOutTextActive]}>✕ Katılmaz</Text>
-                      </Pressable>
-                    </View>
+                    )}
+
+                    {/* LCV DÜĞMELERİ yalnızca yanıt İSTENİYORSA çiziliyor.
+                        Eskiden her etkinlikte gösteriliyordu; yönetici "katılım
+                        sorma" dediği etkinlikte bile veliden yanıt isteniyordu. */}
+                    {mt.lcvIstenir && (
+                      <>
+                        <View style={styles.divider} />
+                        <View style={styles.lcvRow}>
+                          <Text style={styles.lcvText}>
+                            {mt.katilimDurumu === 'bekliyor' ? 'Katılım durumu bekleniyor' : mt.katilimDurumu === 'katilir' ? 'Katılıyor ✓' : 'Katılmıyor'}
+                          </Text>
+                          <Pressable
+                            style={[styles.lcvBtn, mt.katilimDurumu === 'katilir' && styles.lcvBtnActive]}
+                            onPress={() => onKatilim(mt.id, 'katilir')}
+                          >
+                            <Text style={[styles.lcvBtnText, mt.katilimDurumu === 'katilir' && styles.lcvBtnTextActive]}>✓ Katılır</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[styles.lcvBtnOut, mt.katilimDurumu === 'katilmaz' && styles.lcvBtnOutActive]}
+                            onPress={() => onKatilim(mt.id, 'katilmaz')}
+                          >
+                            <Text style={[styles.lcvBtnOutText, mt.katilimDurumu === 'katilmaz' && styles.lcvBtnOutTextActive]}>✕ Katılmaz</Text>
+                          </Pressable>
+                        </View>
+                      </>
+                    )}
                   </Card>
                 ))}
               </>
@@ -178,6 +196,7 @@ function createStyles(colors: AppColors) {
   matchSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   matchVenue: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 6 },
   matchExtra: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 4 },
+  matchUcret: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warning, marginTop: 4 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   lcvRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
   lcvText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },

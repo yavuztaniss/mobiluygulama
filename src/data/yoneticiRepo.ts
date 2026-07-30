@@ -61,7 +61,7 @@ export async function getOzet(subeId: string | null): Promise<YoneticiOzet> {
       .select('id', { count: 'exact', head: true })
       .gte('created_at', new Date(bugun.getFullYear(), bugun.getMonth(), 1).toISOString()),
     supabase.from('odeme').select('tutar, odendi_tarihi').eq('durum', 'odendi').gte('odendi_tarihi', altiAyOnce),
-    supabase.from('odeme').select('tutar').eq('durum', 'gecikti'),
+    supabase.from('odeme_gorunum').select('tutar').eq('efektif_durum', 'gecikti'),   // 0033
     supabase.from('yoklama').select('id', { count: 'exact', head: true }).eq('durum', 'katildi'),
     supabase.from('yoklama').select('id', { count: 'exact', head: true }).not('durum', 'is', null),
     supabase.from('antrenman').select('id', { count: 'exact', head: true }).eq('tarih', todayStr()),

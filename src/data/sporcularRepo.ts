@@ -59,7 +59,9 @@ const SELECT_SPORCU =
 // Tek toplu sorgu: geciken ödemesi olan sporcu id'leri (N+1 yok — liste tarafında
 // client-side eşlenir).
 async function getGecikmisSporcuIds(): Promise<Set<string>> {
-  const { data, error } = await supabase.from('odeme').select('sporcu_id').eq('durum', 'gecikti');
+  // 0033: 'gecikti' kolona HİÇ yazılmıyor, zamanın geçmesiyle oluşuyor.
+  // odeme_gorunum efektif_durum'u her sorguda hesaplıyor.
+  const { data, error } = await supabase.from('odeme_gorunum').select('sporcu_id').eq('efektif_durum', 'gecikti');
   if (error) throw error;
   return new Set(((data ?? []) as { sporcu_id: string }[]).map((r) => r.sporcu_id));
 }
@@ -362,7 +364,7 @@ export async function updateSporcuBilgi(
       .eq('id', id)
       .select(SELECT_SPORCU)
       .single(),
-    supabase.from('odeme').select('id').eq('sporcu_id', id).eq('durum', 'gecikti').limit(1).maybeSingle(),
+    supabase.from('odeme_gorunum').select('id').eq('sporcu_id', id).eq('efektif_durum', 'gecikti').limit(1).maybeSingle(),
   ]);
   if (error) throw error;
   return mapRow(data as unknown as SporcuRow, gecikenRow ? new Set([id]) : new Set<string>());

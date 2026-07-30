@@ -8,6 +8,8 @@ export interface ChildInfo {
   ad: string;
   init: string;
   brans: string;
+  /** Sırt numarası — forma baskısında kullanılıyor (magaza). Girilmemişse null. */
+  numara: number | null;
   avBg: string;
   avFg: string;
 }
@@ -21,8 +23,8 @@ export type ChildId = string;
 // devSignInAs('veli') ile gerçek Supabase oturumu olmadan test edilirken
 // (bkz. AuthContext.tsx) gösterilecek sabit örnek veri.
 const DEV_CHILDREN: ChildInfo[] = [
-  { id: 'dev-ali', ad: 'Ali', init: 'AK', brans: 'Basketbol U12', ...avatarColorAt(0) },
-  { id: 'dev-zeynep', ad: 'Zeynep', init: 'ZK', brans: 'Yüzme U10', ...avatarColorAt(1) },
+  { id: 'dev-ali', ad: 'Ali', init: 'AK', brans: 'Basketbol U12', numara: 7, ...avatarColorAt(0) },
+  { id: 'dev-zeynep', ad: 'Zeynep', init: 'ZK', brans: 'Yüzme U10', numara: null, ...avatarColorAt(1) },
 ];
 
 function initialsOf(ad: string): string {
@@ -75,6 +77,7 @@ export function ChildProvider({ children: reactChildren }: { children: ReactNode
           ad: s.ad,
           init: initialsOf(s.ad),
           brans: [s.brans?.ad, s.grup?.ad].filter(Boolean).join(' · ') || s.grup?.ad || '',
+          numara: s.numara ?? null,
           ...avatarColorAt(i),
         }));
       setChildren(list);

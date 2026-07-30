@@ -73,10 +73,21 @@ export default function YoklamaAlScreen() {
       showToast('Kayıt kilitli — "Düzenle"ye dokunun');
       return;
     }
-    // Yoklama işaretleme günlük ve en çok tekrarlanan işlem; sessizce
-    // başarısız olması devamsızlık istatistiğini doğrudan bozar.
+    // İYİMSER YAZMA — satır ÖNCE boyanıyor, sonra sunucuya gidiliyor.
+    //
+    // Eskiden her dokunuşta önce yazma bekleniyor, ardından TÜM LİSTE yeniden
+    // çekiliyordu. Spor salonunda zayıf sinyalde bu, her işaret için 1-3 saniye
+    // donma demekti: antrenör 14 çocuğu işaretlerken ekran 14 kez kilitleniyordu.
+    // Antrenör bu ürünü sahada, ayakta, aceleyle kullanıyor; buradaki gecikme
+    // doğrudan "kâğıda dönme" sebebi.
+    //
+    // Hata olursa ESKİ HALE DÖNÜLÜYOR (rollback) ve kullanıcıya söyleniyor —
+    // iyimser yazmanın tehlikesi, başarısız işlemin ekranda başarılı görünmesidir.
+    const oncekiler = satirlar;
+    setSatirlar((s) => s.map((r) => (r.id === id ? { ...r, durum } : r)));
+
     const oldu = await calistir(() => setYoklamaDurum(id, durum, aktif.id), 'İşaretlenemedi — bağlantıyı kontrol edin.');
-    if (oldu) setSatirlar(await getYoklamaSatirlari(aktif.id));
+    if (!oldu) setSatirlar(oncekiler);
   }
 
   async function onTumunuKatildi() {

@@ -69,7 +69,7 @@ type OdemeRow = {
 
 // Aidat durumu ve ödeme kaydı artık `odeme` tablosunda (bkz. supabase/migrations/0007_odeme.sql)
 // — tek kaynak, hem burada hem Yönetici > Finans (finansRepo.recordPayment) tarafından okunup yazılıyor.
-const BOS_ODEME_OZET: OdemeOzet = { durum: 'odendi', tutar: '₺0', kapsam: '', sonOdeme: '', taksit: '₺0', gecmis: [] };
+const BOS_ODEME_OZET: OdemeOzet = { durum: 'odendi', tutar: '₺0', kapsam: '', sonOdeme: '', gecmis: [] };
 
 export async function getOdemeOzet(sporcuId: ChildId): Promise<OdemeOzet> {
   // ChildContext ilk render'da selectedChildId'yi henüz gerçek uuid ile doldurmamış
@@ -79,10 +79,12 @@ export async function getOdemeOzet(sporcuId: ChildId): Promise<OdemeOzet> {
 
   const [{ data: guncelRows, error: e1 }, { data: gecmisRows, error: e2 }] = await Promise.all([
     supabase
-      .from('odeme')
-      .select('id, aciklama, tutar, yontem, durum, son_odeme_tarihi, odendi_tarihi')
+      // 0033: efektif_durum — 'gecikti' kolona hiç yazılmıyor, hesaplanıyor.
+      // Velinin GECİKTİ rozeti bu alandan yanıyor.
+      .from('odeme_gorunum')
+      .select('id, aciklama, tutar, yontem, durum:efektif_durum, son_odeme_tarihi, odendi_tarihi')
       .eq('sporcu_id', sporcuId)
-      .in('durum', ['bekliyor', 'gecikti'])
+      .in('efektif_durum', ['bekliyor', 'gecikti'])
       .order('created_at', { ascending: false })
       .limit(1),
     supabase
@@ -110,7 +112,9 @@ export async function getOdemeOzet(sporcuId: ChildId): Promise<OdemeOzet> {
       tutar: formatTL(guncel.tutar),
       kapsam: guncel.aciklama,
       sonOdeme: guncel.son_odeme_tarihi ? formatDateTR(guncel.son_odeme_tarihi) : '',
-      taksit: formatTL(guncel.tutar / 3),
+      // taksit alanı KALDIRILDI: tutarın üçe bölünmesi uydurmaydı — sistemde
+      // taksit kavramı hiç yok, hiçbir plan taksitli değil ve hiçbir ekran da
+      // bu değeri göstermiyordu. Veliye olmayan bir ödeme seçeneği ima ediyordu.
       gecmis,
     };
   }
@@ -120,7 +124,6 @@ export async function getOdemeOzet(sporcuId: ChildId): Promise<OdemeOzet> {
     tutar: son?.amount ?? '₺0',
     kapsam: son?.title ?? '',
     sonOdeme: '',
-    taksit: son ? formatTL(parseTutar(son.amount) / 3) : '₺0',
     odemeTarihi: son?.date,
     gecmis,
   };
@@ -129,7 +132,7 @@ export async function getOdemeOzet(sporcuId: ChildId): Promise<OdemeOzet> {
 const BOS_ANA_SAYFA: AnaSayfaOzet = {
   bugunAntrenman: { var: false, branch: '', title: '', saat1: '', saat2: '', venue: '', coach: '', coachInit: '', coachRole: '' },
   sonYoklama: { title: '', sub: '', pct: 0, katildi: false },
-  aidat: { durum: 'odendi', tutar: '₺0', kapsam: '', sonOdeme: '', taksit: '₺0' },
+  aidat: { durum: 'odendi', tutar: '₺0', kapsam: '', sonOdeme: '' },
   duyurular: [],
 };
 
@@ -147,7 +150,7 @@ export async function getAnaSayfa(childId: ChildId): Promise<AnaSayfaOzet> {
     getTumDuyurular(),
   ]);
   const sporcu = sporcuRow as unknown as { grup_id: string | null; brans: { ad: string } | null; grup: { ad: string } | null } | null;
-  const aidat = { durum: odeme.durum, tutar: odeme.tutar, kapsam: odeme.kapsam, sonOdeme: odeme.sonOdeme, taksit: odeme.taksit };
+  const aidat = { durum: odeme.durum, tutar: odeme.tutar, kapsam: odeme.kapsam, sonOdeme: odeme.sonOdeme };
   const ilkDuyurular = duyurular.slice(0, 3);
 
   const grupId = sporcu?.grup_id ?? null;
@@ -414,6 +417,26 @@ export async function izinGonder(antrenmanId: string, sporcuId: ChildId, sebep: 
   }
 }
 
+// İZNİ GERİ ALMA — ekrandaki "Geri Al" düğmesi bugüne kadar YALNIZCA FORMU
+// SIFIRLIYORDU; veritabanına hiç dokunmuyordu. Veli izni yanlışlıkla bildirip
+// geri aldığını sanıyor, antrenör yoklamada çocuğu hâlâ "izinli" görüyordu.
+//
+// Yoklama ALINDIKTAN SONRA geri alınamaz: RLS zaten reddediyor (veli yalnızca
+// işaretlenmemiş satırı güncelleyebilir) ve mantıken de doğru — antrenman
+// olmuş, katılım kaydı girilmiş, artık velinin beyanı geçerli değil.
+export async function izinGeriAl(antrenmanId: string, sporcuId: ChildId): Promise<void> {
+  if (!sporcuId) return;
+  const { error } = await supabase
+    .from('yoklama')
+    .update({ izinli: false, izin_detay: null })
+    .eq('antrenman_id', antrenmanId)
+    .eq('sporcu_id', sporcuId);
+  if (error) {
+    if (error.code === '42501') throw new Error('Yoklama alındığı için izin geri alınamıyor.');
+    throw error;
+  }
+}
+
 // Etkinlik (maç/turnuva) + RSVP artık gerçek `etkinlik`/`etkinlik_katilim` tablolarından
 // (bkz. supabase/migrations/0009_duyuru_etkinlik.sql) — Yönetici'nin oluşturduğu etkinlik
 // gerçekten Veli'ye ulaşıyor, RSVP artık çocuğa özel (eskiden `setKatilimDurumu`'nun
@@ -428,13 +451,19 @@ type EtkinlikRow = {
   tarih: string;
   saat: string | null;
   aciklama: string | null;
+  // Bu üç alan şemada VAR ama sorguda HİÇ SEÇİLMİYORDU: yönetici ücretli bir
+  // kamp yayınlıyor, veli ekranında ücretsiz görünüyordu; LCV istenmeyen bir
+  // etkinlikte de veliye yanıt düğmeleri gösteriliyordu.
+  ucretli: boolean;
+  tutar: number | null;
+  lcv_istenir: boolean;
 };
 
 export async function getEtkinlikler(childId: ChildId): Promise<Etkinlik[]> {
   if (!childId) return [];
   const { data, error } = await supabase
     .from('etkinlik')
-    .select('id, tur, baslik, tesis, tarih, saat, aciklama')
+    .select('id, tur, baslik, tesis, tarih, saat, aciklama, ucretli, tutar, lcv_istenir')
     .is('sonuc', null)
     .gte('tarih', todayStr())
     .order('tarih');
@@ -457,6 +486,11 @@ export async function getEtkinlikler(childId: ChildId): Promise<Etkinlik[]> {
     sub: formatDateTimeTR(r.tarih, r.saat),
     venue: r.tesis ?? '',
     extra: r.aciklama ?? '',
+    ucretli: r.ucretli,
+    // Tutar yalnızca ücretliyse anlamlı; ücretsiz etkinlikte '0 TL' yazmak
+    // gereksiz gürültü.
+    tutar: r.ucretli && r.tutar != null ? formatTL(r.tutar) : null,
+    lcvIstenir: r.lcv_istenir,
     katilimDurumu: kRows.find((k) => k.etkinlik_id === r.id)?.durum ?? 'bekliyor',
   }));
 }

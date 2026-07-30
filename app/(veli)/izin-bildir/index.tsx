@@ -6,7 +6,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { useChildLabel } from '../../../src/components/ChildSwitcher';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { useChild } from '../../../src/context/ChildContext';
-import { getIznAntrenmanlar, getIznSebepleri, izinGonder } from '../../../src/data/veliRepo';
+import { getIznAntrenmanlar, getIznSebepleri, izinGeriAl, izinGonder } from '../../../src/data/veliRepo';
 import type { IznAntrenman } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
@@ -64,11 +64,24 @@ export default function IzinBildirScreen() {
     }
   }
 
-  function reset() {
-    setGonderildi(false);
-    setSeciliSebep(null);
-    setNot('');
+  // 'Geri Al' ARTIK VERİTABANINA DOKUNUYOR.
+  // Eskiden yalnızca formu sıfırlıyordu: veli izni geri aldığını sanıyor,
+  // antrenör yoklamada çocuğu hâlâ 'izinli' görüyordu. İki taraf farklı
+  // gerçeği görüyordu ve hiçbir uyarı yoktu.
+  async function geriAl() {
+    if (!seciliAntrenman) return;
+    setSending(true);
     setSendError(null);
+    try {
+      await izinGeriAl(seciliAntrenman, selectedChildId);
+      setGonderildi(false);
+      setSeciliSebep(null);
+      setNot('');
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'İzin geri alınamadı, tekrar dene.');
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -102,8 +115,8 @@ export default function IzinBildirScreen() {
                   <TimelineRow label="Yoklamada izinli işlenecek" done={false} note="antrenman günü" />
                 </View>
                 <View style={styles.doneActions}>
-                  <Pressable style={styles.undoBtn} onPress={reset}>
-                    <Text style={styles.undoBtnText}>Geri Al</Text>
+                  <Pressable style={styles.undoBtn} onPress={geriAl} disabled={sending}>
+                    <Text style={styles.undoBtnText}>{sending ? 'Geri alınıyor…' : 'Geri Al'}</Text>
                   </Pressable>
                   <Pressable style={styles.okBtn} onPress={() => router.back()}>
                     <Text style={styles.okBtnText}>Tamam</Text>

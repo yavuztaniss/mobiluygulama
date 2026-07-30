@@ -303,57 +303,176 @@ export async function yoklamaKilidiAc(antrenmanIdParam?: string): Promise<void> 
 
 export const GELISIM_TEMPLATES = GELISIM_NOT_SABLONLARI;
 
+// ===========================================================================
+// GELİŞİM DEĞERLENDİRMESİ
+// ===========================================================================
+// BU MODÜL ÖNCEDEN HİÇBİR ŞEY KAYDETMİYORDU.
+//   gelisim_degerlendirme satırını oluşturan tek kod SEED verisiydi; uygulamada
+//   hiçbir INSERT yoktu. Yani demo dışındaki HER sporcu için:
+//     · getGelisimKaydi boş dönüyor,
+//     · setGelisimSeviye satır bulamayıp sessizce return ediyor,
+//     · setGelisimNot ve gelisimGonder 0 satır güncelleyip hata vermiyordu.
+//   Antrenör beceri puanlıyor, not yazıyor, "Gönder"e basıyor ve ekranda
+//   "veliye iletildi" yazısını görüyordu. Hiçbiri olmuyordu.
+//
+// DÖNEM (0033): artık sporcu başına AY başına bir değerlendirme var. Eskiden
+// unique(sporcu_id) yüzünden tek satır vardı ve her güncelleme önceki dönemi
+// KALICI OLARAK SİLİYORDU — oysa velinin görmek istediği şey tam olarak
+// ilerleme, yani geçmişle karşılaştırma.
+
+// İçinde bulunulan ayın ilk günü — dönem anahtarı.
+// Yerel bileşenlerden kuruluyor: toISOString UTC'ye çevirdiği için ayın ilk
+// günü gece yarısı civarında bir önceki aya kayabilirdi (projedeki todayStr deseni).
+function buDonem(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+// Dönemin değerlendirme satırını getirir, YOKSA AÇAR.
+// RLS zaten izin veriyor ("gelisim: antrenör kendi sporcusu için yazar").
+async function degerlendirmeIdAl(sporcuId: string, donem: string): Promise<string> {
+  const { data: mevcut, error: e1 } = await supabase
+    .from('gelisim_degerlendirme')
+    .select('id')
+    .eq('sporcu_id', sporcuId)
+    .eq('donem_ay', donem)
+    .maybeSingle();
+  if (e1) throw e1;
+  if (mevcut) return (mevcut as { id: string }).id;
+
+  const { data: yeni, error: e2 } = await supabase
+    .from('gelisim_degerlendirme')
+    .insert({ sporcu_id: sporcuId, donem_ay: donem })
+    .select('id')
+    .single();
+  if (e2) throw e2;
+  return (yeni as { id: string }).id;
+}
+
 export async function getGelisimKaydi(sporcuId: string): Promise<GelisimKaydi> {
+  const donem = buDonem();
+
   const { data: gd, error } = await supabase
     .from('gelisim_degerlendirme')
     .select('id, not_metni, gonderildi, tarih')
     .eq('sporcu_id', sporcuId)
+    .eq('donem_ay', donem)
     .maybeSingle();
   if (error) throw error;
-  if (!gd) return { sporcuId, beceriler: [], not: '', gonderildi: false };
 
-  const { data: seviyeRows } = await supabase
-    .from('gelisim_beceri_seviye')
-    .select('seviye, beceri:beceri(id, ad, sira)')
-    .eq('degerlendirme_id', gd.id);
-  const beceriler = ((seviyeRows ?? []) as any[])
-    .map((r) => ({ ad: r.beceri?.ad ?? '', seviye: r.seviye as number, beceriId: r.beceri?.id ?? '', sira: r.beceri?.sira ?? 0 }))
-    .sort((a, b) => a.sira - b.sira)
-    .map(({ ad, seviye, beceriId }) => ({ ad, seviye, beceriId }));
+  // BECERİ LİSTESİ KAYITTAN DEĞİL KATALOGDAN geliyor.
+  // Eskiden yalnızca gelisim_beceri_seviye satırları okunuyordu; satır yoksa
+  // ekran bomboş açılıyor ve antrenörün puanlayacağı hiçbir şey olmuyordu.
+  // Artık sporcunun branşının becerileri listeleniyor, kayıtlı seviye varsa
+  // üzerine biniyor. Kulüp sonradan yeni beceri eklerse o da otomatik çıkıyor.
+  const { data: sporcuRow } = await supabase
+    .from('sporcular')
+    .select('brans_id')
+    .eq('id', sporcuId)
+    .maybeSingle();
+  const bransId = (sporcuRow as { brans_id: string | null } | null)?.brans_id ?? null;
+
+  let beceriSorgu = supabase.from('beceri').select('id, ad, sira').order('sira');
+  // brans_id NULL olan beceriler tüm branşlar için geçerli sayılıyor.
+  if (bransId) beceriSorgu = beceriSorgu.or(`brans_id.eq.${bransId},brans_id.is.null`);
+  const { data: beceriRows } = await beceriSorgu;
+
+  const seviyeMap = new Map<string, number>();
+  if (gd) {
+    const { data: seviyeRows } = await supabase
+      .from('gelisim_beceri_seviye')
+      .select('beceri_id, seviye')
+      .eq('degerlendirme_id', (gd as { id: string }).id);
+    for (const r of (seviyeRows ?? []) as { beceri_id: string; seviye: number }[]) {
+      seviyeMap.set(r.beceri_id, r.seviye);
+    }
+  }
+
+  const beceriler = ((beceriRows ?? []) as { id: string; ad: string; sira: number }[]).map((b) => ({
+    ad: b.ad,
+    beceriId: b.id,
+    // 0 = henüz değerlendirilmedi. Ekran bunu boş çubuklarla gösteriyor.
+    seviye: seviyeMap.get(b.id) ?? 0,
+  }));
+
+  const kayit = gd as { id: string; not_metni: string; gonderildi: boolean; tarih: string | null } | null;
 
   return {
     sporcuId,
     beceriler,
-    not: gd.not_metni,
-    gonderildi: gd.gonderildi,
-    tarih: gd.tarih ? formatDateTR(gd.tarih) : undefined,
+    not: kayit?.not_metni ?? '',
+    gonderildi: kayit?.gonderildi ?? false,
+    tarih: kayit?.tarih ? formatDateTR(kayit.tarih) : undefined,
   };
 }
 
-export async function setGelisimSeviye(sporcuId: string, beceriId: string, seviye: number): Promise<void> {
-  const { data: gd, error } = await supabase.from('gelisim_degerlendirme').select('id').eq('sporcu_id', sporcuId).maybeSingle();
+// Sporcunun GEÇMİŞ dönemleri — velinin "ilerleme" görebilmesinin tek yolu.
+// 0033'ten önce şema bunu yapısal olarak imkânsız kılıyordu.
+export async function getGelisimGecmisi(
+  sporcuId: string
+): Promise<{ donem: string; ortalama: number | null; gonderildi: boolean }[]> {
+  const { data, error } = await supabase
+    .from('gelisim_degerlendirme')
+    .select('id, donem_ay, gonderildi, seviyeler:gelisim_beceri_seviye(seviye)')
+    .eq('sporcu_id', sporcuId)
+    .order('donem_ay', { ascending: false })
+    .limit(12);
   if (error) throw error;
-  if (!gd) return;
-  const { error: upErr } = await supabase
+
+  return ((data ?? []) as unknown as {
+    donem_ay: string;
+    gonderildi: boolean;
+    seviyeler: { seviye: number }[];
+  }[]).map((d) => {
+    const puanlar = (d.seviyeler ?? []).map((s) => s.seviye).filter((n) => n > 0);
+    return {
+      donem: d.donem_ay,
+      ortalama: puanlar.length ? puanlar.reduce((a, b) => a + b, 0) / puanlar.length : null,
+      gonderildi: d.gonderildi,
+    };
+  });
+}
+
+export async function setGelisimSeviye(sporcuId: string, beceriId: string, seviye: number): Promise<void> {
+  // Satır yoksa AÇILIYOR. Eskiden satır bulunamayınca sessizce çıkılıyordu.
+  const degerlendirmeId = await degerlendirmeIdAl(sporcuId, buDonem());
+
+  // upsert: beceri satırı ilk kez puanlanıyorsa oluşur, sonra güncellenir.
+  // Eskiden yalnızca update vardı ve hiç satır olmadığı için hiçbir zaman
+  // bir şey güncellemiyordu.
+  const { error } = await supabase
     .from('gelisim_beceri_seviye')
-    .update({ seviye })
-    .eq('degerlendirme_id', gd.id)
-    .eq('beceri_id', beceriId);
-  if (upErr) throw upErr;
+    .upsert(
+      { degerlendirme_id: degerlendirmeId, beceri_id: beceriId, seviye },
+      { onConflict: 'degerlendirme_id,beceri_id' }
+    );
+  if (error) throw error;
 }
 
 export async function setGelisimNot(sporcuId: string, not: string): Promise<void> {
-  const { error } = await supabase.from('gelisim_degerlendirme').update({ not_metni: not }).eq('sporcu_id', sporcuId);
+  const degerlendirmeId = await degerlendirmeIdAl(sporcuId, buDonem());
+  const { error } = await supabase
+    .from('gelisim_degerlendirme')
+    .update({ not_metni: not })
+    .eq('id', degerlendirmeId);
   if (error) throw error;
 }
 
 export async function gelisimGonder(sporcuId: string): Promise<void> {
-  const { error } = await supabase.from('gelisim_degerlendirme').update({ gonderildi: true, tarih: todayStr() }).eq('sporcu_id', sporcuId);
+  const degerlendirmeId = await degerlendirmeIdAl(sporcuId, buDonem());
+  const { error } = await supabase
+    .from('gelisim_degerlendirme')
+    .update({ gonderildi: true, tarih: todayStr() })
+    .eq('id', degerlendirmeId);
   if (error) throw error;
 }
 
 export async function gelisimKilidiAc(sporcuId: string): Promise<void> {
-  const { error } = await supabase.from('gelisim_degerlendirme').update({ gonderildi: false }).eq('sporcu_id', sporcuId);
+  const degerlendirmeId = await degerlendirmeIdAl(sporcuId, buDonem());
+  const { error } = await supabase
+    .from('gelisim_degerlendirme')
+    .update({ gonderildi: false })
+    .eq('id', degerlendirmeId);
   if (error) throw error;
 }
 

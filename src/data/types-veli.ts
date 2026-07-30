@@ -22,7 +22,7 @@ export interface AnaSayfaOzet {
     nextTraining?: string;
   };
   sonYoklama: { title: string; sub: string; pct: number; katildi: boolean };
-  aidat: { durum: 'bekliyor' | 'gecikti' | 'odendi'; tutar: string; kapsam: string; sonOdeme: string; taksit: string };
+  aidat: { durum: 'bekliyor' | 'gecikti' | 'odendi'; tutar: string; kapsam: string; sonOdeme: string };
   duyurular: { id: string; baslik: string; aciklama: string; zaman: string; tur: 'kamp' | 'servis' | 'basari' | 'genel' }[];
 }
 
@@ -63,7 +63,6 @@ export interface OdemeOzet {
   tutar: string;
   kapsam: string;
   sonOdeme: string;
-  taksit: string;
   odemeTarihi?: string;
   gecmis: OdemeGecmisKalem[];
 }
@@ -113,6 +112,12 @@ export interface Etkinlik {
   sub: string;
   venue: string;
   extra: string;
+  /** Ücretli etkinlik mi (şemada vardı, sorguda hiç seçilmiyordu). */
+  ucretli: boolean;
+  /** Biçimlenmiş tutar; ücretsizse null. */
+  tutar: string | null;
+  /** Veliden katılım yanıtı isteniyor mu. false ise yanıt düğmeleri çizilmez. */
+  lcvIstenir: boolean;
   katilimDurumu: 'bekliyor' | 'katilir' | 'katilmaz';
 }
 

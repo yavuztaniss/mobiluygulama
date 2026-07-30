@@ -18,7 +18,11 @@ const KATEGORILER = ['Tümü', 'Forma', 'Giyim', 'Aksesuar'];
 export default function MagazaScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
-  const { selectedChildId } = useChild();
+  // Forma baskısında SEÇİLİ SPORCUNUN gerçek adı kullanılıyor.
+  // Eskiden sabit '"ELİF K · —" baskısı hediye' yazıyordu: her velinin
+  // sepetinde BAŞKA BİR ÇOCUĞUN adı görünüyordu. Demoda tek başına fark
+  // edilecek ve ürünün geri kalanına duyulan güveni topluca düşürecek türden.
+  const { selectedChildId, selectedChild } = useChild();
   const [urunler, setUrunler] = useState<Urun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +61,12 @@ export default function MagazaScreen() {
     setSeciliBeden(null);
   }
 
+  // Baskı metni: ad + sırt numarası. Numara yoksa yalnızca ad yazılıyor —
+  // eskiden numara yerine sabit bir tire vardı.
+  const baskiMetni = selectedChild
+    ? [selectedChild.ad, selectedChild.numara ? String(selectedChild.numara) : null].filter(Boolean).join(' · ')
+    : null;
+
   function addToCart() {
     if (!urunSheet || !seciliBeden) return;
     setSepet((prev) => [
@@ -67,7 +77,8 @@ export default function MagazaScreen() {
         beden: seciliBeden,
         fiyat: urunSheet.fiyat,
         fiyatN: urunSheet.fiyatN,
-        not: urunSheet.jersey ? '"ELİF K · —" baskısı hediye' : 'Standart paket',
+        // Baskı bilgisi bilinmiyorsa vaat de edilmiyor.
+        not: urunSheet.jersey && baskiMetni ? `"${baskiMetni}" baskısı hediye` : 'Standart paket',
       },
     ]);
     setUrunSheet(null);
@@ -173,7 +184,7 @@ export default function MagazaScreen() {
                 </View>
                 {urunSheet.jersey && (
                   <View style={styles.jerseyNote}>
-                    <Text style={styles.jerseyNoteText}>"ELİF K · —" baskısı hediye olarak eklenecek</Text>
+                    <Text style={styles.jerseyNoteText}>{baskiMetni ? `"${baskiMetni}" baskısı hediye olarak eklenecek` : 'Forma baskısı hediye olarak eklenecek'}</Text>
                   </View>
                 )}
                 <Pressable

@@ -475,19 +475,25 @@ create table beceri (
   kulup_id uuid default private.current_kulup_id() references kulup(id)
 );
 
--- Sporcu başına TEK aktif değerlendirme (unique sporcu_id) — gönder/kilit-aç aynı
--- satırı değiştirir, geçmiş sürüm tutulmaz.
+-- Sporcu başına DÖNEM (ay) başına bir değerlendirme (0033). Eskiden
+-- unique(sporcu_id) vardı ve her güncelleme önceki dönemi KALICI olarak
+-- siliyordu; velinin görmek istediği şey ise tam olarak ilerlemedir.
 create table gelisim_degerlendirme (
   id uuid primary key default gen_random_uuid(),
-  sporcu_id uuid not null unique references sporcular(id) on delete cascade,
+  sporcu_id uuid not null references sporcular(id) on delete cascade,
+  donem_ay date not null default date_trunc('month', current_date)::date,
   antrenor_id uuid references profiles(id),
   not_metni text not null default '',
   gonderildi boolean not null default false,
   tarih date,
   created_at timestamptz not null default now(),
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
-  constraint gelisim_degerlendirme_id_kulup_uniq unique (id, kulup_id)
+  constraint gelisim_degerlendirme_id_kulup_uniq unique (id, kulup_id),
+  constraint gelisim_degerlendirme_sporcu_donem_uniq unique (sporcu_id, donem_ay)
 );
+
+create index gelisim_degerlendirme_sporcu_donem_idx
+  on gelisim_degerlendirme (sporcu_id, donem_ay desc);
 
 create table gelisim_beceri_seviye (
   degerlendirme_id uuid not null references gelisim_degerlendirme(id) on delete cascade,
@@ -3023,6 +3029,74 @@ comment on view public.sporcu_yoklama_ozet is
   'Sporcu başına katılım toplamı (0027). security_invoker=on → alttaki yoklama tablosunun RLS''i ve kiracı duvarı aynen geçerlidir.';
 
 grant select on public.sporcu_yoklama_ozet to authenticated;
+
+
+-- 0033: efektif ödeme durumu (gecikme hesaplanır, kolona yazılmaz).
+create or replace view public.odeme_gorunum
+with (security_invoker = on) as
+select
+  o.*,
+  -- Efektif durum: ödenmişse ödenmiş; son ödeme tarihi geçmiş ve hâlâ
+  -- bekliyorsa gecikmiş. son_odeme_tarihi NULL ise (tarihi belirlenmemiş
+  -- tahakkuk) gecikme hesaplanamaz, 'bekliyor' kalır.
+  case
+    when o.durum = 'odendi' then 'odendi'
+    when o.durum = 'bekliyor' and o.son_odeme_tarihi is not null
+         and o.son_odeme_tarihi < current_date then 'gecikti'
+    else o.durum
+  end as efektif_durum,
+  -- Kaç gün gecikti (yaşlandırma raporu için). Gecikmemişse 0.
+  case
+    when o.durum = 'bekliyor' and o.son_odeme_tarihi is not null
+         and o.son_odeme_tarihi < current_date
+    then (current_date - o.son_odeme_tarihi)
+    else 0
+  end as gecikme_gun
+from public.odeme o;
+
+comment on view public.odeme_gorunum is
+  'Ödeme + efektif_durum (gecikti hesaplanır, yazılmaz) + gecikme_gun (0033). security_invoker=on → odeme tablosunun RLS''i aynen geçerli. Gecikme zamanın geçmesidir; kolon güncellemek her gün çalışan bir iş gerektirirdi.';
+
+grant select on public.odeme_gorunum to authenticated;
+
+
+
+
+-- 0033: veli yayınlanmış maç kadrosunda kendi çocuğunu görür.
+drop policy if exists "mac_kadro: veli yayınlanmış kadroyu görür" on public.mac_kadro;
+create policy "mac_kadro: veli yayınlanmış kadroyu görür" on public.mac_kadro for select
+  using (
+    mac_kadro.yayinlandi
+    and exists (
+      select 1
+        from public.etkinlik e
+        join public.sporcular s on s.grup_id = e.grup_id
+        join public.veli_sporcu vs on vs.sporcu_id = s.id
+       where e.id = mac_kadro.etkinlik_id
+         and vs.veli_id = auth.uid()
+    )
+  );
+
+-- Veli kadro SATIRLARINDAN yalnızca KENDİ ÇOCUĞUNUNKİNİ görür.
+-- Tüm kadroyu göstermek başka velilerin çocuklarının seçilip seçilmediğini
+-- ifşa ederdi — kulüp içi bir hassasiyet ve gereksiz bir veri paylaşımı.
+drop policy if exists "mac_kadro_sporcu: veli kendi çocuğunu görür" on public.mac_kadro_sporcu;
+create policy "mac_kadro_sporcu: veli kendi çocuğunu görür" on public.mac_kadro_sporcu for select
+  using (
+    exists (
+      select 1 from public.veli_sporcu vs
+       where vs.sporcu_id = mac_kadro_sporcu.sporcu_id
+         and vs.veli_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.mac_kadro mk
+       where mk.id = mac_kadro_sporcu.mac_kadro_id
+         and mk.yayinlandi
+    )
+  );
+
+
+
 
 
 -- ===========================================================================

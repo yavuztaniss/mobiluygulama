@@ -150,7 +150,10 @@ export default function GelisimScreen() {
                 <View key={b.beceriId} style={[styles.skillRow, bi === kayit.beceriler.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.skillName} numberOfLines={1}>{b.ad}</Text>
-                    <Text style={styles.skillLvl}>{LEVELS[b.seviye - 1]}</Text>
+                    {/* seviye 0 = henuz degerlendirilmedi. Eskiden beceri satiri yalnizca
+                        kayitli seviyeden geliyordu; artik katalogdan geldigi icin
+                        puanlanmamis beceri de listeleniyor ve durumu yaziyor. */}
+                    <Text style={styles.skillLvl}>{b.seviye > 0 ? LEVELS[b.seviye - 1] : "Henüz değerlendirilmedi"}</Text>
                   </View>
                   <View style={styles.segRow}>
                     {[1, 2, 3, 4, 5].map((lvl) => (
