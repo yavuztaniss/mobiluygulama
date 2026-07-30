@@ -33,6 +33,10 @@ type BasvuruRow = {
   durum: BasvuruDurum;
   detay_notu: string | null;
   sporcu_id: string | null;
+  // Başvuruyu açan veli. Yalnızca veli akışında dolar (veliBasvuruOlustur);
+  // yönetici tarafından girilen başvurularda NULL'dur. Onayda veli_sporcu
+  // bağının kime kurulacağını bu alan belirliyor.
+  created_by: string | null;
   created_at: string;
   brans: { ad: string } | null;
   grup: { ad: string } | null;
@@ -64,6 +68,40 @@ export async function getBasvurular(): Promise<Basvuru[]> {
   });
 }
 
+// VELİ–SPORCU BAĞI — onayın görünmeyen ama en kritik yarısı.
+//
+// Veli tarafı çocuk listesini YALNIZCA veli_sporcu üzerinden okur
+// (src/context/ChildContext.tsx). Bu bağ kurulmazsa sporcu satırı oluşsa bile
+// veli ekranında çocuk HİÇ görünmez: yoklama, aidat, servis, mesaj — hiçbiri
+// açılmaz. Onay "başarılı" göründüğü ve hata çıkmadığı için de fark edilmesi zor.
+//
+// Neden ROL KONTROLÜ var: bugün basvuru.created_by yalnızca veli akışında
+// dolduruluyor (veliBasvuruOlustur), ama ileride panele "yönetici adına başvuru
+// gir" ekranı eklenirse created_by bir yöneticiyi gösterirdi ve o yönetici
+// sessizce çocuğun velisi yapılırdı. Kontrol o hatayı yapısal olarak imkânsız
+// kılıyor. Yönetici tüm profilleri okuyabiliyor (01_sema "profiles: yönetici
+// tümünü görür"), ek yetki gerekmiyor.
+//
+// Neden UPSERT değil INSERT + 23505 toleransı: veli_sporcu üzerinde UPDATE
+// politikası YOK (yalnızca select/insert/delete). Upsert'in ON CONFLICT yolu
+// gereksiz yere UPDATE yetkisi gerektirebilirdi; burada istenen davranış zaten
+// "varsa dokunma".
+async function veliSporcuBaginiKur(veliId: string | null, sporcuId: string): Promise<void> {
+  if (!veliId) return;
+
+  const { data: profilRow } = await supabase.from('profiles').select('role').eq('id', veliId).maybeSingle();
+  if ((profilRow as { role: string } | null)?.role !== 'veli') return;
+
+  // kulup_id yazılmıyor: tablonun `default private.current_kulup_id()` değeri
+  // onaylayan yöneticinin kulübünü doldurur (0021 deseni). Sporcu da az önce
+  // aynı oturumda oluşturuldu, yani bileşik FK'ler zorunlu olarak tutar.
+  const { error } = await supabase.from('veli_sporcu').insert({ veli_id: veliId, sporcu_id: sporcuId });
+
+  // 23505 = unique_violation. Bağ zaten varsa (geri al → tekrar onayla) bu
+  // beklenen bir sonuçtur, hata değil.
+  if (error && (error as { code?: string }).code !== '23505') throw error;
+}
+
 // Onayla — grupId verilmezse başvurunun kendi grup_id'si (varsa) kullanılır. Başvuru daha
 // önce onaylanıp gerçek bir sporcu_id'ye sahipse (ör. "Geri Al" sonrası tekrar onaylanıyor)
 // ikinci bir sporcu satırı oluşturulmaz, yalnızca durum tekrar 'onaylandi' yapılır.
@@ -75,6 +113,10 @@ export async function onaylaBasvuru(basvuruId: string, grupId?: string | null): 
   if (b.sporcu_id) {
     const { error } = await supabase.from('basvuru').update({ durum: 'onaylandi' }).eq('id', basvuruId);
     if (error) throw error;
+    // Bu dal aynı zamanda ONARIM yolu: bu düzeltmeden ÖNCE onaylanmış
+    // başvuruların bağı hiç kurulmamıştı. Yönetici "Geri Al → Onayla"
+    // yaptığında eksik bağ burada tamamlanır.
+    await veliSporcuBaginiKur(b.created_by, b.sporcu_id);
     return;
   }
 
@@ -100,11 +142,20 @@ export async function onaylaBasvuru(basvuruId: string, grupId?: string | null): 
     .single();
   if (e1) throw e1;
 
+  const yeniSporcuId = (sporcu as { id: string }).id;
+
   const { error: e2 } = await supabase
     .from('basvuru')
-    .update({ durum: 'onaylandi', sporcu_id: (sporcu as { id: string }).id, grup_id: finalGrupId })
+    .update({ durum: 'onaylandi', sporcu_id: yeniSporcuId, grup_id: finalGrupId })
     .eq('id', basvuruId);
   if (e2) throw e2;
+
+  // SIRA: basvuru.sporcu_id mühürlendikten SONRA. Bağ kurulurken hata çıkarsa
+  // (ör. ağ koptu) başvuru yine de onaylanmış ve sporcuya bağlanmış olur; yönetici
+  // "Geri Al → Onayla" ile yukarıdaki onarım dalından bağı tamamlayabilir.
+  // Ters sırada olsaydı sporcu satırı oluşmuş ama başvuru 'bekliyor' kalmış olur,
+  // ikinci onay ikinci bir sporcu satırı üretirdi.
+  await veliSporcuBaginiKur(b.created_by, yeniSporcuId);
 }
 
 export async function reddetBasvuru(basvuruId: string): Promise<void> {

@@ -184,7 +184,18 @@ create table profiles (
   avatar_url text,
   created_at timestamptz not null default now(),
   kulup_id uuid references kulup(id),
-  constraint profiles_id_kulup_uniq unique (id, kulup_id)
+  constraint profiles_id_kulup_uniq unique (id, kulup_id),
+  -- 0026: platform_admin KULÜPSÜZDÜR. Bölüm 12.13'teki restrictive kiracı duvarı
+  -- `kulup_id = current_kulup_id()` der; platform_admin'in kulup_id'si NULL
+  -- olduğu için karşılaştırma NULL üretir ve satır reddedilir — süper-admin
+  -- normal API üzerinden hiçbir kulüp verisini göremez, yalnızca service_role
+  -- paneliyle çalışır. Bu alan yanlışlıkla dolarsa duvar O KULÜP İÇİN AÇILIR ve
+  -- süper-admin o kulübün verisini anon key ile okumaya başlar. Kısıt, tüm
+  -- tasarımın dayandığı varsayımı zorunlu kılıyor.
+  -- Tersi (kulüp rolü ⇒ kulup_id NOT NULL) bilerek zorlanmıyor: kulüpsüz bir
+  -- kulüp rolü sızdırmaz, yalnızca fail-closed olur — bkz. 0026 bölüm 2.
+  constraint profiles_platform_admin_kulupsuz
+    check (role <> 'platform_admin' or kulup_id is null)
 );
 
 -- ---------------------------------------------------------------------------

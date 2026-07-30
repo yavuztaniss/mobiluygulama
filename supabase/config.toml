@@ -160,7 +160,24 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+#
+# ⚠ BU LİSTE DAVET VE ŞİFRE SIFIRLAMA AKIŞININ ÖN KOŞULUDUR.
+# Panel, davet/sıfırlama e-postalarında `redirectTo` ile kendi /auth/callback
+# adresini veriyor (admin-panel/lib/site-url.ts). Adres bu listede YOKSA Supabase
+# redirectTo'yu SESSİZCE YOK SAYAR — hata dönmez, e-posta yine gider, ama link
+# site_url'e düşer ve davet edilen kişi şifre belirleme ekranına hiç ulaşamaz.
+# Teşhisi zor bir arıza; yeni bir alan adına geçildiğinde ilk bakılacak yer burası.
+#
+# Joker desen destekleniyor (/** = alt yolların tamamı). Panel geliştirmede
+# localhost:3000, mobil uygulama Expo'da ayrı bir şemayla çalışıyor.
+#
+# CANLIDA: bu dosya değil, Supabase paneli > Authentication > URL Configuration
+# geçerlidir. Panelin gerçek adresi oraya eklenmelidir.
+additional_redirect_urls = [
+  "https://127.0.0.1:3000",
+  "http://127.0.0.1:3000/**",
+  "http://localhost:3000/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
