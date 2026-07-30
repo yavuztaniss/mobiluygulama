@@ -5,6 +5,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
+import { HesabiSil } from '../../../src/components/HesabiSil';
 import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePicker';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
@@ -119,6 +120,7 @@ export default function AntrenorProfilScreen() {
             <View style={styles.signOutWrap}>
               <Button label="Çıkış Yap" variant="secondary" onPress={signOut} />
             </View>
+            <HesabiSil />
           </ScrollView>
         )}
       </SafeAreaView>

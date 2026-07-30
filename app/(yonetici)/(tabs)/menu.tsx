@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
+import { HesabiSil } from '../../../src/components/HesabiSil';
 import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePicker';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
@@ -88,6 +89,7 @@ export default function MenuScreen() {
           <View style={styles.signOutWrap}>
             <Button label="Çıkış Yap" variant="secondary" onPress={signOut} />
           </View>
+          <HesabiSil />
         </ScrollView>
       </SafeAreaView>
       <Toast message={toastMessage} />
