@@ -212,7 +212,35 @@ password_requirements = ""
 # rp_origins = ["http://127.0.0.1:3000"]
 
 [auth.rate_limit]
+# ===========================================================================
+# IP BAZLI KORUMANIN ASIL YERİ BURASI
+# ===========================================================================
+# Kayıt, giriş, şifre sıfırlama ve e-posta doğrulama istekleri uygulamanın
+# kodundan GEÇMEZ — doğrudan Supabase Auth'a gider. Dolayısıyla "aynı IP'den
+# hesap hareketleri" ancak buradan sınırlanabilir; veritabanı tarafındaki
+# tetikleyiciler (0032) yalnızca oturum açmış kullanıcının PostgREST üzerinden
+# yaptığı YAZMA işlemlerini kapsar.
+#
+# ⚠ BU DOSYA YALNIZCA YERELİ ETKİLER. Canlıda geçerli olan:
+#   Dashboard > Authentication > Rate Limits
+# Yeni bir Supabase projesi açtığında oradaki değerleri de gözden geçir.
+#
+# NEDEN sign_in_sign_ups DAHA DA KISILMADI (30/5dk varsayılanı korundu):
+#   Ürünün en kritik anı, kulüp toplantısında antrenörün 30 veliyi tek tek
+#   kaydettirdiği andır — hepsi AYNI ofis Wi-Fi'ından, yani tek IP'den çıkar.
+#   Sınırı 10'a çekmek tam da o anda kaydı kilitler ve ilk izlenimi mahveder.
+#   Bot koruması için doğru araç sınırı kısmak değil CAPTCHA'dır (aşağıda):
+#   insanı yavaşlatmadan otomatik denemeyi durdurur.
+#
+# ⚠ CAPTCHA HENÜZ AÇIK DEĞİL — otomatik kayıt denemelerine karşı en güçlü
+#   önlem bu. hCaptcha veya Cloudflare Turnstile (ikisi de ücretsiz katmanlı)
+#   hesabı açılıp Dashboard > Authentication > Attack Protection'dan
+#   etkinleştirilmeli; ardından istemci tarafında signUp/signIn çağrılarına
+#   captchaToken eklenir. Hesap gerektirdiği için kod tarafı hazırlanmadı.
+#
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
+# ⚠ 2/saat YALNIZCA yerel geliştirme içindir. Canlıda özel SMTP (Resend/SendGrid)
+#   bağlanmadan bir kulübün 30 velisini aynı gün davet etmek MÜMKÜN DEĞİLDİR.
 email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
