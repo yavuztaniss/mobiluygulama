@@ -7,7 +7,7 @@ import { EmptyState, LoadingState, ErrorState } from '../../../src/components/St
 import { useChild } from '../../../src/context/ChildContext';
 import { getSiparislerim } from '../../../src/data/magazaRepo';
 import type { Siparis, SiparisDurum } from '../../../src/data/types-magaza';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 const DURUM_LABEL: Record<SiparisDurum, string> = { hazirlaniyor: 'Hazırlanıyor', hazir: 'Hazır', teslim: 'Teslim Edildi' };
 
@@ -45,7 +45,7 @@ export default function SiparislerimScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -91,13 +91,13 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl, gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', borderRadius: radius.xl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   urun: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  tarih: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: 3 },
+  tarih: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: 3 },
   tutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.textBright },
   durumPill: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  durumText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5 },
+  durumText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro },
   });
 }

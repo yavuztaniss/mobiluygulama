@@ -12,7 +12,7 @@ import {
   type BransSecenek,
   type VeliBasvuru,
 } from '../../../src/data/basvurularRepo';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 // Başvuru artık GERÇEK: `basvuru` tablosuna DENEME kaydı ekleniyor (0018 politikası),
 // Yönetici > Başvurular ekranı aynı satırı görüp onaylıyor/reddediyor. Eski sabit
@@ -94,7 +94,7 @@ export default function SporcuEkleScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -186,7 +186,7 @@ export default function SporcuEkleScreen() {
                   return (
                     <View key={b.id} style={styles.basvuruRow}>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.basvuruAd}>{b.ad}</Text>
+                        <Text style={styles.basvuruAd} numberOfLines={1}>{b.ad}</Text>
                         <Text style={styles.basvuruAlt}>{[b.altBilgi, b.when].filter(Boolean).join(' · ')}</Text>
                       </View>
                       <View style={[styles.basvuruRozet, { backgroundColor: rozet.bg }]}>
@@ -224,9 +224,9 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
   input: { height: 48, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
   inputMulti: { height: 84, paddingTop: 12, textAlignVertical: 'top' },
   bransGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
@@ -242,20 +242,20 @@ function createStyles(colors: AppColors) {
   sendBtnTextDisabled: { color: colors.textDim },
   basvuruRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 13, marginBottom: spacing.xs },
   basvuruAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  basvuruAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  basvuruAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   basvuruRozet: { paddingVertical: 5, paddingHorizontal: 9, borderRadius: radius.pill },
-  basvuruRozetText: { fontFamily: fontFamily.manropeExtra, fontSize: 10 },
+  basvuruRozetText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro },
   doneWrap: { flex: 1, alignItems: 'center', padding: spacing.xl, paddingTop: 56 },
   doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentSoft, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   doneCheckmark: { fontSize: 40, color: colors.accent },
   doneTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.lg },
-  doneSum: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs },
+  doneSum: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, marginTop: spacing.xs },
   timeline: { width: '100%', borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.xl, gap: 8 },
   timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   timelineDot: { width: 8, height: 8, borderRadius: 4 },
   timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border },
   timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   okBtn: { width: '100%', marginTop: spacing.md, height: 48, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   okBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
   });

@@ -10,7 +10,7 @@ import { Toast, useToast } from '../../src/components/Toast';
 import { geriAlBasvuru, getBasvurular, onaylaBasvuru, reddetBasvuru } from '../../src/data/basvurularRepo';
 import { getGruplar } from '../../src/data/etkinlikRepo';
 import type { Basvuru } from '../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../src/theme';
 
 export default function BasvurularScreen() {
   const colors = useColors();
@@ -89,7 +89,7 @@ export default function BasvurularScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -126,7 +126,7 @@ export default function BasvurularScreen() {
                       <Text style={[styles.avatarText, { color: b.avFg }]}>{b.init}</Text>
                     </View>
                     <View style={styles.mid}>
-                      <Text style={styles.name}>{b.ad}</Text>
+                      <Text style={styles.name} numberOfLines={1}>{b.ad}</Text>
                       <Text style={styles.altText}>{b.altBilgi}</Text>
                     </View>
                     <View
@@ -145,10 +145,10 @@ export default function BasvurularScreen() {
 
                   {!decided && (
                     <View style={styles.actionRow}>
-                      <Pressable style={styles.approveBtn} onPress={() => onOnaylaTap(b)}>
+                      <Pressable hitSlop={{ top: 6, bottom: 6 }} style={styles.approveBtn} onPress={() => onOnaylaTap(b)}>
                         <Text style={styles.approveBtnText}>✓ Onayla</Text>
                       </Pressable>
-                      <Pressable style={styles.rejectBtn} onPress={() => onReddet(b)}>
+                      <Pressable hitSlop={{ top: 6, bottom: 6 }} style={styles.rejectBtn} onPress={() => onReddet(b)}>
                         <Text style={styles.rejectBtnText}>✕ Reddet</Text>
                       </Pressable>
                     </View>
@@ -182,7 +182,7 @@ export default function BasvurularScreen() {
             <ScrollView contentContainerStyle={{ gap: 7, paddingTop: spacing.sm }}>
               <View style={styles.pickRow}>
                 {gruplar.map((g) => (
-                  <Pressable key={g.id} style={[styles.pickChip, seciliGrup === g.id && styles.pickChipActive]} onPress={() => setSeciliGrup(g.id)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={g.id} style={[styles.pickChip, seciliGrup === g.id && styles.pickChipActive]} onPress={() => setSeciliGrup(g.id)}>
                     <Text style={[styles.pickChipText, seciliGrup === g.id && styles.pickChipTextActive]}>{g.ad}</Text>
                   </Pressable>
                 ))}
@@ -206,7 +206,7 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   pendingBadge: { minWidth: 26, height: 26, borderRadius: 13, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   pendingBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, paddingBottom: spacing.xxl },
@@ -218,10 +218,10 @@ function createStyles(colors: AppColors) {
   name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   altText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   tag: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  tagText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5 },
+  tagText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.5 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 11, padding: 11, borderRadius: 13, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border },
   detailText: { flex: 1, fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted },
-  whenText: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: 8 },
+  whenText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: 8 },
   actionRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
   approveBtn: { flex: 1, height: 42, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   approveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
@@ -232,12 +232,12 @@ function createStyles(colors: AppColors) {
   decidedBoxNo: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   decidedText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm },
   undoText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.xs },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: spacing.xs },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '75%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
-  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   pickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pickChip: { paddingVertical: 10, paddingHorizontal: 13, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   pickChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },

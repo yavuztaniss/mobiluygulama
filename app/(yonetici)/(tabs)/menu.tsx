@@ -9,7 +9,7 @@ import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePi
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useKurum } from '../../../src/context/KurumContext';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing } from '../../../src/theme';
 
 const MENU_ITEMS: { label: string; href: string }[] = [
   { label: 'Duyurular', href: '/duyuru-gonder' },
@@ -44,8 +44,8 @@ export default function MenuScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>Menü</Text>
           <Card style={styles.profileCard}>
-            <Text style={styles.profileName}>{profile?.ad || 'Yönetici'}</Text>
-            <Text style={styles.profileRole}>Yönetici · {kulupAdi}</Text>
+            <Text style={styles.profileName} numberOfLines={1}>{profile?.ad || 'Yönetici'}</Text>
+            <Text style={styles.profileRole} numberOfLines={1}>Yönetici · {kulupAdi}</Text>
 
             {__DEV__ && (
               <>
@@ -100,18 +100,18 @@ function createStyles(colors: AppColors) {
   profileCard: { gap: 4 },
   profileName: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.lg, color: colors.textBright },
   profileRole: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim },
   rolDivider: { height: 1, backgroundColor: colors.border, marginTop: spacing.md, marginBottom: spacing.sm },
   rolHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rolLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  rolLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   rolCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   rolRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   rolCard: { flex: 1, borderRadius: 14, backgroundColor: colors.chip, borderWidth: 1.5, borderColor: colors.border, padding: 11 },
   rolCardActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   rolCardTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textBright },
-  rolCardSubActive: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.accent, marginTop: 1 },
+  rolCardSubActive: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent, marginTop: 1 },
   rolCardTitleMuted: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  rolCardSub: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim, marginTop: 1 },
+  rolCardSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: 1 },
   list: { gap: spacing.xs },
   row: {
     flexDirection: 'row',

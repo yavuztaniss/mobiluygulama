@@ -6,7 +6,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { getKonusmalar } from '../../../src/data/mesajRepo';
 import type { KonusmaSatir } from '../../../src/data/types-mesaj';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function AntrenorMesajlarScreen() {
   const colors = useColors();
@@ -51,10 +51,10 @@ export default function AntrenorMesajlarScreen() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={styles.topRow}>
-                    <Text style={styles.name}>{k.ad}</Text>
+                    <Text style={styles.name} numberOfLines={1}>{k.ad}</Text>
                     <Text style={styles.time}>{k.zaman}</Text>
                   </View>
-                  <Text style={styles.role}>{k.role}</Text>
+                  <Text style={styles.role} numberOfLines={1}>{k.role}</Text>
                   <View style={styles.bottomRow}>
                     <Text style={styles.last} numberOfLines={1}>{k.son}</Text>
                     {k.unread > 0 && (
@@ -85,13 +85,13 @@ function createStyles(colors: AppColors) {
   avatar: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  time: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
-  role: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
+  name: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
+  time: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
+  role: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  last: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
+  last: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   unreadBadge: { minWidth: 19, height: 19, borderRadius: 10, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  unreadBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.md },
+  unreadBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.onAccent },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: spacing.md },
   });
 }

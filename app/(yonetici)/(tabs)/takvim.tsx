@@ -10,7 +10,7 @@ import { Toast, useToast } from '../../../src/components/Toast';
 import { addAntrenman, getTakvim, TESIS_LISTESI } from '../../../src/data/takvimRepo';
 import { getGruplar } from '../../../src/data/etkinlikRepo';
 import type { TakvimBlok, TakvimGun } from '../../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 function bugunIndex(): number {
   const day = new Date().getDay();
@@ -93,7 +93,7 @@ export default function TakvimScreen() {
             <Text style={styles.subtitle}>{gunler[0]?.tarih ?? ''} – {gunler[6]?.tarih ?? ''}</Text>
           </View>
           <View style={styles.headerRight}>
-            <Pressable style={styles.todayBtn} onPress={() => setSelectedDay(bugunIndex())}>
+            <Pressable hitSlop={{ top: 8, bottom: 8 }} style={styles.todayBtn} onPress={() => setSelectedDay(bugunIndex())}>
               <Text style={styles.todayBtnText}>Bugün</Text>
             </Pressable>
             <Pressable
@@ -126,11 +126,11 @@ export default function TakvimScreen() {
             </ScrollView>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tesisScroll} contentContainerStyle={styles.tesisRow}>
-              <Pressable style={[styles.tesisChip, !selectedTesis && styles.tesisChipActive]} onPress={() => setSelectedTesis(null)}>
+              <Pressable hitSlop={{ top: 8, bottom: 8 }} style={[styles.tesisChip, !selectedTesis && styles.tesisChipActive]} onPress={() => setSelectedTesis(null)}>
                 <Text style={[styles.tesisChipText, !selectedTesis && styles.tesisChipTextActive]}>Tüm Tesisler</Text>
               </Pressable>
               {TESIS_LISTESI.map((t) => (
-                <Pressable key={t} style={[styles.tesisChip, selectedTesis === t && styles.tesisChipActive]} onPress={() => setSelectedTesis(t)}>
+                <Pressable hitSlop={{ top: 8, bottom: 8 }} key={t} style={[styles.tesisChip, selectedTesis === t && styles.tesisChipActive]} onPress={() => setSelectedTesis(t)}>
                   <Text style={[styles.tesisChipText, selectedTesis === t && styles.tesisChipTextActive]}>{t}</Text>
                 </Pressable>
               ))}
@@ -159,7 +159,7 @@ export default function TakvimScreen() {
                     </View>
                     <View style={[styles.blokCard, b.live && styles.blokCardLive]}>
                       <View style={styles.blokTitleRow}>
-                        <Text style={styles.blokTitle}>{b.baslik}</Text>
+                        <Text style={styles.blokTitle} numberOfLines={1}>{b.baslik}</Text>
                         {b.live && (
                           <View style={styles.liveBadge}>
                             <Text style={styles.liveBadgeText}>● Şu an</Text>
@@ -195,7 +195,7 @@ export default function TakvimScreen() {
               <Text style={styles.fieldLabel}>GRUP</Text>
               <View style={styles.tesisPickRow}>
                 {gruplar.map((g) => (
-                  <Pressable key={g.id} style={[styles.tesisPickChip, grupId === g.id && styles.tesisPickChipActive]} onPress={() => setGrupId(g.id)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={g.id} style={[styles.tesisPickChip, grupId === g.id && styles.tesisPickChipActive]} onPress={() => setGrupId(g.id)}>
                     <Text style={[styles.tesisPickChipText, grupId === g.id && styles.tesisPickChipTextActive]}>{g.ad}</Text>
                   </Pressable>
                 ))}
@@ -204,7 +204,7 @@ export default function TakvimScreen() {
               <Text style={styles.fieldLabel}>TESİS</Text>
               <View style={styles.tesisPickRow}>
                 {TESIS_LISTESI.map((t) => (
-                  <Pressable key={t} style={[styles.tesisPickChip, tesis === t && styles.tesisPickChipActive]} onPress={() => setTesis(t)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={t} style={[styles.tesisPickChip, tesis === t && styles.tesisPickChipActive]} onPress={() => setTesis(t)}>
                     <Text style={[styles.tesisPickChipText, tesis === t && styles.tesisPickChipTextActive]}>{t}</Text>
                   </Pressable>
                 ))}
@@ -254,7 +254,7 @@ function createStyles(colors: AppColors) {
   dayStrip: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.lg },
   dayCell: { width: 46, alignItems: 'center', gap: 3, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
   dayCellActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  dayCellDow: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textDim },
+  dayCellDow: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   dayCellDowActive: { color: colors.onAccent },
   dayCellNum: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
   dayCellNumActive: { color: colors.onAccent },
@@ -266,7 +266,7 @@ function createStyles(colors: AppColors) {
   tesisChipTextActive: { color: colors.accent },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   dayHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dayHeaderLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  dayHeaderLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   dayHeaderCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   emptyBox: {
     marginTop: spacing.sm, borderRadius: radius.xxl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border,
@@ -274,25 +274,25 @@ function createStyles(colors: AppColors) {
   },
   emptyBoxIcon: { fontSize: 22 },
   emptyBoxTitle: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.textBright },
-  emptyBoxSubtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  emptyBoxSubtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   blokRow: { flexDirection: 'row', gap: spacing.sm },
   blokTimeCol: { width: 44, alignItems: 'flex-end', gap: 2, paddingTop: spacing.sm },
   blokTime1: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  blokTime2: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  blokTime2: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   blokCard: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 13 },
   blokCardLive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
   blokTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  blokTitle: { flex: 1, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
+  blokTitle: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   liveBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
-  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.accent },
+  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.accent },
   bireyselBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
-  bireyselBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.accent },
+  bireyselBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.accent },
   blokAlt: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 4 },
   addBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   addSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '88%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   addTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md, marginBottom: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   tesisPickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   tesisPickChip: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   tesisPickChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },

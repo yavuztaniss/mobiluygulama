@@ -11,7 +11,7 @@ import { useOzellik } from '../../../src/context/OzellikContext';
 import { getServisTakip } from '../../../src/data/veliRepo';
 import { getKonusmalar } from '../../../src/data/mesajRepo';
 import type { ServisTakip } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function ServisScreen() {
   const colors = useColors();
@@ -113,13 +113,13 @@ export default function ServisScreen() {
                   <Text style={styles.soforAvatarText}>{takip.soforInit}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.soforName}>{takip.soforAdi}</Text>
+                  <Text style={styles.soforName} numberOfLines={1}>{takip.soforAdi}</Text>
                   <Text style={styles.soforSub}>Servis şoförü</Text>
                 </View>
                 {/* Mesajlaşma bayrağı kapalıysa buton da gizlenir — kapatılmış özelliğe
                     uygulama içinden görünür bir giriş kapısı bırakma. */}
                 {ozellikAcik('mesajlar') && (
-                  <Pressable style={styles.iconBtn} onPress={onMesajSofor}>
+                  <Pressable hitSlop={8} style={styles.iconBtn} onPress={onMesajSofor}>
                     <Text>💬</Text>
                   </Pressable>
                 )}
@@ -151,33 +151,33 @@ function createStyles(colors: AppColors) {
   title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
-  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent, letterSpacing: 0.5 },
+  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.accent, letterSpacing: 0.5 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
   emptyBox: { margin: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, alignItems: 'center' },
-  emptyBoxText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, textAlign: 'center' },
+  emptyBoxText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, textAlign: 'center' },
   mapBox: { height: 160, borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 8, position: 'relative' },
   busDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.accent },
-  mapText: { fontFamily: fontFamily.mono, fontSize: 9.5, letterSpacing: 1, color: colors.textMuted },
+  mapText: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, letterSpacing: 1, color: colors.textMuted },
   hatBadge: { position: 'absolute', top: 10, left: 10, right: 10, backgroundColor: colors.scrim, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
-  hatBadgeText: { fontFamily: fontFamily.manropeBold, fontSize: 11, color: colors.textMuted },
+  hatBadgeText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   etaRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  etaLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  etaLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   etaValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 3 },
-  etaValue: { fontFamily: fontFamily.archivoBold, fontSize: 34, color: colors.accent, letterSpacing: -1 },
+  etaValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxxl, color: colors.accent, letterSpacing: -1 },
   etaUnit: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textMuted },
-  etaNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
+  etaNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted },
   busStatus: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright, marginTop: 6 },
   busStop: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.border, marginTop: spacing.md, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: colors.accent },
   progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  progressLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   soforRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   soforAvatar: { width: 42, height: 42, borderRadius: 15, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
   soforAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
   soforName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  soforSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
+  soforSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted },
   iconBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   callBtnMain: { height: 44, paddingHorizontal: 18, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   callBtnMainText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },

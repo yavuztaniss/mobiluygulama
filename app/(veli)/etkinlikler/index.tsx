@@ -9,7 +9,7 @@ import { EmptyState, LoadingState, ErrorState } from '../../../src/components/St
 import { useChild } from '../../../src/context/ChildContext';
 import { getEtkinlikSonuclari, getEtkinlikler, setKatilimDurumu } from '../../../src/data/veliRepo';
 import type { Etkinlik, EtkinlikSonuc } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 type Sekme = 'yaklasan' | 'sonuclar';
 
@@ -61,7 +61,7 @@ export default function EtkinliklerScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -71,10 +71,10 @@ export default function EtkinliklerScreen() {
         </View>
 
         <View style={styles.segmentRow}>
-          <Pressable style={[styles.segmentItem, sekme === 'yaklasan' && styles.segmentItemActive]} onPress={() => setSekme('yaklasan')}>
+          <Pressable hitSlop={{ top: 8, bottom: 8 }} style={[styles.segmentItem, sekme === 'yaklasan' && styles.segmentItemActive]} onPress={() => setSekme('yaklasan')}>
             <Text style={[styles.segmentText, sekme === 'yaklasan' && styles.segmentTextActive]}>Yaklaşan</Text>
           </Pressable>
-          <Pressable style={[styles.segmentItem, sekme === 'sonuclar' && styles.segmentItemActive]} onPress={() => setSekme('sonuclar')}>
+          <Pressable hitSlop={{ top: 8, bottom: 8 }} style={[styles.segmentItem, sekme === 'sonuclar' && styles.segmentItemActive]} onPress={() => setSekme('sonuclar')}>
             <Text style={[styles.segmentText, sekme === 'sonuclar' && styles.segmentTextActive]}>Sonuçlar</Text>
           </Pressable>
         </View>
@@ -96,7 +96,7 @@ export default function EtkinliklerScreen() {
                         <Text style={styles.tagPillText}>{mt.tag}</Text>
                       </View>
                     </View>
-                    <Text style={styles.matchTitle}>{mt.title}</Text>
+                    <Text style={styles.matchTitle} numberOfLines={1}>{mt.title}</Text>
                     <Text style={styles.matchSub}>{mt.sub}</Text>
                     <Text style={styles.matchVenue}>📍 {mt.venue}</Text>
                     <Text style={styles.matchExtra}>ℹ️ {mt.extra}</Text>
@@ -158,7 +158,7 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   segmentRow: { flexDirection: 'row', marginHorizontal: spacing.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 5 },
   segmentItem: { flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   segmentItemActive: { backgroundColor: colors.accent },
@@ -167,9 +167,9 @@ function createStyles(colors: AppColors) {
   scroll: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   matchTop: { flexDirection: 'row', justifyContent: 'flex-start' },
   tagPill: { backgroundColor: colors.accentSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  tagPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 1, color: colors.accent },
+  tagPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 1, color: colors.accent },
   matchTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: 9 },
-  matchSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  matchSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   matchVenue: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 6 },
   matchExtra: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 4 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
@@ -188,9 +188,9 @@ function createStyles(colors: AppColors) {
   resultBadgeText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg },
   resultTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   resultScore: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  resultDate: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  resultDate: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   resultOpp: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  resultNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent, marginTop: 3 },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
+  resultNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.accent, marginTop: 3 },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: spacing.sm },
   });
 }

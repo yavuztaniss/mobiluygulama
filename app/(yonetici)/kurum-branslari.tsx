@@ -16,7 +16,7 @@ import {
   toggleHizmetTuru,
 } from '../../src/data/kurumRepo';
 import type { Brans, HizmetTuruSecenegi } from '../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../src/theme';
 
 const TERIMLER = [
   { rol: 'Hesap sahipleri', eski: 'Veli / Sporcu', yeniFitness: 'Üye' },
@@ -114,7 +114,7 @@ export default function KurumBranslariScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -140,7 +140,7 @@ export default function KurumBranslariScreen() {
                     <View style={[styles.bransIconBox, secili && styles.bransIconBoxActive]}>
                       <Text style={{ fontSize: 20 }}>{b.ikon}</Text>
                     </View>
-                    <Text style={[styles.bransAd, secili && styles.bransAdActive]}>{b.ad}</Text>
+                    <Text style={[styles.bransAd, secili && styles.bransAdActive]} numberOfLines={1}>{b.ad}</Text>
                     <View style={[styles.checkBox, secili && styles.checkBoxActive]}>
                       {secili && <Text style={styles.checkMark}>✓</Text>}
                     </View>
@@ -159,7 +159,7 @@ export default function KurumBranslariScreen() {
                       <Text style={{ fontSize: 20 }}>{h.ikon}</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.bransAd, secili && styles.bransAdActive]}>{h.ad}</Text>
+                      <Text style={[styles.bransAd, secili && styles.bransAdActive]} numberOfLines={1}>{h.ad}</Text>
                       <Text style={styles.wideDesc}>{h.aciklama}</Text>
                     </View>
                     <View style={[styles.checkBox, secili && styles.checkBoxActive]}>
@@ -265,10 +265,10 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: 140, gap: spacing.sm },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   sectionCount: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   bransGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   bransCard: { width: '47%', borderRadius: 20, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, padding: 14, position: 'relative' },
@@ -282,11 +282,11 @@ function createStyles(colors: AppColors) {
   checkMark: { color: colors.onAccent, fontSize: 12, fontFamily: fontFamily.archivoBold },
   wideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, padding: 13 },
   wideCardActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
-  wideDesc: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  wideDesc: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   termsCard: { marginTop: spacing.xs, borderRadius: 20, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   termsHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   termsHeaderIcon: { color: colors.accent, fontSize: 13 },
-  termsHeaderLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  termsHeaderLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   termRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   termRol: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   termEski: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, textDecorationLine: 'line-through' },
@@ -299,9 +299,9 @@ function createStyles(colors: AppColors) {
   ptCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface, padding: 13 },
   ptIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.warningSoft, alignItems: 'center', justifyContent: 'center' },
   ptTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  ptDesc: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  ptDesc: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   soonPill: { backgroundColor: colors.warningSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  soonPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, letterSpacing: 0.4, color: colors.warning },
+  soonPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.4, color: colors.warning },
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, backgroundColor: colors.scrim },
   saveBtn: { height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnDisabled: { backgroundColor: colors.chip },

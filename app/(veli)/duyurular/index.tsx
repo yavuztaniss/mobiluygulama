@@ -7,7 +7,7 @@ import { EmptyState, LoadingState, ErrorState } from '../../../src/components/St
 import { useKurum } from '../../../src/context/KurumContext';
 import { getTumDuyurular } from '../../../src/data/veliRepo';
 import type { KulupDuyurusu } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing } from '../../../src/theme';
 
 const DUYURU_ICON: Record<KulupDuyurusu['tur'], string> = { kamp: '🏕️', servis: '🚌', basari: '🏆', genel: '📣' };
 
@@ -39,7 +39,7 @@ export default function TumDuyurularScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -62,7 +62,7 @@ export default function TumDuyurularScreen() {
                     <Text>{DUYURU_ICON[d.tur]}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.baslik}>{d.baslik}</Text>
+                    <Text style={styles.baslik} numberOfLines={2}>{d.baslik}</Text>
                     <Text style={styles.aciklama}>{d.aciklama}</Text>
                   </View>
                   <Text style={styles.zaman}>{d.zaman}</Text>
@@ -83,12 +83,12 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
   row: { flexDirection: 'row', gap: 13, alignItems: 'flex-start', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   icon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   baslik: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   aciklama: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
-  zaman: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim },
+  zaman: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   });
 }

@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
 import { useOzellik } from '../../../src/context/OzellikContext';
-import { useColors, type AppColors, fontFamily } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize } from '../../../src/theme';
 
 function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
   const colors = useColors();
@@ -38,7 +38,7 @@ export default function AntrenorTabsLayout() {
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     bar: { backgroundColor: colors.panel, borderTopColor: colors.border, height: 64, paddingBottom: 8, paddingTop: 8 },
-    label: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5 },
+    label: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm },
     icon: { fontSize: 16 },
   });
 }

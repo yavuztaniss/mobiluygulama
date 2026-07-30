@@ -8,7 +8,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { useChild } from '../../../src/context/ChildContext';
 import { getIznAntrenmanlar, getIznSebepleri, izinGonder } from '../../../src/data/veliRepo';
 import type { IznAntrenman } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function IzinBildirScreen() {
   const colors = useColors();
@@ -75,7 +75,7 @@ export default function IzinBildirScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -122,7 +122,7 @@ export default function IzinBildirScreen() {
                         <Text style={styles.sessionDateD2}>{a.gun2}</Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.sessionTitle}>{a.baslik}</Text>
+                        <Text style={styles.sessionTitle} numberOfLines={1}>{a.baslik}</Text>
                         <Text style={styles.sessionDetay}>{a.detay}</Text>
                       </View>
                       <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
@@ -135,7 +135,7 @@ export default function IzinBildirScreen() {
                 <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>SEBEP</Text>
                 <View style={styles.chipWrap}>
                   {sebepler.map((s) => (
-                    <Pressable key={s} style={[styles.reasonChip, seciliSebep === s && styles.reasonChipActive]} onPress={() => setSeciliSebep(s)}>
+                    <Pressable hitSlop={{ top: 8, bottom: 8 }} key={s} style={[styles.reasonChip, seciliSebep === s && styles.reasonChipActive]} onPress={() => setSeciliSebep(s)}>
                       <Text style={[styles.reasonChipText, seciliSebep === s && styles.reasonChipTextActive]}>{s}</Text>
                     </Pressable>
                   ))}
@@ -197,14 +197,14 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
   optionalNote: { color: colors.textDim, letterSpacing: 0.4 },
   sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, padding: 12, marginBottom: spacing.xs },
   sessionRowActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
   sessionDateBox: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  sessionDateD1: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, color: colors.textMuted },
+  sessionDateD1: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   sessionDateD2: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
   sessionTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   sessionDetay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
@@ -229,14 +229,14 @@ function createStyles(colors: AppColors) {
   doneCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentSoft, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   doneCheckmark: { fontSize: 40, color: colors.accent },
   doneTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.lg },
-  doneSum: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs },
+  doneSum: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, marginTop: spacing.xs },
   doneCoachTo: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
   timeline: { width: '100%', borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.xl, gap: 8 },
   timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   timelineDot: { width: 8, height: 8, borderRadius: 4 },
   timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border },
   timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   doneActions: { flexDirection: 'row', gap: spacing.sm, width: '100%', marginTop: spacing.md },
   undoBtn: { flex: 1, height: 48, borderRadius: 15, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   undoBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },

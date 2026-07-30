@@ -13,7 +13,7 @@ import { useKurum } from '../../../src/context/KurumContext';
 import { useOzellik } from '../../../src/context/OzellikContext';
 import { getAnaSayfa, getBildirimler } from '../../../src/data/veliRepo';
 import type { AnaSayfaOzet, Bildirim } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 const DUYURU_ICON: Record<string, string> = { kamp: '🏕️', servis: '🚌', basari: '🏆', genel: '📣' };
 
@@ -65,12 +65,12 @@ export default function VeliAnaSayfa() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
-            <View>
+            <View style={{ flex: 1, minWidth: 0 }}>
               <View style={styles.brandRow}>
                 <View style={styles.dot} />
                 <Text style={styles.brand}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
               </View>
-              <Text style={styles.title}>Merhaba, {veliAdi}</Text>
+              <Text style={styles.title} numberOfLines={1}>Merhaba, {veliAdi}</Text>
               <Text style={styles.subtitle}>{bugunEtiketi}</Text>
             </View>
             <Pressable style={styles.bellBtn} onPress={() => router.push('/bildirimler')}>
@@ -100,7 +100,7 @@ export default function VeliAnaSayfa() {
                       <Text style={styles.branchPillText}>{ozet.bugunAntrenman.branch}</Text>
                     </View>
                   </View>
-                  <Text style={styles.trainingTitle}>{ozet.bugunAntrenman.title}</Text>
+                  <Text style={styles.trainingTitle} numberOfLines={1}>{ozet.bugunAntrenman.title}</Text>
                   <View style={styles.trainingTimeRow}>
                     <Text style={styles.trainingTime1}>{ozet.bugunAntrenman.saat1}</Text>
                     <Text style={styles.trainingTime2}> – {ozet.bugunAntrenman.saat2}</Text>
@@ -112,10 +112,10 @@ export default function VeliAnaSayfa() {
                       <Text style={styles.coachAvatarText}>{ozet.bugunAntrenman.coachInit}</Text>
                     </View>
                     <View style={styles.coachMid}>
-                      <Text style={styles.coachName}>{ozet.bugunAntrenman.coach}</Text>
-                      <Text style={styles.coachRole}>{ozet.bugunAntrenman.coachRole}</Text>
+                      <Text style={styles.coachName} numberOfLines={1}>{ozet.bugunAntrenman.coach}</Text>
+                      <Text style={styles.coachRole} numberOfLines={1}>{ozet.bugunAntrenman.coachRole}</Text>
                     </View>
-                    <Pressable style={styles.servisBtn} onPress={() => router.push('/(veli)/(tabs)/servis')}>
+                    <Pressable hitSlop={{ top: 8, bottom: 8 }} style={styles.servisBtn} onPress={() => router.push('/(veli)/(tabs)/servis')}>
                       <Text style={styles.servisBtnText}>Servisi Takip Et</Text>
                     </Pressable>
                   </View>
@@ -139,7 +139,7 @@ export default function VeliAnaSayfa() {
                 </View>
                 <View style={styles.attendanceMid}>
                   <Text style={styles.attendanceLabel}>SON YOKLAMA</Text>
-                  <Text style={styles.attendanceTitle}>{ozet.sonYoklama.title}</Text>
+                  <Text style={styles.attendanceTitle} numberOfLines={1}>{ozet.sonYoklama.title}</Text>
                   <Text style={styles.attendanceSub}>{ozet.sonYoklama.sub}</Text>
                 </View>
                 <View style={styles.attendancePct}>
@@ -181,7 +181,7 @@ export default function VeliAnaSayfa() {
                     <Text style={{ color: colors.accent }}>✓</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.aidatOkTitle}>{ozet.aidat.kapsam || `${ayAdi} aidatı`} ödendi</Text>
+                    <Text style={styles.aidatOkTitle} numberOfLines={1}>{ozet.aidat.kapsam || `${ayAdi} aidatı`} ödendi</Text>
                     <Text style={styles.aidatOkSub}>{ozet.aidat.tutar} · ödeme kulüp tarafından kaydedildi</Text>
                   </View>
                   <Text style={styles.chevron}>›</Text>
@@ -231,7 +231,7 @@ export default function VeliAnaSayfa() {
                     <Text>{DUYURU_ICON[d.tur]}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.duyuruBaslik}>{d.baslik}</Text>
+                    <Text style={styles.duyuruBaslik} numberOfLines={2}>{d.baslik}</Text>
                     <Text style={styles.duyuruAciklama}>{d.aciklama}</Text>
                   </View>
                   <Text style={styles.duyuruZaman}>{d.zaman}</Text>
@@ -259,15 +259,15 @@ function createStyles(colors: AppColors) {
   bellBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   bellIcon: { fontSize: 18 },
   bellDot: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bgDeep, paddingHorizontal: 3 },
-  bellDotText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
+  bellDotText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.onAccent },
   trainingCard: { backgroundColor: colors.surface },
   trainingTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  trainingLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
+  trainingLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
   branchPill: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  branchPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.accent },
-  trainingTitle: { fontFamily: fontFamily.archivoBold, fontSize: 22, color: colors.textBright, marginTop: 10 },
+  branchPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
+  trainingTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: 10 },
   trainingTimeRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
-  trainingTime1: { fontFamily: fontFamily.archivoBold, fontSize: 32, color: colors.textBright },
+  trainingTime1: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxxl, color: colors.textBright },
   trainingTime2: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.lg, color: colors.textMuted },
   trainingVenue: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 6 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
@@ -282,40 +282,40 @@ function createStyles(colors: AppColors) {
   emptyTraining: { borderRadius: radius.xxl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   emptyTrainingIcon: { fontSize: 22 },
   emptyTrainingTitle: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.textBright },
-  emptyTrainingSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  emptyTrainingSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   attendanceRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   attendanceIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   attendanceMid: { flex: 1, minWidth: 0 },
-  attendanceLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  attendanceLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   attendanceTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright, marginTop: 2 },
-  attendanceSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  attendanceSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   attendancePct: { backgroundColor: colors.accentSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  attendancePctText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.accent },
+  attendancePctText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   aidatCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.surface, padding: spacing.lg },
   aidatCardGecikti: { borderColor: colors.danger },
   aidatTop: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   aidatIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  aidatIconText: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.warning },
-  aidatLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textMuted },
+  aidatIconText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.warning },
+  aidatLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textMuted },
   aidatAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 3 },
   aidatAmount: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
   aidatPill: { backgroundColor: colors.warningSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  aidatPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.warning },
+  aidatPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.warning },
   aidatDate: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  aidatNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
+  aidatNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: spacing.sm },
   aidatNoteDanger: { color: colors.danger },
   aidatOkRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
   aidatOkIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   aidatOkTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  aidatOkSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  aidatOkSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   chevron: { color: colors.textDim, fontSize: 16 },
   bireyselCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xxl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
   bireyselIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   bireyselTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   bireyselTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   yeniPill: { backgroundColor: colors.accent, paddingVertical: 2, paddingHorizontal: 7, borderRadius: radius.pill },
-  yeniPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9, letterSpacing: 0.5, color: colors.onAccent },
-  bireyselSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  yeniPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.5, color: colors.onAccent },
+  bireyselSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   quickActionsRow: { flexDirection: 'row', gap: spacing.sm },
   quickActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
   quickActionIcon: { fontSize: 16 },
@@ -327,6 +327,6 @@ function createStyles(colors: AppColors) {
   duyuruIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   duyuruBaslik: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   duyuruAciklama: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
-  duyuruZaman: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim },
+  duyuruZaman: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   });
 }

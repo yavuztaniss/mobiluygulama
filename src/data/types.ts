@@ -22,11 +22,22 @@ export interface YoneticiOzet {
 
 export type OdemeDurumu = 'guncel' | 'gecikmis';
 
+/** Grup / branş seçim listesi satırı — form alanları ada göre DEĞİL id ile yazar. */
+export interface KatalogSecenegi {
+  id: string;
+  ad: string;
+}
+
 export interface Sporcu {
   id: string;
   init: string;
   ad: string;
+  /** sporcular.aktif (0024) — false: pasife alınmış, listede varsayılan gizli. */
+  aktif: boolean;
+  /** sporcular.grup_id — düzenleme formu seçimi bu id ile yazar. */
+  grupId: string | null;
   grup: string;
+  bransId: string | null;
   brans: string;
   odemeDurumu: OdemeDurumu;
   veliAd: string;
@@ -37,6 +48,19 @@ export interface Sporcu {
 export interface YoklamaGunu {
   gun: number;
   durum: 'katildi' | 'gelmedi' | 'planli';
+}
+
+/** Tek bir ayın yoklama takvimi — ekran ay ileri/geri oklarıyla bunu tazeler. */
+export interface YoklamaAyi {
+  /** 'YYYY-MM' */
+  ay: string;
+  /** 'Temmuz 2026' */
+  etiket: string;
+  /** 'TEM' — dar istatistik kartı etiketi için. */
+  kisaEtiket: string;
+  calDays: YoklamaGunu[];
+  /** null: o ayda hiç yoklama işaretlenmemiş (ekran '—' gösterir). */
+  yoklamaOrani: number | null;
 }
 
 export interface OdemeKaydi {
@@ -55,10 +79,10 @@ export interface GelisimNotu {
 
 export interface SporcuDetay extends Sporcu {
   sube: string;
-  yoklamaOrani: number | null; // null: henüz yoklama kaydı yok (ekran '—' gösterir)
   aylikAidat: string; // aidat planı bağlanamadıysa '—'
   kayitTarihi: string;
-  calDays: YoklamaGunu[];
+  /** Açılışta içinde bulunulan ay; ekran oklarla başka bir ayı yükleyebilir. */
+  takvim: YoklamaAyi;
   odemeGecmisi: OdemeKaydi[];
   gelisimNotlari: GelisimNotu[];
 }

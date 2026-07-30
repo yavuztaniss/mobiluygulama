@@ -9,7 +9,7 @@ import { useChild } from '../../../src/context/ChildContext';
 import { useKurum } from '../../../src/context/KurumContext';
 import { getOdemeOzet } from '../../../src/data/veliRepo';
 import type { OdemeGecmisKalem, OdemeOzet } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function OdemelerScreen() {
   const colors = useColors();
@@ -84,7 +84,7 @@ export default function OdemelerScreen() {
                 <View style={styles.paidIcon}>
                   <Text style={{ color: colors.accent, fontSize: 22 }}>✓</Text>
                 </View>
-                <Text style={styles.paidTitle}>{ozet.kapsam ? `${ozet.kapsam} ödendi` : 'Bekleyen aidat yok'}</Text>
+                <Text style={styles.paidTitle} numberOfLines={1}>{ozet.kapsam ? `${ozet.kapsam} ödendi` : 'Bekleyen aidat yok'}</Text>
                 <Text style={styles.paidSub}>{[ozet.tutar, ozet.odemeTarihi].filter(Boolean).join(' · ')}</Text>
                 <Text style={styles.paidNext}>Sıradaki aidat ({sonrakiDonem}) kulüp kaydı açılınca burada görünür</Text>
               </View>
@@ -100,7 +100,7 @@ export default function OdemelerScreen() {
                   <Text style={{ color: colors.accent }}>✓</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.historyTitle2}>{p.title}</Text>
+                  <Text style={styles.historyTitle2} numberOfLines={1}>{p.title}</Text>
                   <Text style={styles.historySub}>{p.date} · {p.method}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
@@ -124,7 +124,7 @@ export default function OdemelerScreen() {
                     <Text>🧾</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.receiptTitle}>{receiptOpen.title}</Text>
+                    <Text style={styles.receiptTitle} numberOfLines={1}>{receiptOpen.title}</Text>
                     <Text style={styles.receiptNo}>Kayıt No: {receiptOpen.id.slice(-4).toUpperCase()}</Text>
                   </View>
                   <View style={styles.receiptOkBadge}>
@@ -169,11 +169,11 @@ function createStyles(colors: AppColors) {
   dueCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.surface, padding: spacing.xl },
   dueCardGecikti: { borderColor: colors.danger },
   dueTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dueLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
+  dueLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
   duePill: { backgroundColor: colors.warningSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  duePillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.warning },
+  duePillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.warning },
   dueAmount: { fontFamily: fontFamily.archivoBold, fontSize: 44, color: colors.textBright, letterSpacing: -1.5, marginTop: 12 },
-  dueNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
+  dueNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, marginTop: 2 },
   infoBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
   infoBoxDanger: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   infoText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.accent, lineHeight: 19 },
@@ -181,17 +181,17 @@ function createStyles(colors: AppColors) {
   paidCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.accentBorder, backgroundColor: colors.surface, padding: spacing.xl, alignItems: 'center' },
   paidIcon: { width: 56, height: 56, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   paidTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.sm, textAlign: 'center' },
-  paidSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
-  paidNext: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: spacing.sm, textAlign: 'center' },
+  paidSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
+  paidNext: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: spacing.sm, textAlign: 'center' },
   historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
   historyTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  historyNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  historyNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
   historyIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   historyTitle2: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  historySub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  historySub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   historyAmount: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
-  historyReceipt: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent, marginTop: 1 },
+  historyReceipt: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent, marginTop: 1 },
   receiptBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   receiptSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
@@ -200,11 +200,11 @@ function createStyles(colors: AppColors) {
   receiptTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   receiptNo: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   receiptOkBadge: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 9, borderRadius: radius.pill },
-  receiptOkText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent },
+  receiptOkText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   receiptTable: { borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, marginTop: spacing.md },
   receiptRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   receiptRowLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   receiptRowValue: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  receiptFootnote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginTop: spacing.md },
+  receiptFootnote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.md },
   });
 }

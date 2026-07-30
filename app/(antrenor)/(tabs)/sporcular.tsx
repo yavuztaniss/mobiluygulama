@@ -7,7 +7,7 @@ import { LoadingState, ErrorState, EmptyState } from '../../../src/components/St
 import { Toast, useToast } from '../../../src/components/Toast';
 import { getSporcular } from '../../../src/data/antrenorRepo';
 import type { Sporcu } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function AntrenorSporcularScreen() {
   const colors = useColors();
@@ -70,13 +70,14 @@ export default function AntrenorSporcularScreen() {
                     <Text style={styles.avatarText}>{s.init}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.name}>{s.ad}</Text>
+                    <Text style={styles.name} numberOfLines={1}>{s.ad}</Text>
                     <Text style={styles.sub}>#{s.numara} · Veli: {s.veliAd}</Text>
                   </View>
                   <View style={styles.pctBadge}>
                     <Text style={styles.pctText}>%{s.pct}</Text>
                   </View>
                   <Pressable
+                    hitSlop={8}
                     style={styles.callBtn}
                     onPress={() => Linking.openURL(`tel:${s.veliTelefon.replace(/\s/g, '')}`).catch(() => showToast('Arama başlatılamadı'))}
                   >
@@ -106,9 +107,9 @@ function createStyles(colors: AppColors) {
   avatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
   name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  sub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  sub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   pctBadge: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 9, borderRadius: 99 },
-  pctText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.accent },
+  pctText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   callBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   });
 }

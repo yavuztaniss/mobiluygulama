@@ -11,7 +11,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { addUrun, getSiparisler, getUrunler, setSiparisDurum, toggleUrunAktif } from '../../../src/data/magazaRepo';
 import type { Siparis, SiparisDurum, Urun } from '../../../src/data/types-magaza';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 type Segment = 'urun' | 'siparis';
 
@@ -95,7 +95,7 @@ export default function MagazaScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <Text style={styles.headerTitle}>Mağaza Yönetimi</Text>
@@ -103,7 +103,7 @@ export default function MagazaScreen() {
 
         <View style={styles.segmentRow}>
           {(['urun', 'siparis'] as Segment[]).map((s) => (
-            <Pressable key={s} style={[styles.segmentItem, segment === s && styles.segmentItemActive]} onPress={() => setSegment(s)}>
+            <Pressable hitSlop={{ top: 8, bottom: 8 }} key={s} style={[styles.segmentItem, segment === s && styles.segmentItemActive]} onPress={() => setSegment(s)}>
               <Text style={[styles.segmentText, segment === s && styles.segmentTextActive]}>{s === 'urun' ? 'Ürünler' : 'Siparişler'}</Text>
             </Pressable>
           ))}
@@ -121,7 +121,7 @@ export default function MagazaScreen() {
                     <Card key={u.id} style={[styles.urunRow, !u.aktif && styles.urunRowPasif]}>
                       <View style={styles.urunThumb} />
                       <View style={styles.mid}>
-                        <Text style={styles.urunAd}>{u.ad}</Text>
+                        <Text style={styles.urunAd} numberOfLines={1}>{u.ad}</Text>
                         <View style={styles.urunMetaRow}>
                           <Text style={styles.urunFiyat}>{u.fiyat}</Text>
                           <Text style={styles.dotSep}>·</Text>
@@ -159,7 +159,7 @@ export default function MagazaScreen() {
                       </View>
                       <View style={styles.mid}>
                         <Text style={styles.siparisUrun}>{s.urun}</Text>
-                        <Text style={styles.siparisVeli}>{s.veli} · {s.sporcu}</Text>
+                        <Text style={styles.siparisVeli} numberOfLines={1}>{s.veli} · {s.sporcu}</Text>
                         <Text style={styles.siparisTarih}>{s.tarih}</Text>
                       </View>
                       <Text style={styles.siparisTutar}>{s.tutar}</Text>
@@ -179,7 +179,7 @@ export default function MagazaScreen() {
                     {durumSecId === s.id && (
                       <View style={styles.durumDropdown}>
                         {DURUM_SIRA.map((d) => (
-                          <Pressable key={d} style={styles.durumOption} onPress={() => onPickDurum(s.id, d)}>
+                          <Pressable hitSlop={{ top: 6, bottom: 6 }} key={d} style={styles.durumOption} onPress={() => onPickDurum(s.id, d)}>
                             <View style={[styles.durumDot, { backgroundColor: DURUM_COLOR[d] }]} />
                             <Text style={styles.durumOptionText}>{DURUM_LABEL[d]}</Text>
                           </Pressable>
@@ -245,19 +245,19 @@ function createStyles(colors: AppColors) {
   dotSep: { color: colors.textDim },
   urunStok: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   urunStokBos: { color: colors.danger },
-  urunDurum: { fontFamily: fontFamily.manropeExtra, fontSize: 10, marginTop: 3 },
+  urunDurum: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, marginTop: 3 },
   dashedAdd: { borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   dashedAddText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted },
   siparisTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   siparisIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  siparisIconText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: colors.textMuted },
+  siparisIconText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.textMuted },
   siparisUrun: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   siparisVeli: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  siparisTarih: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: 2 },
+  siparisTarih: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: 2 },
   siparisTutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 11 },
   durumRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  durumLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim },
+  durumLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim },
   durumPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
   durumDot: { width: 7, height: 7, borderRadius: 4 },
   durumText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm },
@@ -265,7 +265,7 @@ function createStyles(colors: AppColors) {
   durumDropdown: { marginTop: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 6, gap: 2 },
   durumOption: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 11, borderRadius: 11 },
   durumOptionText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim, paddingVertical: 4 },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, paddingVertical: 4 },
   addBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   addSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },

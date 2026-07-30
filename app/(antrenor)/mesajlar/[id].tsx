@@ -67,7 +67,7 @@ export default function AntrenorSohbetScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           {konusma && (
@@ -76,8 +76,8 @@ export default function AntrenorSohbetScreen() {
                 <Text style={[styles.avatarText, { color: konusma.avFg }]}>{konusma.init}</Text>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.headerName}>{konusma.ad}</Text>
-                <Text style={styles.headerRole}>{konusma.role}</Text>
+                <Text style={styles.headerName} numberOfLines={1}>{konusma.ad}</Text>
+                <Text style={styles.headerRole} numberOfLines={1}>{konusma.role}</Text>
               </View>
             </>
           )}
@@ -129,14 +129,14 @@ function createStyles(colors: AppColors) {
   avatar: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm },
   headerName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
-  headerRole: { fontFamily: fontFamily.manropeBold, fontSize: 11, color: colors.accent },
+  headerRole: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
   chatScroll: { padding: spacing.lg, gap: spacing.xs, paddingBottom: spacing.md },
   bubbleRow: { flexDirection: 'row', marginTop: spacing.xs },
   bubble: { maxWidth: '78%', borderRadius: 18, paddingHorizontal: 13, paddingTop: 10, paddingBottom: 7 },
   bubbleMine: { backgroundColor: colors.accent, borderBottomRightRadius: 6 },
   bubbleTheirs: { backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 6 },
   bubbleText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textBright, lineHeight: 19 },
-  bubbleTime: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim, textAlign: 'right', marginTop: 3 },
+  bubbleTime: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim, textAlign: 'right', marginTop: 3 },
   composer: { padding: spacing.md, paddingBottom: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
   inputRow: { flexDirection: 'row', gap: 9, alignItems: 'center' },
   input: { flex: 1, height: 46, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },

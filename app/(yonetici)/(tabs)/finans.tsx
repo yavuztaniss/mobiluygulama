@@ -12,7 +12,7 @@ import { Toast, useToast } from '../../../src/components/Toast';
 import { addAidatPlani, getFinansOzet, recordPayment, updateAidatPlani } from '../../../src/data/finansRepo';
 import { getSporcular } from '../../../src/data/sporcularRepo';
 import type { AidatPlani, FinansOzet, OdemeYontemi, Sporcu } from '../../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 type Segment = 'aidat' | 'tahsilat' | 'gg';
 
@@ -142,7 +142,7 @@ export default function FinansScreen() {
                 iddia etmesin diye 'Genel Özet' (eski sabit 'Merkez Şube · Temmuz 2026' yerine). */}
             <Text style={styles.subtitle}>{ozet ? `${ozet.subeAd} · Genel Özet` : ''}</Text>
           </View>
-          <Pressable style={styles.payBtn} onPress={() => setPaySheetOpen(true)}>
+          <Pressable hitSlop={{ top: 6, bottom: 6 }} style={styles.payBtn} onPress={() => setPaySheetOpen(true)}>
             <Text style={styles.payBtnIcon}>+</Text>
             <Text style={styles.payBtnText}>Ödeme Kaydet</Text>
           </Pressable>
@@ -150,7 +150,7 @@ export default function FinansScreen() {
 
         <View style={styles.segmentRow}>
           {(['aidat', 'tahsilat', 'gg'] as Segment[]).map((s) => (
-            <Pressable key={s} style={[styles.segmentItem, segment === s && styles.segmentItemActive]} onPress={() => setSegment(s)}>
+            <Pressable hitSlop={{ top: 8, bottom: 8 }} key={s} style={[styles.segmentItem, segment === s && styles.segmentItemActive]} onPress={() => setSegment(s)}>
               <Text style={[styles.segmentText, segment === s && styles.segmentTextActive]}>
                 {s === 'aidat' ? 'Aidatlar' : s === 'tahsilat' ? 'Tahsilatlar' : 'Gelir-Gider'}
               </Text>
@@ -170,7 +170,7 @@ export default function FinansScreen() {
                     <Card>
                       <View style={styles.planRow}>
                         <View style={styles.planMid}>
-                          <Text style={styles.planAd}>{p.ad}</Text>
+                          <Text style={styles.planAd} numberOfLines={1}>{p.ad}</Text>
                           <Text style={styles.planAlt}>{p.alt}</Text>
                         </View>
                         <Text style={styles.planFiyat}>{p.fiyat}</Text>
@@ -201,7 +201,7 @@ export default function FinansScreen() {
                           <Text>{YONTEM_ICON[t.yontem]}</Text>
                         </View>
                         <View style={styles.planMid}>
-                          <Text style={styles.tahsilatAd}>{t.ad} · {t.ne}</Text>
+                          <Text style={styles.tahsilatAd} numberOfLines={1}>{t.ad} · {t.ne}</Text>
                           <Text style={styles.tahsilatSub}>{t.sub}</Text>
                         </View>
                         <Text style={styles.tahsilatTutar}>+₺{t.tutar}</Text>
@@ -255,7 +255,7 @@ export default function FinansScreen() {
                         {ozet.kategoriler.map((k) => (
                           <View key={k.ad} style={styles.kategoriRow}>
                             <View style={[styles.kategoriDot, { backgroundColor: colors[k.renkAnahtar] }]} />
-                            <Text style={styles.kategoriAd}>{k.ad}</Text>
+                            <Text style={styles.kategoriAd} numberOfLines={1}>{k.ad}</Text>
                             <Text style={styles.kategoriTutar}>{k.tutar}</Text>
                             <Text style={styles.kategoriPct}>{k.pct}</Text>
                           </View>
@@ -297,7 +297,7 @@ export default function FinansScreen() {
                   <Text style={styles.sporcuPickAvatarText}>{seciliSporcu?.init ?? '—'}</Text>
                 </View>
                 <View style={styles.planMid}>
-                  <Text style={styles.sporcuPickName}>{seciliSporcu?.ad ?? 'Sporcu seç'}</Text>
+                  <Text style={styles.sporcuPickName} numberOfLines={1}>{seciliSporcu?.ad ?? 'Sporcu seç'}</Text>
                   <Text style={styles.sporcuPickSub}>{seciliSporcu?.grup ?? ''}</Text>
                 </View>
                 <Text style={styles.changeLink}>Değiştir</Text>
@@ -344,7 +344,7 @@ export default function FinansScreen() {
                     setSporcuSecOpen(false);
                   }}
                 >
-                  <Text style={styles.sheetRowTitle}>{s.ad}</Text>
+                  <Text style={styles.sheetRowTitle} numberOfLines={1}>{s.ad}</Text>
                   <Text style={styles.sheetRowSubtitle}>{s.grup}</Text>
                 </Pressable>
               ))}
@@ -447,47 +447,47 @@ function createStyles(colors: AppColors) {
   chevron: { color: colors.textDim, fontSize: 16 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   planFooter: { flexDirection: 'row', justifyContent: 'space-between' },
-  planFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  planFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   planFooterValue: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   dashedAdd: {
     borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border,
     padding: spacing.lg, alignItems: 'center', justifyContent: 'center',
   },
   dashedAddText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted },
-  tahsilatGrupLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, paddingTop: spacing.sm },
+  tahsilatGrupLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, paddingTop: spacing.sm },
   tahsilatRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
   tahsilatIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   tahsilatAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
-  tahsilatSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  tahsilatSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   tahsilatTutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.accent },
   tahsilatFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.sm },
   tahsilatFooterLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   tahsilatFooterValue: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   ggHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   legendRow: { flexDirection: 'row', gap: spacing.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
-  legendLabel: { fontFamily: fontFamily.manropeBold, fontSize: 9.5, color: colors.textMuted },
+  legendLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   ggBarRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md, paddingHorizontal: spacing.xs },
   ggBarCol: { alignItems: 'center', gap: 6 },
   ggBarPair: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 84 },
   ggBar: { width: 14, borderRadius: 6 },
-  ggBarLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textMuted },
+  ggBarLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   donutRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: spacing.md },
   donutCenter: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' },
   donutValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
-  donutLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
+  donutLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
   kategoriList: { flex: 1, gap: 9 },
   kategoriBos: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
   kategoriRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kategoriDot: { width: 8, height: 8, borderRadius: 4 },
-  kategoriAd: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
+  kategoriAd: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   kategoriTutar: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   kategoriPct: { width: 34, textAlign: 'right', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textBright },
   ggSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   ggSummaryLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted },
-  ggSummaryNote: { fontSize: 10.5, color: colors.textDim },
+  ggSummaryNote: { fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   ggSummaryValue: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md },
   ggSummaryLabelBold: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   ggSummaryValueBold: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg },
@@ -498,24 +498,24 @@ function createStyles(colors: AppColors) {
   },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   paySheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md, marginBottom: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: spacing.xs },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: spacing.xs },
   sporcuPick: { flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 12 },
   sporcuPickAvatar: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' },
   sporcuPickAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.danger },
   sporcuPickName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
-  sporcuPickSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
+  sporcuPickSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted },
   changeLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   yontemRow: { flexDirection: 'row', gap: spacing.xs },
   yontemChip: { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   yontemChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   yontemChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   yontemChipTextActive: { color: colors.accent },
-  paySheetNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
+  paySheetNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: spacing.sm },
   modalBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-start', padding: spacing.lg, paddingTop: 180 },
   sheet: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, maxWidth: 300 },
-  sheetTitle: { fontFamily: fontFamily.mono, fontSize: 9.5, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, padding: spacing.sm },
+  sheetTitle: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, padding: spacing.sm },
   sheetRow: { padding: spacing.sm, borderRadius: radius.sm },
   sheetRowTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
-  sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   });
 }

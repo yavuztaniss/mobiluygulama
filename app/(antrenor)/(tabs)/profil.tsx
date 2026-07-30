@@ -11,7 +11,7 @@ import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { getAntrenorProfil, updateAntrenorProfil } from '../../../src/data/antrenorRepo';
 import type { AntrenorProfil } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function AntrenorProfilScreen() {
   const colors = useColors();
@@ -85,11 +85,11 @@ export default function AntrenorProfilScreen() {
                 </Text>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.name}>{profil.ad}</Text>
-                <Text style={styles.role}>{profil.rol}</Text>
+                <Text style={styles.name} numberOfLines={1}>{profil.ad}</Text>
+                <Text style={styles.role} numberOfLines={1}>{profil.rol}</Text>
                 <Text style={styles.contact}>{[profil.telefon, profil.eposta].filter(Boolean).join(' · ') || '—'}</Text>
               </View>
-              <Pressable onPress={openEdit}>
+              <Pressable hitSlop={12} onPress={openEdit}>
                 <Text style={styles.editLink}>Düzenle</Text>
               </Pressable>
             </Card>
@@ -101,7 +101,7 @@ export default function AntrenorProfilScreen() {
               ) : (
                 profil.gruplar.map((g, i) => (
                   <View key={g.ad} style={[styles.groupRow, i === profil.gruplar.length - 1 && { borderBottomWidth: 0 }]}>
-                    <Text style={styles.groupName}>{g.ad}</Text>
+                    <Text style={styles.groupName} numberOfLines={1}>{g.ad}</Text>
                     <Text style={styles.groupCount}>{g.sporcuSayisi} sporcu</Text>
                   </View>
                 ))
@@ -161,19 +161,19 @@ function createStyles(colors: AppColors) {
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: avatarColorAt(0).avFg },
   name: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textBright },
   role: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent, marginTop: 2 },
-  contact: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  contact: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   editLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm },
   groupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  groupName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
+  groupName: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   groupCount: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  emptyGroupText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, paddingVertical: 12 },
+  emptyGroupText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, paddingVertical: 12 },
   signOutWrap: { marginTop: spacing.md },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
   input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },

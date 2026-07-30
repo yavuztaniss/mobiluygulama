@@ -13,7 +13,7 @@ import {
   unsubscribeKonusma,
 } from '../../../src/data/mesajRepo';
 import type { KonusmaSatir, Mesaj } from '../../../src/data/types-mesaj';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing } from '../../../src/theme';
 
 export default function SohbetScreen() {
   const colors = useColors();
@@ -69,7 +69,7 @@ export default function SohbetScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           {konusma && (
@@ -79,8 +79,8 @@ export default function SohbetScreen() {
                 <View style={styles.onlineDot} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.headerName}>{konusma.ad}</Text>
-                <Text style={styles.headerRole}>{konusma.role}</Text>
+                <Text style={styles.headerName} numberOfLines={1}>{konusma.ad}</Text>
+                <Text style={styles.headerRole} numberOfLines={1}>{konusma.role}</Text>
               </View>
             </>
           )}
@@ -143,17 +143,17 @@ function createStyles(colors: AppColors) {
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm },
   onlineDot: { position: 'absolute', right: -2, bottom: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.accent, borderWidth: 2.5, borderColor: colors.bgDeep },
   headerName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
-  headerRole: { fontFamily: fontFamily.manropeBold, fontSize: 11, color: colors.accent },
+  headerRole: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
   chatScroll: { padding: spacing.lg, gap: spacing.xs, paddingBottom: spacing.md },
   dayPill: { alignSelf: 'center', backgroundColor: colors.chip, paddingVertical: 5, paddingHorizontal: 11, borderRadius: 99 },
-  dayPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textDim, letterSpacing: 0.5 },
-  dayNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: 6, marginBottom: spacing.xs },
+  dayPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.textDim, letterSpacing: 0.5 },
+  dayNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: 6, marginBottom: spacing.xs },
   bubbleRow: { flexDirection: 'row', marginTop: spacing.xs },
   bubble: { maxWidth: '78%', borderRadius: 18, paddingHorizontal: 13, paddingTop: 10, paddingBottom: 7 },
   bubbleMine: { backgroundColor: colors.accent, borderBottomRightRadius: 6 },
   bubbleTheirs: { backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 6 },
   bubbleText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textBright, lineHeight: 19 },
-  bubbleTime: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim, textAlign: 'right', marginTop: 3 },
+  bubbleTime: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim, textAlign: 'right', marginTop: 3 },
   composer: { padding: spacing.md, paddingBottom: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
   inputRow: { flexDirection: 'row', gap: 9, alignItems: 'center' },
   input: { flex: 1, height: 46, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },

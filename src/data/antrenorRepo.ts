@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { GELISIM_NOT_SABLONLARI } from './mock/antrenor';
 import type {
+  AntrenmanBaslik,
   AntrenorBildirim,
   AntrenorProfil,
   BugunkuGrup,
@@ -116,6 +117,30 @@ export interface AktifAntrenman {
   saat1: string;
   saat2: string;
   tesis: string;
+}
+
+// Belirli bir antrenmanın başlık bilgisi. Yoklama Özeti ekranı route param ile
+// gelen id'nin HANGİ gruba ait olduğunu başlıkta yazabilsin diye var — böylece
+// param bugünün listesinde bulunamadığında bile "hangi grup?" sorusu yanıtsız
+// (ya da yanlış) kalmaz. Bulunamazsa null döner, ekran sessizce başka bir grubu
+// göstermez.
+export async function getAntrenmanBaslik(antrenmanId: string): Promise<AntrenmanBaslik | null> {
+  const { data, error } = await supabase
+    .from('antrenman')
+    .select('id, tarih, saat1, saat2, tesis, grup:grup(ad)')
+    .eq('id', antrenmanId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r = data as any;
+  return {
+    id: r.id,
+    ad: r.grup?.ad ?? '',
+    saat1: r.saat1 ?? '',
+    saat2: r.saat2 ?? '',
+    tesis: r.tesis ?? '',
+    tarih: r.tarih,
+  };
 }
 
 export async function getAktifAntrenman(): Promise<AktifAntrenman | null> {

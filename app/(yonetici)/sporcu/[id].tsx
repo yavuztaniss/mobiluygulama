@@ -7,9 +7,17 @@ import { AppModal } from '../../../src/components/AppModal';
 import { Card } from '../../../src/components/Card';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
-import { getSporcuDetay, updateSporcuBilgi } from '../../../src/data/sporcularRepo';
-import type { SporcuDetay } from '../../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import {
+  ayKaydir,
+  buAyAnahtari,
+  getGruplar,
+  getSporcuDetay,
+  getSporcuYoklamaAyi,
+  setSporcuAktif,
+  updateSporcuBilgi,
+} from '../../../src/data/sporcularRepo';
+import type { KatalogSecenegi, SporcuDetay, YoklamaAyi } from '../../../src/data/types';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 function getGunRenk(colors: AppColors): Record<string, { bg: string; c: string }> {
   return {
@@ -31,19 +39,33 @@ export default function SporcuDetayScreen() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editAd, setEditAd] = useState('');
-  const [editGrup, setEditGrup] = useState('');
+  // Grup artık serbest metin DEĞİL, katalogdan id ile seçiliyor (bkz. sporcularRepo).
+  const [editGrupId, setEditGrupId] = useState<string | null>(null);
+  const [gruplar, setGruplar] = useState<KatalogSecenegi[]>([]);
   const [editVeliAd, setEditVeliAd] = useState('');
   const [editVeliTelefon, setEditVeliTelefon] = useState('');
   const [editVeliYakinlik, setEditVeliYakinlik] = useState('');
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [notArsivOpen, setNotArsivOpen] = useState(false);
 
+  // Yoklama takvimi artık tek aya kilitli değil — ok tuşlarıyla geçmiş aylar gezilir.
+  const [takvim, setTakvim] = useState<YoklamaAyi | null>(null);
+  const [takvimYukleniyor, setTakvimYukleniyor] = useState(false);
+  const buAy = buAyAnahtari();
+
+  // Pasife alma / geri alma onayı (0024 yumuşak silme).
+  const [aktiflikOnayOpen, setAktiflikOnayOpen] = useState(false);
+  const [aktiflikKaydediliyor, setAktiflikKaydediliyor] = useState(false);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
-      setDetay(await getSporcuDetay(id));
+      const [d, g] = await Promise.all([getSporcuDetay(id), getGruplar()]);
+      setDetay(d);
+      setTakvim(d.takvim);
+      setGruplar(g);
     } catch {
       setError('Sporcu bilgisi yüklenemedi.');
     } finally {
@@ -54,6 +76,23 @@ export default function SporcuDetayScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Ay değişiminde TÜM detay yeniden çekilmez, yalnızca takvim tazelenir.
+  async function ayDegistir(delta: number) {
+    if (!id || !detay || !takvim || takvimYukleniyor) return;
+    const hedefAy = ayKaydir(takvim.ay, delta);
+    // İleri yön içinde bulunulan ayda durur — gelecek aylar için yoklama kaydı
+    // olamayacağından boş takvimlerde sonsuza kadar ilerlemenin anlamı yok.
+    if (hedefAy > buAy) return;
+    setTakvimYukleniyor(true);
+    try {
+      setTakvim(await getSporcuYoklamaAyi(id, detay.grupId, hedefAy));
+    } catch {
+      showToast('Takvim yüklenemedi');
+    } finally {
+      setTakvimYukleniyor(false);
+    }
+  }
 
   function callVeli() {
     if (!detay) return;
@@ -68,23 +107,35 @@ export default function SporcuDetayScreen() {
   function openEdit() {
     if (!detay) return;
     setEditAd(detay.ad);
-    setEditGrup(detay.grup);
+    setEditGrupId(detay.grupId);
     setEditVeliAd(detay.veliAd);
     setEditVeliTelefon(detay.veliTelefon);
     setEditVeliYakinlik(detay.veliYakinlik);
     setEditOpen(true);
   }
 
+  // Sporcunun mevcut grubu pasife alınmış olabilir (0024) — getGruplar yalnızca
+  // aktif grupları döndürdüğü için listede çıkmaz. Seçenek olarak eklenmezse
+  // kaydetmek sporcuyu sessizce grupsuz bırakırdı.
+  const grupSecenekleri: KatalogSecenegi[] =
+    detay?.grupId && !gruplar.some((g) => g.id === detay.grupId)
+      ? [{ id: detay.grupId, ad: `${detay.grup || 'Mevcut grup'} (pasif)` }, ...gruplar]
+      : gruplar;
+
   async function onSaveEdit() {
-    if (!id || !editAd.trim() || !editGrup.trim() || !editVeliAd.trim() || !editVeliTelefon.trim()) {
-      showToast('Tüm alanları doldur.');
+    if (!id || !editAd.trim() || !editVeliAd.trim() || !editVeliTelefon.trim()) {
+      showToast('Ad, veli adı ve veli telefonu zorunlu.');
+      return;
+    }
+    if (!editGrupId) {
+      showToast('Grup seçimi zorunlu.');
       return;
     }
     setKaydediliyor(true);
     try {
       await updateSporcuBilgi(id, {
         ad: editAd.trim(),
-        grup: editGrup.trim(),
+        grupId: editGrupId,
         veliAd: editVeliAd.trim(),
         veliTelefon: editVeliTelefon.trim(),
         veliYakinlik: editVeliYakinlik.trim() || 'Veli',
@@ -94,6 +145,22 @@ export default function SporcuDetayScreen() {
       showToast('Bilgiler güncellendi');
     } finally {
       setKaydediliyor(false);
+    }
+  }
+
+  async function onAktiflikDegistir() {
+    if (!id || !detay) return;
+    const hedef = !detay.aktif;
+    setAktiflikKaydediliyor(true);
+    try {
+      await setSporcuAktif(id, hedef);
+      await load();
+      setAktiflikOnayOpen(false);
+      showToast(hedef ? 'Sporcu yeniden aktif' : 'Sporcu pasife alındı');
+    } catch {
+      showToast('İşlem tamamlanamadı, tekrar dene');
+    } finally {
+      setAktiflikKaydediliyor(false);
     }
   }
 
@@ -111,11 +178,11 @@ export default function SporcuDetayScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <Text style={styles.headerTitle}>Sporcu Detayı</Text>
-          <Pressable onPress={openEdit}>
+          <Pressable hitSlop={12} onPress={openEdit}>
             <Text style={styles.editLink}>Düzenle</Text>
           </Pressable>
         </View>
@@ -131,13 +198,19 @@ export default function SporcuDetayScreen() {
                   <Text style={styles.avatarText}>{detay.init}</Text>
                 </View>
                 <View style={styles.profileMid}>
-                  <Text style={styles.profileName}>{detay.ad}</Text>
-                  <Text style={styles.profileSub}>{detay.grup} · {detay.sube}</Text>
+                  <Text style={styles.profileName} numberOfLines={1}>{detay.ad}</Text>
+                  <Text style={styles.profileSub}>{detay.grup || 'Grup atanmadı'} · {detay.sube}</Text>
                 </View>
-                {detay.odemeDurumu === 'gecikmis' && (
-                  <View style={styles.badgeDanger}>
-                    <Text style={styles.badgeDangerText}>Gecikmiş</Text>
+                {!detay.aktif ? (
+                  <View style={styles.badgeWarning}>
+                    <Text style={styles.badgeWarningText}>Pasif</Text>
                   </View>
+                ) : (
+                  detay.odemeDurumu === 'gecikmis' && (
+                    <View style={styles.badgeDanger}>
+                      <Text style={styles.badgeDangerText}>Gecikmiş</Text>
+                    </View>
+                  )
                 )}
               </View>
               <View style={styles.divider} />
@@ -148,13 +221,13 @@ export default function SporcuDetayScreen() {
                   </Text>
                 </View>
                 <View style={styles.profileMid}>
-                  <Text style={styles.veliName}>{detay.veliAd}</Text>
-                  <Text style={styles.veliInfo}>Veli · {detay.veliYakinlik} · {detay.veliTelefon}</Text>
+                  <Text style={styles.veliName} numberOfLines={1}>{detay.veliAd}</Text>
+                  <Text style={styles.veliInfo} numberOfLines={1}>Veli · {detay.veliYakinlik} · {detay.veliTelefon}</Text>
                 </View>
-                <Pressable style={styles.iconBtn} onPress={callVeli}>
+                <Pressable hitSlop={8} style={styles.iconBtn} onPress={callVeli}>
                   <Text style={styles.iconBtnText}>📞</Text>
                 </Pressable>
-                <Pressable style={styles.iconBtn} onPress={messageVeli}>
+                <Pressable hitSlop={8} style={styles.iconBtn} onPress={messageVeli}>
                   <Text style={styles.iconBtnText}>💬</Text>
                 </Pressable>
               </View>
@@ -162,9 +235,13 @@ export default function SporcuDetayScreen() {
 
             <View style={styles.statsGrid}>
               <Card style={styles.statCard}>
-                {/* Henüz yoklama kaydı yoksa oran uydurulmaz — '—' gösterilir. */}
-                <Text style={styles.statValue}>{detay.yoklamaOrani === null ? '—' : `%${detay.yoklamaOrani}`}</Text>
-                <Text style={styles.statLabel}>YOKLAMA</Text>
+                {/* Oran, takvimde GÖRÜNEN aya ait — etiket hangi ay olduğunu yazar
+                    ki ay değiştirildiğinde rakam bağlamsız kalmasın. Yoklama
+                    işaretlenmemişse oran uydurulmaz, '—' gösterilir. */}
+                <Text style={styles.statValue}>
+                  {takvim?.yoklamaOrani == null ? '—' : `%${takvim.yoklamaOrani}`}
+                </Text>
+                <Text style={styles.statLabel}>YOKLAMA · {takvim?.kisaEtiket ?? ''}</Text>
               </Card>
               <Card style={styles.statCard}>
                 <Text style={styles.statValue}>{detay.aylikAidat}</Text>
@@ -185,12 +262,41 @@ export default function SporcuDetayScreen() {
                   <LegendDot color={colors.textDim} label="Planlı" />
                 </View>
               </View>
-              {detay.calDays.length === 0 ? (
-                <Text style={styles.emptyText}>Henüz yoklama kaydı yok</Text>
+
+              {/* Ay gezinme: geçmiş aylar serbest, ileri yön içinde bulunulan ayda durur. */}
+              <View style={styles.ayRow}>
+                <Pressable
+                  style={styles.ayBtn}
+                  onPress={() => ayDegistir(-1)}
+                  disabled={takvimYukleniyor}
+                  accessibilityRole="button"
+                  accessibilityLabel="Önceki ay"
+                >
+                  <Text style={styles.ayBtnText}>‹</Text>
+                </Pressable>
+                <Text style={styles.ayLabel}>{takvim?.etiket ?? ''}</Text>
+                <Pressable
+                  style={[styles.ayBtn, (takvim?.ay ?? buAy) >= buAy && styles.ayBtnDisabled]}
+                  onPress={() => ayDegistir(1)}
+                  disabled={takvimYukleniyor || (takvim?.ay ?? buAy) >= buAy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sonraki ay"
+                >
+                  <Text style={styles.ayBtnText}>›</Text>
+                </Pressable>
+              </View>
+
+              {takvimYukleniyor ? (
+                <Text style={styles.emptyText}>Takvim yükleniyor…</Text>
+              ) : !takvim || takvim.calDays.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  {detay.grupId ? 'Bu ayda antrenman kaydı yok' : 'Sporcu bir gruba bağlı değil'}
+                </Text>
               ) : (
                 <View style={styles.calGrid}>
-                  {detay.calDays.map((d) => (
-                    <View key={d.gun} style={[styles.calCell, { backgroundColor: GUN_RENK[d.durum].bg }]}>
+                  {/* Aynı güne iki antrenman düşebilir — anahtar gün + sıra. */}
+                  {takvim.calDays.map((d, i) => (
+                    <View key={`${d.gun}-${i}`} style={[styles.calCell, { backgroundColor: GUN_RENK[d.durum].bg }]}>
                       <Text style={[styles.calCellText, { color: GUN_RENK[d.durum].c }]}>{d.gun}</Text>
                     </View>
                   ))}
@@ -216,13 +322,13 @@ export default function SporcuDetayScreen() {
                     <Text>{o.durum === 'gecikti' ? '⏱' : o.durum === 'bekliyor' ? '⏳' : '✓'}</Text>
                   </View>
                   <View style={styles.profileMid}>
-                    <Text style={styles.paymentTitle}>{o.baslik}</Text>
+                    <Text style={styles.paymentTitle} numberOfLines={1}>{o.baslik}</Text>
                     <Text style={o.durum === 'gecikti' ? styles.paymentDetailDanger : styles.paymentDetail}>{o.detay}</Text>
                   </View>
                   {o.durum === 'gecikti' ? (
                     <View style={styles.paymentAction}>
                       <Text style={styles.paymentTutar}>{o.tutar}</Text>
-                      <Pressable style={styles.remindBtn} onPress={() => remindPayment(o.id)}>
+                      <Pressable hitSlop={{ top: 10, bottom: 10 }} style={styles.remindBtn} onPress={() => remindPayment(o.id)}>
                         <Text style={styles.remindBtnText}>Hatırlat</Text>
                       </Pressable>
                     </View>
@@ -237,7 +343,7 @@ export default function SporcuDetayScreen() {
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionLabel}>ANTRENÖR GELİŞİM NOTLARI</Text>
                 {detay.gelisimNotlari.length > 2 && (
-                  <Pressable onPress={() => setNotArsivOpen(true)}>
+                  <Pressable hitSlop={12} onPress={() => setNotArsivOpen(true)}>
                     <Text style={styles.editLink}>Tümü ({detay.gelisimNotlari.length})</Text>
                   </Pressable>
                 )}
@@ -250,6 +356,24 @@ export default function SporcuDetayScreen() {
                 </View>
               ))}
             </Card>
+
+            {/* 0024 yumuşak silme: kayıt SİLİNMEZ, yalnızca pasife alınır. */}
+            <Card style={styles.sectionCard}>
+              <Text style={styles.sectionLabel}>KAYIT DURUMU</Text>
+              <Text style={styles.emptyText}>
+                {detay.aktif
+                  ? 'Kulüpten ayrılan sporcu pasife alınır; kayıt silinmez, ödeme ve yoklama geçmişi olduğu gibi korunur. Pasif sporcular listede varsayılan olarak gizlenir.'
+                  : 'Bu sporcu pasif. Ödeme ve yoklama geçmişi korunuyor; listede yalnızca "Pasifleri göster" filtresiyle görünür.'}
+              </Text>
+              <Pressable
+                style={[styles.aktiflikBtn, detay.aktif ? styles.aktiflikBtnPasife : styles.aktiflikBtnGeri]}
+                onPress={() => setAktiflikOnayOpen(true)}
+              >
+                <Text style={[styles.aktiflikBtnText, detay.aktif ? styles.aktiflikBtnTextPasife : styles.aktiflikBtnTextGeri]}>
+                  {detay.aktif ? 'Pasife Al' : 'Geri Al'}
+                </Text>
+              </Pressable>
+            </Card>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -261,7 +385,29 @@ export default function SporcuDetayScreen() {
             <Text style={styles.sheetTitle}>Sporcu Bilgilerini Düzenle</Text>
             <ScrollView contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm }} keyboardShouldPersistTaps="handled">
               <FormField label="AD SOYAD" value={editAd} onChangeText={setEditAd} />
-              <FormField label="GRUP" value={editGrup} onChangeText={setEditGrup} />
+              {/* Serbest metin kaldırıldı: yazım hatasında sporcu sessizce grupsuz
+                  kalıyordu. Artık gerçek grup id'si seçiliyor (panelle aynı). */}
+              <View>
+                <Text style={styles.fieldLabel}>GRUP</Text>
+                {grupSecenekleri.length === 0 ? (
+                  <Text style={styles.pickEmpty}>Kayıtlı aktif grup yok — önce panelden grup açılmalı.</Text>
+                ) : (
+                  <View style={styles.pickRow}>
+                    {grupSecenekleri.map((g) => {
+                      const secili = editGrupId === g.id;
+                      return (
+                        <Pressable
+                          key={g.id}
+                          style={[styles.pickChip, secili && styles.pickChipActive]}
+                          onPress={() => setEditGrupId(g.id)}
+                        >
+                          <Text style={[styles.pickChipText, secili && styles.pickChipTextActive]}>{g.ad}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
               <FormField label="VELİ ADI" value={editVeliAd} onChangeText={setEditVeliAd} />
               <FormField label="VELİ TELEFONU" value={editVeliTelefon} onChangeText={setEditVeliTelefon} keyboardType="phone-pad" />
               <FormField label="YAKINLIK" value={editVeliYakinlik} onChangeText={setEditVeliYakinlik} placeholder="Anne / Baba / Vasi" />
@@ -286,6 +432,34 @@ export default function SporcuDetayScreen() {
                 </View>
               ))}
             </ScrollView>
+          </Pressable>
+        </Pressable>
+      </AppModal>
+
+      {/* Onay sorusu — tek dokunuşla pasife alma yok. */}
+      <AppModal visible={aktiflikOnayOpen} transparent animationType="fade" onRequestClose={() => setAktiflikOnayOpen(false)}>
+        <Pressable style={styles.onayBackdrop} onPress={() => setAktiflikOnayOpen(false)}>
+          <Pressable style={styles.onayCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.onayTitle}>{detay?.aktif ? 'Pasife alınsın mı?' : 'Yeniden aktif edilsin mi?'}</Text>
+            <Text style={styles.onayText}>
+              {detay?.aktif
+                ? `${detay?.ad} sporcu listesinden gizlenecek. Kayıt silinmez; ödeme ve yoklama geçmişi korunur ve istendiğinde geri alınabilir.`
+                : `${detay?.ad} yeniden aktif sporcu listesinde görünecek.`}
+            </Text>
+            <View style={styles.onayActions}>
+              <Pressable style={[styles.onayBtn, styles.onayBtnGhost]} onPress={() => setAktiflikOnayOpen(false)}>
+                <Text style={styles.onayBtnGhostText}>Vazgeç</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.onayBtn, detay?.aktif ? styles.onayBtnDanger : styles.onayBtnAccent]}
+                onPress={onAktiflikDegistir}
+                disabled={aktiflikKaydediliyor}
+              >
+                <Text style={detay?.aktif ? styles.onayBtnDangerText : styles.onayBtnAccentText}>
+                  {aktiflikKaydediliyor ? 'İşleniyor…' : detay?.aktif ? 'Pasife Al' : 'Geri Al'}
+                </Text>
+              </Pressable>
+            </View>
           </Pressable>
         </Pressable>
       </AppModal>
@@ -343,15 +517,15 @@ function createStyles(colors: AppColors) {
   avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.danger },
   profileMid: { flex: 1, minWidth: 0 },
   profileName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
-  profileSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
+  profileSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, marginTop: 2 },
   badgeDanger: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.dangerSoft },
-  badgeDangerText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.danger },
+  badgeDangerText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.danger },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   veliRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   veliAvatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   veliAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.textMuted },
   veliName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
-  veliInfo: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  veliInfo: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   iconBtn: {
     width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder,
     alignItems: 'center', justifyContent: 'center',
@@ -360,40 +534,77 @@ function createStyles(colors: AppColors) {
   statsGrid: { flexDirection: 'row', gap: spacing.sm },
   statCard: { flex: 1, alignItems: 'center', gap: 4 },
   statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  statLabel: { fontFamily: fontFamily.mono, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
+  statLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 0.8, color: colors.textDim },
   sectionCard: { gap: spacing.sm },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   legendRow: { flexDirection: 'row', gap: spacing.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
-  legendLabel: { fontFamily: fontFamily.manropeBold, fontSize: 9.5, color: colors.textMuted },
+  legendLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.sm },
   calCell: { width: '12.5%', height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  calCellText: { fontFamily: fontFamily.manropeBold, fontSize: 10 },
+  calCellText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm },
   paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   paymentIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   paymentIconDanger: { backgroundColor: colors.dangerSoft },
   paymentIconOk: { backgroundColor: colors.accentSoft },
   paymentIconBekliyor: { backgroundColor: colors.chip },
-  emptyText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  emptyText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   paymentTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   paymentDetail: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   paymentDetailDanger: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.danger, marginTop: 1 },
   paymentTutar: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.md, color: colors.textBright },
   paymentAction: { alignItems: 'flex-end', gap: 6 },
   remindBtn: { paddingVertical: 7, paddingHorizontal: 11, borderRadius: 11, backgroundColor: colors.accent },
-  remindBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
+  remindBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
   noteBox: { backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 13, marginTop: spacing.xs },
   noteText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, lineHeight: 19 },
-  noteMeta: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim, marginTop: spacing.xs },
+  noteMeta: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.xs },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
   input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
+  badgeWarning: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.warningSoft },
+  badgeWarningText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.warning },
+  ayRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  ayBtn: {
+    width: 34, height: 34, borderRadius: 12, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ayBtnDisabled: { opacity: 0.4 },
+  ayBtnText: { color: colors.textMuted, fontSize: fontSize.lg, marginTop: -2 },
+  ayLabel: { flex: 1, textAlign: 'center', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
+  aktiflikBtn: { marginTop: spacing.xs, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  aktiflikBtnPasife: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  aktiflikBtnGeri: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  aktiflikBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base },
+  aktiflikBtnTextPasife: { color: colors.danger },
+  aktiflikBtnTextGeri: { color: colors.accent },
+  pickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  pickChip: { paddingVertical: 10, paddingHorizontal: 13, borderRadius: radius.sm, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  pickChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  pickChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  pickChipTextActive: { color: colors.accent },
+  pickEmpty: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.warning },
+  onayBackdrop: { flex: 1, backgroundColor: colors.scrim, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  onayCard: {
+    width: '100%', maxWidth: 380, backgroundColor: colors.surface, borderRadius: radius.xxl,
+    borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm,
+  },
+  onayTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
+  onayText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted },
+  onayActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  onayBtn: { flex: 1, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  onayBtnGhost: { backgroundColor: 'transparent', borderColor: colors.border },
+  onayBtnGhostText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textMuted },
+  onayBtnDanger: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  onayBtnDangerText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.danger },
+  onayBtnAccent: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  onayBtnAccentText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accent },
   });
 }

@@ -9,7 +9,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { addRota, getRotalar } from '../../../src/data/servisRepo';
 import type { ServisRota } from '../../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function ServisListesiScreen() {
   const colors = useColors();
@@ -75,7 +75,7 @@ export default function ServisListesiScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -97,7 +97,7 @@ export default function ServisListesiScreen() {
                       <Text>🚌</Text>
                     </View>
                     <View style={styles.mid}>
-                      <Text style={styles.rotaAd}>{r.ad}</Text>
+                      <Text style={styles.rotaAd} numberOfLines={1}>{r.ad}</Text>
                       <Text style={styles.rotaSub}>{r.sofor} · {r.plaka}</Text>
                     </View>
                     <View style={[styles.durumBadge, r.yolda && styles.durumBadgeYolda]}>
@@ -177,23 +177,23 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, paddingBottom: spacing.xxl },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   icon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   mid: { flex: 1, minWidth: 0 },
   rotaAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textBright },
-  rotaSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  rotaSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   durumBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.chip },
   durumBadgeYolda: { backgroundColor: colors.accentSoft },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
-  durumText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textMuted },
+  durumText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.textMuted },
   durumTextYolda: { color: colors.accent },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 11 },
   rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   altText: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   sporcuBadge: { backgroundColor: colors.chip, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  sporcuBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textMuted },
+  sporcuBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   dashedAdd: { borderRadius: radius.xl, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   dashedAddText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted },
   infoBox: { borderRadius: radius.xl, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
@@ -202,7 +202,7 @@ function createStyles(colors: AppColors) {
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
   input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },

@@ -20,7 +20,7 @@ import {
   toggleMusaitlikGun,
 } from '../../../src/data/bireyselRepo';
 import type { AntrenorTakvimGun, BekleyenRezervasyon, MusaitlikGunu, MusaitlikIstisna } from '../../../src/data/types-bireysel';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 function bugunIndex(): number {
   const day = new Date().getDay();
@@ -123,7 +123,7 @@ export default function TakvimScreen() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
-            <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
               <Text style={styles.backIcon}>‹</Text>
             </Pressable>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -173,7 +173,7 @@ export default function TakvimScreen() {
                       <Text style={styles.rezvAvatarText}>{bekleyen.sporcuInit}</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.rezvName}>{bekleyen.baslik}</Text>
+                      <Text style={styles.rezvName} numberOfLines={1}>{bekleyen.baslik}</Text>
                       <Text style={styles.rezvDetay}>{bekleyen.detay}</Text>
                     </View>
                   </View>
@@ -267,10 +267,10 @@ export default function TakvimScreen() {
                   </View>
                   {b.sonuclandirilabilir && b.rezervasyonId && (
                     <View style={styles.sonuclandirRow}>
-                      <Pressable style={styles.tamamlandiBtn} onPress={() => onSonuclandir(b.rezervasyonId!, 'tamamlandi')}>
+                      <Pressable hitSlop={{ top: 8, bottom: 8 }} style={styles.tamamlandiBtn} onPress={() => onSonuclandir(b.rezervasyonId!, 'tamamlandi')}>
                         <Text style={styles.tamamlandiBtnText}>✓ Tamamlandı</Text>
                       </Pressable>
-                      <Pressable style={styles.gelmediBtn} onPress={() => onSonuclandir(b.rezervasyonId!, 'gelmedi')}>
+                      <Pressable hitSlop={{ top: 8, bottom: 8 }} style={styles.gelmediBtn} onPress={() => onSonuclandir(b.rezervasyonId!, 'gelmedi')}>
                         <Text style={styles.gelmediBtnText}>✕ Gelmedi</Text>
                       </Pressable>
                     </View>
@@ -299,7 +299,7 @@ export default function TakvimScreen() {
             <View style={{ gap: 7, marginTop: spacing.md }}>
               {musaitlik.map((m, i) => (
                 <View key={m.gun} style={[styles.musaitRow, m.aktif ? styles.musaitRowOn : styles.musaitRowOff]}>
-                  <Pressable style={[styles.toggleTrack, m.aktif && styles.toggleTrackOn]} onPress={() => onToggleGun(i)}>
+                  <Pressable hitSlop={12} style={[styles.toggleTrack, m.aktif && styles.toggleTrackOn]} onPress={() => onToggleGun(i)}>
                     <View style={[styles.toggleThumb, m.aktif && styles.toggleThumbOn]} />
                   </Pressable>
                   <Text style={[styles.musaitGun, m.aktif && styles.musaitGunOn]}>{m.gun}</Text>
@@ -310,7 +310,7 @@ export default function TakvimScreen() {
 
             <View style={styles.istisnaHeader}>
               <Text style={styles.istisnaLabel}>İSTİSNA GÜNLER</Text>
-              <Pressable style={styles.istisnaEkleBtn} onPress={onIstisnaEkle}>
+              <Pressable hitSlop={{ top: 10, bottom: 10 }} style={styles.istisnaEkleBtn} onPress={onIstisnaEkle}>
                 <Text style={styles.istisnaEkleBtnText}>+ Gün Ekle</Text>
               </Pressable>
             </View>
@@ -354,31 +354,31 @@ function createStyles(colors: AppColors) {
   gunRow: { gap: 6, paddingBottom: spacing.xs },
   gunChip: { width: 52, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   gunChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
-  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textDim },
+  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   gunAdActive: { color: colors.accent },
-  gunNo: { fontFamily: fontFamily.archivoBold, fontSize: 15, color: colors.textMuted, marginTop: 2 },
+  gunNo: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textMuted, marginTop: 2 },
   gunNoActive: { color: colors.textBright },
   gunDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4 },
   rezvCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.accentBorder, backgroundColor: colors.surface, padding: spacing.lg },
   rezvTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveDotWrap: { width: 8, height: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
-  rezvLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
+  rezvLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
   rezvBody: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: spacing.md },
   rezvAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
-  rezvAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 13, color: avatarColorAt(0).avFg },
+  rezvAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: avatarColorAt(0).avFg },
   rezvName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
   rezvDetay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   rezvActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   onaylaBtn: { flex: 1, height: 44, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  onaylaBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 13, color: colors.onAccent },
+  onaylaBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   reddetBtn: { flex: 1, height: 44, borderRadius: 13, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
-  reddetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 13, color: colors.danger },
+  reddetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.danger },
   sonucBanner: { borderRadius: 18, borderWidth: 1, backgroundColor: colors.panel, paddingVertical: 13, paddingHorizontal: 15 },
   sonucText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base },
   timelineHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  timelineLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, flexShrink: 1 },
-  timelineSummary: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
+  timelineLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, flexShrink: 1 },
+  timelineSummary: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   timelineRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
   timelineSaat: { width: 42, textAlign: 'right', paddingTop: 11, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   timelineCard: { flex: 1, borderRadius: 16, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: 'transparent' },
@@ -389,24 +389,24 @@ function createStyles(colors: AppColors) {
   timelineCardBos: { backgroundColor: colors.chip, borderColor: colors.border, borderStyle: 'dashed' },
   timelineBar: { width: 4, alignSelf: 'stretch', borderRadius: 2 },
   timelineTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textBright },
-  timelineSub: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
+  timelineSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   timelinePill: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill },
-  timelinePillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5 },
+  timelinePillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.5 },
   sonuclandirRow: { flexDirection: 'row', gap: 7, marginLeft: 52 },
   tamamlandiBtn: { flex: 1, height: 36, borderRadius: 11, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
-  tamamlandiBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 12, color: colors.accent },
+  tamamlandiBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   gelmediBtn: { flex: 1, height: 36, borderRadius: 11, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
-  gelmediBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 12, color: colors.danger },
+  gelmediBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.danger },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 13, marginTop: spacing.xs, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
   legendDashed: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border, borderStyle: 'dashed' },
-  legendText: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted },
+  legendText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.sm },
-  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   musaitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 11 },
   musaitRowOn: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   musaitRowOff: { backgroundColor: colors.chip, borderColor: colors.border },
@@ -414,17 +414,17 @@ function createStyles(colors: AppColors) {
   toggleTrackOn: { backgroundColor: colors.accent },
   toggleThumb: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFFFFF', marginLeft: 3 },
   toggleThumbOn: { marginLeft: 19 },
-  musaitGun: { width: 34, fontFamily: fontFamily.manropeExtra, fontSize: 12.5, color: colors.textDim },
+  musaitGun: { width: 34, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.textDim },
   musaitGunOn: { color: colors.textBright },
-  musaitSaat: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: 12.5, color: colors.textDim },
+  musaitSaat: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textDim },
   musaitSaatOn: { color: colors.accent },
   istisnaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.xs },
-  istisnaLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  istisnaLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   istisnaEkleBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 5, paddingHorizontal: 11, borderRadius: radius.pill },
-  istisnaEkleBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.accent },
+  istisnaEkleBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   istisnaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, padding: 11 },
-  istisnaText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: 12.5, color: colors.danger },
-  istisnaSil: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textDim },
+  istisnaText: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.danger },
+  istisnaSil: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   musaitKaydetBtn: { marginTop: spacing.md, height: 50, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   musaitKaydetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   });

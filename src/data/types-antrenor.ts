@@ -22,6 +22,22 @@ export interface BugunkuGrup {
   izinliSebep?: string;
 }
 
+/**
+ * Bir antrenmanın kimlik/başlık bilgisi. Yoklama Özeti ekranı hangi grubun
+ * özetini gösterdiğini başlıkta yazabilsin diye var — `getBugunkuGruplar`
+ * yalnızca BUGÜNÜ döndürdüğünden, route param'la gelen id bugüne ait değilse
+ * başlık bununla çözülür.
+ */
+export interface AntrenmanBaslik {
+  id: string;
+  ad: string;
+  saat1: string;
+  saat2: string;
+  tesis: string;
+  /** 'YYYY-MM-DD' */
+  tarih: string;
+}
+
 export type YoklamaDurum = 'in' | 'out' | null;
 
 export interface YoklamaSatiri {

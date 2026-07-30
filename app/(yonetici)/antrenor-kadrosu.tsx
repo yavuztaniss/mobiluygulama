@@ -11,7 +11,7 @@ import { Toast, useToast } from '../../src/components/Toast';
 import { getAntrenorSecenekleri, getHakedisler, odeHakedis, setDersUcreti, type AntrenorSecenegi } from '../../src/data/hakedisRepo';
 import { getGruplar } from '../../src/data/etkinlikRepo';
 import type { AntrenorHakedis } from '../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../src/theme';
 
 function fmt(n: number) {
   return '₺' + n.toLocaleString('tr-TR');
@@ -95,14 +95,14 @@ export default function AntrenorKadrosuScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Antrenör Kadrosu</Text>
             <Text style={styles.headerSub}>{AY_ADI[new Date().getMonth()]} hakedişleri · Merkez şube</Text>
           </View>
-          <Pressable style={styles.ucretBtn} onPress={openUcretSheet}>
+          <Pressable hitSlop={{ top: 8, bottom: 8 }} style={styles.ucretBtn} onPress={openUcretSheet}>
             <Text style={styles.ucretBtnText}>Ders Ücreti Belirle</Text>
           </Pressable>
         </View>
@@ -139,8 +139,8 @@ export default function AntrenorKadrosuScreen() {
                       <Text style={[styles.avatarText, { color: h.avFg }]}>{h.init}</Text>
                     </View>
                     <View style={styles.mid}>
-                      <Text style={styles.hkAd}>{h.ad}</Text>
-                      <Text style={styles.hkRol}>{h.rol}</Text>
+                      <Text style={styles.hkAd} numberOfLines={1}>{h.ad}</Text>
+                      <Text style={styles.hkRol} numberOfLines={1}>{h.rol}</Text>
                     </View>
                     <View style={styles.hkAmountCol}>
                       <Text style={[styles.hkTutar, { color: h.odendi ? colors.textMuted : colors.textBright }]}>{fmt(h.tutarN)}</Text>
@@ -171,7 +171,7 @@ export default function AntrenorKadrosuScreen() {
                         {h.kalemler.map((k, i) => (
                           <View key={i} style={styles.kalemRow}>
                             <View style={styles.kalemDot} />
-                            <Text style={styles.kalemName}>{k.n}</Text>
+                            <Text style={styles.kalemName} numberOfLines={1}>{k.n}</Text>
                             <Text style={styles.kalemValue}>{k.v}</Text>
                           </View>
                         ))}
@@ -206,7 +206,7 @@ export default function AntrenorKadrosuScreen() {
               <View style={styles.pickRow}>
                 {antrenorler.length === 0 && <Text style={styles.pickEmpty}>Henüz gerçek antrenör hesabı yok</Text>}
                 {antrenorler.map((a) => (
-                  <Pressable key={a.id} style={[styles.pickChip, seciliAntrenor === a.id && styles.pickChipActive]} onPress={() => setSeciliAntrenor(a.id)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={a.id} style={[styles.pickChip, seciliAntrenor === a.id && styles.pickChipActive]} onPress={() => setSeciliAntrenor(a.id)}>
                     <Text style={[styles.pickChipText, seciliAntrenor === a.id && styles.pickChipTextActive]}>{a.ad}</Text>
                   </Pressable>
                 ))}
@@ -215,7 +215,7 @@ export default function AntrenorKadrosuScreen() {
               <Text style={styles.fieldLabel}>GRUP</Text>
               <View style={styles.pickRow}>
                 {gruplar.map((g) => (
-                  <Pressable key={g.id} style={[styles.pickChip, seciliGrup === g.id && styles.pickChipActive]} onPress={() => setSeciliGrup(g.id)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={g.id} style={[styles.pickChip, seciliGrup === g.id && styles.pickChipActive]} onPress={() => setSeciliGrup(g.id)}>
                     <Text style={[styles.pickChipText, seciliGrup === g.id && styles.pickChipTextActive]}>{g.ad}</Text>
                   </Pressable>
                 ))}
@@ -242,17 +242,17 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   ucretBtn: { height: 40, paddingHorizontal: 13, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  ucretBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 12, color: colors.textMuted },
+  ucretBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '85%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
-  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   pickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  pickEmpty: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  pickEmpty: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   pickChip: { paddingVertical: 10, paddingHorizontal: 13, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   pickChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   pickChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
@@ -260,15 +260,15 @@ function createStyles(colors: AppColors) {
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, paddingBottom: spacing.xxl },
   summaryCard: { borderRadius: radius.xxl, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 16 },
   summaryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.accent },
+  summaryLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.accent },
   summaryCount: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   summaryAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: spacing.sm },
-  summaryAmount: { fontFamily: fontFamily.archivoBold, fontSize: 26, color: colors.textBright, letterSpacing: -0.5 },
+  summaryAmount: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright, letterSpacing: -0.5 },
   summaryAmountNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   progressTrack: { height: 7, borderRadius: 4, backgroundColor: colors.border, marginTop: 11, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: colors.accent },
-  progressNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted, marginTop: 7 },
-  kadroLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.md },
+  progressNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 7 },
+  kadroLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.md },
   hkCard: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   hkCardOpen: { borderColor: colors.accentBorder },
   hkTop: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -279,21 +279,21 @@ function createStyles(colors: AppColors) {
   hkRol: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   hkAmountCol: { alignItems: 'flex-end' },
   hkTutar: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md },
-  hkStatus: { fontFamily: fontFamily.manropeExtra, fontSize: 10, marginTop: 1 },
+  hkStatus: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, marginTop: 1 },
   chevron: { color: colors.textDim, fontSize: 15 },
   hkDetail: { paddingHorizontal: 15, paddingBottom: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   statRow: { flexDirection: 'row', gap: 8 },
   statBox: { flex: 1, borderRadius: 13, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, padding: 9, alignItems: 'center' },
   statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
-  statLabel: { fontFamily: fontFamily.manropeBold, fontSize: 9, color: colors.textMuted, marginTop: 1 },
+  statLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   kalemRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   kalemDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
-  kalemName: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
+  kalemName: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   kalemValue: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textBright },
   odeBtn: { marginTop: 13, height: 44, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   odeBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   odendiBox: { marginTop: 13, height: 44, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   odendiText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.xs },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: spacing.xs },
   });
 }

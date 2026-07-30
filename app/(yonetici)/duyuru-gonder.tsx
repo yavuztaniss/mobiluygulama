@@ -8,7 +8,7 @@ import { Toast, useToast } from '../../src/components/Toast';
 import { useKurum } from '../../src/context/KurumContext';
 import { duyuruGonder, duyuruHedefSayisi, getDuyuruHedefleri } from '../../src/data/yoneticiRepo';
 import type { DuyuruHedefi, DuyuruTuru } from '../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../src/theme';
 
 const TURLER: { value: DuyuruTuru; label: string }[] = [
   { value: 'genel', label: 'Genel' },
@@ -87,7 +87,7 @@ export default function DuyuruGonderScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <Text style={styles.headerTitle}>Duyuru Gönder</Text>
@@ -106,7 +106,7 @@ export default function DuyuruGonderScreen() {
               {hedefler.map((h) => {
                 const on = seciliHedefler.includes(h.id);
                 return (
-                  <Pressable key={h.id} style={[styles.chip, on && styles.chipActive]} onPress={() => onPickHedef(h.id)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={h.id} style={[styles.chip, on && styles.chipActive]} onPress={() => onPickHedef(h.id)}>
                     <Text style={[styles.chipText, on && styles.chipTextActive]}>{h.ad}</Text>
                   </Pressable>
                 );
@@ -118,7 +118,7 @@ export default function DuyuruGonderScreen() {
               {TURLER.map((t) => {
                 const on = t.value === tur;
                 return (
-                  <Pressable key={t.value} style={[styles.chip, on && styles.chipActive]} onPress={() => setTur(t.value)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={t.value} style={[styles.chip, on && styles.chipActive]} onPress={() => setTur(t.value)}>
                     <Text style={[styles.chipText, on && styles.chipTextActive]}>{t.label}</Text>
                   </Pressable>
                 );
@@ -196,30 +196,30 @@ function createStyles(colors: AppColors) {
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: 130, gap: spacing.xs },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   hedefSayi: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: spacing.xs },
   chip: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: radius.pill, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   chipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   chipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   chipTextActive: { color: colors.accent },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginTop: spacing.md },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginTop: spacing.md },
   titleInput: { marginTop: 8, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.md, fontFamily: fontFamily.manropeBold },
   messageInput: { marginTop: 8, minHeight: 92, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 14, color: colors.textMuted, fontSize: fontSize.base, fontFamily: fontFamily.manropeMedium, lineHeight: 19, textAlignVertical: 'top' },
   smsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: spacing.md, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14 },
   smsTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  smsSub: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  smsSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   previewCard: { marginTop: 9, borderRadius: 24, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingVertical: 18, paddingHorizontal: 14 },
-  previewClock: { textAlign: 'center', fontFamily: fontFamily.archivoBold, fontSize: 34, color: colors.textBright, letterSpacing: -0.5 },
-  previewDate: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  previewClock: { textAlign: 'center', fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxxl, color: colors.textBright, letterSpacing: -0.5 },
+  previewDate: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   previewNotif: { marginTop: spacing.md, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', padding: 12, flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   previewAvatar: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  previewAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: colors.onAccent },
+  previewAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.onAccent },
   previewNotifTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
-  previewSender: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5, color: colors.textMuted },
-  previewNow: { fontFamily: fontFamily.manropeSemi, fontSize: 9.5, color: colors.textMuted },
+  previewSender: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, letterSpacing: 0.5, color: colors.textMuted },
+  previewNow: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
   previewTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textBright, marginTop: 2 },
-  previewBody: { fontFamily: fontFamily.manropeMedium, fontSize: 11.5, color: colors.textMuted, marginTop: 1, lineHeight: 15 },
+  previewBody: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1, lineHeight: 15 },
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl },
   sendBtn: { height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   sendBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },

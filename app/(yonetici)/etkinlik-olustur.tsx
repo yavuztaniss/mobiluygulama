@@ -7,7 +7,7 @@ import { TextField } from '../../src/components/TextField';
 import { Toast, useToast } from '../../src/components/Toast';
 import { getGruplar, publishEtkinlik } from '../../src/data/etkinlikRepo';
 import type { EtkinlikTuru } from '../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../src/theme';
 
 const TURLER: { value: EtkinlikTuru; label: string; baslikLabel: string; placeholder: string }[] = [
   { value: 'mac', label: 'Maç', baslikLabel: 'RAKİP', placeholder: 'Örn. Bornova U12' },
@@ -84,13 +84,17 @@ export default function EtkinlikOlusturScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Etkinlik Oluştur</Text>
             <Text style={styles.headerSub}>Yayınlanınca veli ve antrenörlere düşer</Text>
           </View>
+          {/* Oynanan maçın skorunu girme ekranı — etkinliğin diğer ucu, aynı yerden erişiliyor. */}
+          <Pressable style={styles.sonucLink} onPress={() => router.push('/mac-sonuc')}>
+            <Text style={styles.sonucLinkText}>Maç Sonucu</Text>
+          </Pressable>
         </View>
 
         {done ? (
@@ -116,7 +120,7 @@ export default function EtkinlikOlusturScreen() {
               {TURLER.map((t) => {
                 const active = t.value === tur;
                 return (
-                  <Pressable key={t.value} style={[styles.turChip, active && styles.turChipActive]} onPress={() => setTur(t.value)}>
+                  <Pressable hitSlop={{ top: 6, bottom: 6 }} key={t.value} style={[styles.turChip, active && styles.turChipActive]} onPress={() => setTur(t.value)}>
                     <Text style={[styles.turChipText, active && styles.turChipTextActive]}>{t.label}</Text>
                   </Pressable>
                 );
@@ -137,13 +141,13 @@ export default function EtkinlikOlusturScreen() {
 
             <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>GRUP</Text>
             <View style={styles.chipRow}>
-              <Pressable style={[styles.smallChip, grupId === null && styles.smallChipActive]} onPress={() => setGrupId(null)}>
+              <Pressable hitSlop={{ top: 8, bottom: 8 }} style={[styles.smallChip, grupId === null && styles.smallChipActive]} onPress={() => setGrupId(null)}>
                 <Text style={[styles.smallChipText, grupId === null && styles.smallChipTextActive]}>Tüm Gruplar</Text>
               </Pressable>
             </View>
             <View style={[styles.chipRow, { flexWrap: 'wrap', marginTop: spacing.xs }]}>
               {gruplar.map((g) => (
-                <Pressable key={g.id} style={[styles.smallChip, { flex: 0 }, grupId === g.id && styles.smallChipActive]} onPress={() => setGrupId(g.id)}>
+                <Pressable hitSlop={{ top: 8, bottom: 8 }} key={g.id} style={[styles.smallChip, { flex: 0 }, grupId === g.id && styles.smallChipActive]} onPress={() => setGrupId(g.id)}>
                   <Text style={[styles.smallChipText, grupId === g.id && styles.smallChipTextActive]}>{g.ad}</Text>
                 </Pressable>
               ))}
@@ -152,7 +156,7 @@ export default function EtkinlikOlusturScreen() {
             <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>TESİS</Text>
             <View style={styles.chipRow}>
               {TESISLER.map((t) => (
-                <Pressable key={t} style={[styles.smallChip, tesis === t && styles.smallChipActive]} onPress={() => setTesis(t)}>
+                <Pressable hitSlop={{ top: 8, bottom: 8 }} key={t} style={[styles.smallChip, tesis === t && styles.smallChipActive]} onPress={() => setTesis(t)}>
                   <Text style={[styles.smallChipText, tesis === t && styles.smallChipTextActive]}>{t}</Text>
                 </Pressable>
               ))}
@@ -212,9 +216,11 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
+  sonucLink: { backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.pill },
+  sonucLinkText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
   chipRow: { flexDirection: 'row', gap: spacing.xs },
   turChip: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   turChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
@@ -228,7 +234,7 @@ function createStyles(colors: AppColors) {
   toggleCard: { marginTop: spacing.md, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomColor: colors.border },
   toggleTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  toggleSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  toggleSub: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   publishBtn: { marginTop: spacing.lg, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   publishBtnDisabled: { backgroundColor: colors.panel },
   publishBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
@@ -244,7 +250,7 @@ function createStyles(colors: AppColors) {
   timelineDotDone: { backgroundColor: colors.accent },
   timelineDotPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border },
   timelineLabel: { flex: 1, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textDim },
+  timelineNote: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   resetBtn: { width: '100%', marginTop: spacing.md, height: 48, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   resetBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   });

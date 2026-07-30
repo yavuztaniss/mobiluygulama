@@ -16,7 +16,7 @@ import {
 } from '../../../src/data/antrenorRepo';
 import type { GelisimKaydi, Sporcu } from '../../../src/data/types-antrenor';
 import { useAuth } from '../../../src/context/AuthContext';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function GelisimScreen() {
   const colors = useColors();
@@ -106,7 +106,7 @@ export default function GelisimScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -124,7 +124,7 @@ export default function GelisimScreen() {
                 <View style={[styles.sporcuAvatar, active && styles.sporcuAvatarActive]}>
                   <Text style={[styles.sporcuAvatarText, active && styles.sporcuAvatarTextActive]}>{s.init}</Text>
                 </View>
-                <Text style={[styles.sporcuName, active && styles.sporcuNameActive]}>{s.ad.split(' ')[0]}</Text>
+                <Text style={[styles.sporcuName, active && styles.sporcuNameActive]} numberOfLines={1}>{s.ad.split(' ')[0]}</Text>
               </Pressable>
             );
           })}
@@ -140,7 +140,7 @@ export default function GelisimScreen() {
               {kayit.beceriler.map((b, bi) => (
                 <View key={b.beceriId} style={[styles.skillRow, bi === kayit.beceriler.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.skillName}>{b.ad}</Text>
+                    <Text style={styles.skillName} numberOfLines={1}>{b.ad}</Text>
                     <Text style={styles.skillLvl}>{LEVELS[b.seviye - 1]}</Text>
                   </View>
                   <View style={styles.segRow}>
@@ -167,7 +167,7 @@ export default function GelisimScreen() {
             {!kayit.gonderildi && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tplScroll} contentContainerStyle={styles.tplRow}>
                 {GELISIM_TEMPLATES.map((t) => (
-                  <Pressable key={t} style={styles.tplChip} onPress={() => ekleTemplate(t)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={t} style={styles.tplChip} onPress={() => ekleTemplate(t)}>
                     <Text style={styles.tplChipText}>+ {t}</Text>
                   </Pressable>
                 ))}
@@ -224,7 +224,7 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   sporcuScroll: { flexGrow: 0, marginTop: spacing.xs },
   sporcuRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg },
   sporcuChip: { alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border, minWidth: 74 },
@@ -233,14 +233,14 @@ function createStyles(colors: AppColors) {
   sporcuAvatarActive: { backgroundColor: colors.accent },
   sporcuAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: colors.textMuted },
   sporcuAvatarTextActive: { color: colors.onAccent },
-  sporcuName: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textMuted },
+  sporcuName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   sporcuNameActive: { color: colors.textBright },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginBottom: spacing.xs },
   skillCard: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
   skillRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
   skillName: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  skillLvl: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
+  skillLvl: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   segRow: { flexDirection: 'row', gap: 4 },
   segBar: { width: 22, height: 10, borderRadius: 5 },
   noteInput: { minHeight: 92, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, textAlignVertical: 'top' },
@@ -256,12 +256,12 @@ function createStyles(colors: AppColors) {
   sentBoxText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   duzenleLink: { textAlign: 'center', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
   previewCard: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
-  previewLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.accent },
+  previewLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.accent },
   previewNote: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 20 },
   previewFooter: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   previewAvatar: { width: 32, height: 32, borderRadius: 11, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
-  previewAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: avatarColorAt(0).avFg },
+  previewAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
   previewCoach: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  previewDate: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim },
+  previewDate: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   });
 }

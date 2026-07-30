@@ -17,7 +17,7 @@ import {
   rezervasyonOlustur,
 } from '../../../src/data/bireyselRepo';
 import type { BireyselAntrenor, BireyselGunSlotlari, BireyselOdemeTipi, BireyselPaketDurumu, BireyselSlot } from '../../../src/data/types-bireysel';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function BireyselDersDetay() {
   const colors = useColors();
@@ -105,7 +105,7 @@ export default function BireyselDersDetay() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -125,7 +125,7 @@ export default function BireyselDersDetay() {
                   <Text style={[styles.avatarText, { color: antrenor.avFg }]}>{antrenor.init}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.profileName}>{antrenor.ad}</Text>
+                  <Text style={styles.profileName} numberOfLines={1}>{antrenor.ad}</Text>
                   <Text style={styles.profileMeta}>
                     {antrenor.brans} · {kulupAdi}
                   </Text>
@@ -299,37 +299,37 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl, gap: spacing.sm },
   profileCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.xl },
   profileTop: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   avatar: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 22 },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl },
   profileName: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
   profileMeta: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
   star: { color: colors.warning, fontSize: 12 },
-  puan: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.warning },
-  dersSay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  puan: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.warning },
+  dersSay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   bio: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, lineHeight: 19, marginTop: spacing.md },
   priceRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   priceBox: { flex: 1, borderRadius: 13, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, padding: 11 },
-  priceLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.textDim },
-  priceValue: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.textBright, marginTop: 2 },
+  priceLabel: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.8, color: colors.textDim },
+  priceValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright, marginTop: 2 },
   priceBoxAccent: { flex: 1, borderRadius: 13, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11 },
-  priceLabelAccent: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.accent },
-  priceValueAccent: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.accent, marginTop: 2 },
+  priceLabelAccent: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.8, color: colors.accent },
+  priceValueAccent: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.accent, marginTop: 2 },
   doluBanner: { borderRadius: 14, backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, padding: 11 },
-  doluBannerText: { textAlign: 'center', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warning },
+  doluBannerText: { textAlign: 'center', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.warning },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  slotLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  slotLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   slotRange: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   gunRow: { flexDirection: 'row', gap: 6 },
   gunChip: { flex: 1, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
   gunChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
-  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.textDim },
+  gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   gunAdActive: { color: colors.accent },
-  gunNo: { fontFamily: fontFamily.archivoBold, fontSize: 15, color: colors.textMuted, marginTop: 2 },
+  gunNo: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textMuted, marginTop: 2 },
   gunNoActive: { color: colors.textBright },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   slot: { width: '31.5%', borderRadius: 13, paddingVertical: 11, alignItems: 'center', borderWidth: 1.5 },
@@ -342,7 +342,7 @@ function createStyles(colors: AppColors) {
   slotSaatSeciliMusait: { color: colors.onAccent },
   slotSaatGrup: { color: colors.textMuted },
   slotSaatDolu: { color: colors.textDim },
-  slotSub: { fontFamily: fontFamily.manropeExtra, fontSize: 9, marginTop: 2, letterSpacing: 0.4 },
+  slotSub: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, marginTop: 2, letterSpacing: 0.4 },
   slotSubMusait: { color: colors.accent },
   slotSubSeciliMusait: { color: colors.onAccent },
   slotSubGrup: { color: colors.textDim },
@@ -350,24 +350,24 @@ function createStyles(colors: AppColors) {
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 13, marginTop: spacing.xs, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendText: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted },
+  legendText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.sm },
-  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
+  sheetSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 3 },
   payOption: { marginTop: spacing.md, borderRadius: 16, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.chip, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
   payOptionActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { borderColor: colors.accent },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
   payOptionTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  payOptionSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  payOptionSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   payOptionAmount: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
   payOptionBadge: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  payOptionBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent },
+  payOptionBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.accent },
   warnBox: { marginTop: spacing.md, borderRadius: 14, backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, padding: 11 },
-  warnText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 11.5, color: colors.warning },
+  warnText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.warning },
   confirmBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   confirmBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   onayOverlay: { position: 'absolute', inset: 0, zIndex: 90, backgroundColor: colors.scrim, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
@@ -376,9 +376,9 @@ function createStyles(colors: AppColors) {
   onayTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.md },
   onaySub: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs, lineHeight: 19 },
   onayInfoBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accentBorder, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 15, marginTop: spacing.md },
-  onayInfoText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
+  onayInfoText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.accent },
   onayWarnBox: { borderColor: colors.warning, marginTop: spacing.xs },
-  onayWarnText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.warning },
+  onayWarnText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.warning },
   onayKapatBtn: { marginTop: spacing.xl, height: 48, paddingHorizontal: 26, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   onayKapatBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.onAccent },
   });

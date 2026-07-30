@@ -9,7 +9,7 @@ import { useAuth } from '../../../src/context/AuthContext';
 import { useOzellik } from '../../../src/context/OzellikContext';
 import { getAntrenorBildirimler, getBugunkuGruplar } from '../../../src/data/antrenorRepo';
 import type { AntrenorBildirim, BugunkuGrup } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 function bugunEtiketi(): string {
   const d = new Date();
@@ -61,12 +61,12 @@ export default function AntrenorBugun() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
-            <View>
+            <View style={{ flex: 1, minWidth: 0 }}>
               <View style={styles.brandRow}>
                 <View style={styles.dot} />
                 <Text style={styles.brand}>ANTRENÖR PANELİ</Text>
               </View>
-              <Text style={styles.title}>Merhaba, {profile?.ad || 'Antrenör'}</Text>
+              <Text style={styles.title} numberOfLines={1}>Merhaba, {profile?.ad || 'Antrenör'}</Text>
               <Text style={styles.subtitle}>{bugunEtiketi()} · {gruplar.length} grup</Text>
             </View>
             <Pressable style={styles.bellBtn} onPress={() => router.push('/bildirimler')}>
@@ -103,7 +103,7 @@ export default function AntrenorBugun() {
                       <Text style={{ color: colors.accent }}>✓</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.doneTitle}>{g.ad}</Text>
+                      <Text style={styles.doneTitle} numberOfLines={1}>{g.ad}</Text>
                       <Text style={styles.doneSub}>{g.saat1} – {g.saat2} · {g.tesis} · Yoklama alındı</Text>
                     </View>
                     <View style={styles.doneBadgeCol}>
@@ -123,7 +123,7 @@ export default function AntrenorBugun() {
                     </View>
                     {/* Sabit "Teknik Antrenman" rozeti kaldırıldı — antrenman türü DB'de tutulmuyor. */}
                   </View>
-                  <Text style={styles.nowTitle}>{simdikiGrup.ad}</Text>
+                  <Text style={styles.nowTitle} numberOfLines={1}>{simdikiGrup.ad}</Text>
                   <View style={styles.nowTimeRow}>
                     <Text style={styles.nowTime1}>{simdikiGrup.saat1}</Text>
                     <Text style={styles.nowTime2}> – {simdikiGrup.saat2}</Text>
@@ -152,7 +152,7 @@ export default function AntrenorBugun() {
                       <Text>⏱</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.upcomingTitle}>{g.ad}</Text>
+                      <Text style={styles.upcomingTitle} numberOfLines={1}>{g.ad}</Text>
                       <Text style={styles.upcomingSub}>{g.saat1} – {g.saat2} · {g.tesis} · {g.sporcuSayisi} sporcu</Text>
                     </View>
                     <View style={styles.upcomingPill}>
@@ -222,51 +222,51 @@ function createStyles(colors: AppColors) {
   bellBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   bellIcon: { fontSize: 18 },
   bellDot: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bgDeep, paddingHorizontal: 3 },
-  bellDotText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.onAccent },
+  bellDotText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.onAccent },
   programHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
-  programLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  programLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   programCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md },
   doneIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   doneTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  doneSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  doneSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   doneBadgeCol: { alignItems: 'flex-end' },
   donePill: { backgroundColor: colors.accentSoft, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  donePillText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.accent },
+  donePillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   nowCard: { borderRadius: radius.xxl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   nowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   nowBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
-  nowLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  nowTitle: { fontFamily: fontFamily.archivoBold, fontSize: 22, color: colors.textBright, marginTop: 10 },
+  nowLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
+  nowTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: 10 },
   nowTimeRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
-  nowTime1: { fontFamily: fontFamily.archivoBold, fontSize: 32, color: colors.textBright },
+  nowTime1: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxxl, color: colors.textBright },
   nowTime2: { fontFamily: fontFamily.archivoSemi, fontSize: fontSize.lg, color: colors.textMuted },
   nowVenue: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 6 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   nowBottomRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   nowSporcuCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  nowIzinNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.warning, marginTop: 1 },
+  nowIzinNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.warning, marginTop: 1 },
   yoklamaBtn: { backgroundColor: colors.accent, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14 },
   yoklamaBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.onAccent },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   upcomingIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   upcomingTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  upcomingSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  upcomingSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   upcomingPill: { backgroundColor: colors.chip, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radius.pill },
-  upcomingPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textMuted },
-  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.xs },
+  upcomingPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
+  footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginTop: spacing.xs },
   quickActionsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   quickActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 15, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
   quickActionIcon: { fontSize: 16 },
-  quickActionText: { fontFamily: fontFamily.manropeBold, fontSize: 12.5, color: colors.textMuted, textAlign: 'center' },
+  quickActionText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textMuted, textAlign: 'center' },
   bireyselCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xxl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accentBorder, padding: spacing.md, marginTop: spacing.sm },
   bireyselIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   bireyselTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   bireyselTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
   yeniPill: { backgroundColor: colors.accent, paddingVertical: 2, paddingHorizontal: 7, borderRadius: radius.pill },
-  yeniPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9, letterSpacing: 0.5, color: colors.onAccent },
-  bireyselSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  yeniPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.5, color: colors.onAccent },
+  bireyselSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   chevron: { color: colors.textDim, fontSize: 16 },
   });
 }

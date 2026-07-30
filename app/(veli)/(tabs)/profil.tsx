@@ -12,7 +12,7 @@ import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { getVeliProfil, updateVeliProfil } from '../../../src/data/veliRepo';
 import type { VeliProfil } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function ProfilScreen() {
   const colors = useColors();
@@ -90,10 +90,10 @@ export default function ProfilScreen() {
                 </Text>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.profileName}>{profil.ad || 'Veli'}</Text>
+                <Text style={styles.profileName} numberOfLines={1}>{profil.ad || 'Veli'}</Text>
                 <Text style={styles.profileSub}>{[profil.telefon, profil.eposta].filter(Boolean).join(' · ') || '—'}</Text>
               </View>
-              <Pressable onPress={openEdit}>
+              <Pressable hitSlop={12} onPress={openEdit}>
                 <Text style={styles.editLink}>Düzenle</Text>
               </Pressable>
             </Card>
@@ -106,7 +106,7 @@ export default function ProfilScreen() {
                     <Text style={styles.childAvatarText}>{c.ad[0]}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.childName}>{c.ad}</Text>
+                    <Text style={styles.childName} numberOfLines={1}>{c.ad}</Text>
                     <Text style={styles.childBrans}>{c.brans || '—'}</Text>
                   </View>
                 </View>
@@ -199,9 +199,9 @@ function createStyles(colors: AppColors) {
   profileAvatar: { width: 54, height: 54, borderRadius: 19, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
   profileAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: avatarColorAt(0).avFg },
   profileName: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.textBright },
-  profileSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  profileSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   editLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
-  sectionLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm },
+  sectionLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm },
   childRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 13 },
   childAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
   childAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
@@ -211,15 +211,15 @@ function createStyles(colors: AppColors) {
   addChildText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   prefRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   prefLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  prefSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  prefSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 1 },
   signOutWrap: { marginTop: spacing.md },
-  versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.sm },
+  versionText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm },
   sheetBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
   sheetTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, marginTop: spacing.md },
-  sheetNote: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim },
-  fieldLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
+  sheetNote: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
+  fieldLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim, marginBottom: 7 },
   input: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, color: colors.textBright, fontSize: fontSize.base, fontFamily: fontFamily.manropeSemi },
   saveBtn: { marginTop: spacing.md, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },

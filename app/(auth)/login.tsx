@@ -130,7 +130,7 @@ function createStyles(colors: AppColors) {
     },
     title: {
       fontFamily: fontFamily.archivoBold,
-      fontSize: 32,
+      fontSize: fontSize.xxxl,
       color: colors.textBright,
       letterSpacing: -0.5,
     },
@@ -186,7 +186,7 @@ function createStyles(colors: AppColors) {
     },
     devLabel: {
       fontFamily: fontFamily.mono,
-      fontSize: 9.5,
+      fontSize: fontSize.sm,
       fontWeight: '700',
       letterSpacing: 1.2,
       color: colors.textDim,

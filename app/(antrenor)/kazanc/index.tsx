@@ -7,7 +7,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { useAuth } from '../../../src/context/AuthContext';
 import { getKazancAylar, getKazancOzet } from '../../../src/data/bireyselRepo';
 import type { KazancAySecenegi, KazancOzet } from '../../../src/data/types-bireysel';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function KazancScreen() {
   const colors = useColors();
@@ -47,7 +47,7 @@ export default function KazancScreen() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
-            <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
               <Text style={styles.backIcon}>‹</Text>
             </Pressable>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -62,7 +62,7 @@ export default function KazancScreen() {
               {aylar.map((a) => {
                 const on = a.id === ay;
                 return (
-                  <Pressable key={a.id} style={[styles.ayChip, on && styles.ayChipActive]} onPress={() => load(a.id)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={a.id} style={[styles.ayChip, on && styles.ayChipActive]} onPress={() => load(a.id)}>
                     <Text style={[styles.ayChipText, on && styles.ayChipTextActive]}>{a.ad}</Text>
                   </Pressable>
                 );
@@ -197,11 +197,11 @@ function createStyles(colors: AppColors) {
   ayChipTextActive: { color: colors.accent },
   netCard: { borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.xl, marginTop: spacing.xs },
   netTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  netLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
+  netLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
   trendPill: { backgroundColor: colors.accentSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.pill },
-  trendText: { fontFamily: fontFamily.manropeExtra, fontSize: 10.5, color: colors.accent },
+  trendText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   netAmount: { fontFamily: fontFamily.archivoBold, fontSize: 44, color: colors.textBright, letterSpacing: -1.5, marginTop: 10 },
-  netNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: 2 },
+  netNote: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, marginTop: 2 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   netRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs },
   netRowLabel: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted },
@@ -209,11 +209,11 @@ function createStyles(colors: AppColors) {
   statRow: { flexDirection: 'row', gap: spacing.sm },
   statBox: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' },
   statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
-  statLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.5, color: colors.textDim, marginTop: 2, textAlign: 'center' },
+  statLabel: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, letterSpacing: 0.5, color: colors.textDim, marginTop: 2, textAlign: 'center' },
   card: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright, letterSpacing: -0.2 },
-  cardHeaderSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
+  cardHeaderSub: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   distBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: spacing.md, gap: 2 },
   distSeg: { height: '100%' },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
@@ -223,11 +223,11 @@ function createStyles(colors: AppColors) {
   distPct: { width: 38, textAlign: 'right', fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   barChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 110, marginTop: spacing.md },
   barCol: { flex: 1, alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' },
-  barVal: { fontFamily: fontFamily.manropeExtra, fontSize: 10 },
+  barVal: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro },
   barTrack: { width: '100%', maxWidth: 44, height: 70, justifyContent: 'flex-end' },
   bar: { width: '100%', borderRadius: 9, borderTopLeftRadius: 9, borderTopRightRadius: 9, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, borderWidth: 1 },
-  barAd: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  barAd: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   altNotBox: { borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
-  altNotText: { fontFamily: fontFamily.manropeSemi, fontSize: 11.5, color: colors.accent, lineHeight: 16, textAlign: 'center' },
+  altNotText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent, lineHeight: 16, textAlign: 'center' },
   });
 }

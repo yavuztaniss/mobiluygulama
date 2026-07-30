@@ -8,7 +8,7 @@ import { LoadingState, ErrorState, EmptyState } from '../../../src/components/St
 import { useKurum } from '../../../src/context/KurumContext';
 import { getOzet, getSubeler } from '../../../src/data/yoneticiRepo';
 import type { Sube, YoneticiOzet } from '../../../src/data/types';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function OzetScreen() {
   const colors = useColors();
@@ -154,7 +154,7 @@ export default function OzetScreen() {
                 }}
               >
                 <View style={styles.sheetRowText}>
-                  <Text style={styles.sheetRowTitle}>{s.ad}</Text>
+                  <Text style={styles.sheetRowTitle} numberOfLines={1}>{s.ad}</Text>
                   {/* alt_bilgi seed'deki eski tanıtım metni ("184 sporcu · 6 branş" gibi) —
                       gerçek sayılarla eşleşmediği için gösterilmiyor. */}
                 </View>
@@ -194,23 +194,23 @@ function createStyles(colors: AppColors) {
   },
   roleBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.xs, color: colors.accent },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  kurumNotu: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim, marginBottom: spacing.xs },
+  kurumNotu: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim, marginBottom: spacing.xs },
   kpiCard: { width: '47.5%', gap: 6, minHeight: 96 },
   kpiCardDanger: { borderColor: colors.danger },
-  kpiLabel: { fontFamily: fontFamily.mono, fontSize: 9.5, fontWeight: '800', letterSpacing: 1.3, color: colors.textDim },
+  kpiLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.3, color: colors.textDim },
   kpiLabelDanger: { color: colors.danger },
   kpiValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright, letterSpacing: -0.5 },
   kpiValueDanger: { color: colors.danger },
-  kpiSubGreen: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.accent },
-  kpiSubMuted: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted },
-  kpiSubDanger: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.danger },
+  kpiSubGreen: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
+  kpiSubMuted: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
+  kpiSubDanger: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.danger },
   gecikenYokWrap: { paddingTop: spacing.xs },
   gecikenYokText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.accent },
   chartCard: { gap: spacing.md },
   chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, paddingTop: spacing.sm },
   chartBarWrap: { alignItems: 'center', gap: 6, flex: 1 },
   chartBar: { width: 18, borderRadius: 6, backgroundColor: colors.accent },
-  chartLabel: { fontFamily: fontFamily.manropeMedium, fontSize: 10, color: colors.textDim },
+  chartLabel: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.textDim },
   modalBackdrop: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-start', padding: spacing.lg, paddingTop: 120 },
   sheet: {
     backgroundColor: colors.surface,
@@ -222,7 +222,7 @@ function createStyles(colors: AppColors) {
   },
   sheetTitle: {
     fontFamily: fontFamily.mono,
-    fontSize: 9.5,
+    fontSize: fontSize.sm,
     fontWeight: '800',
     letterSpacing: 1.5,
     color: colors.textDim,
@@ -230,9 +230,9 @@ function createStyles(colors: AppColors) {
   },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.sm },
   sheetRowActive: { backgroundColor: colors.chip },
-  sheetRowText: { flex: 1 },
+  sheetRowText: { flex: 1, minWidth: 0 },
   sheetRowTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
-  sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   sheetCheck: { color: colors.accent, fontSize: 16 },
   });
 }

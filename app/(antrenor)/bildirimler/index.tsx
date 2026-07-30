@@ -6,7 +6,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { EmptyState, LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { getAntrenorBildirimler, markAntrenorBildirimOkundu, markAntrenorTumuOkundu } from '../../../src/data/antrenorRepo';
 import type { AntrenorBildirim } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 // Bildirimler gerçek olaylardan sentezlenir (bkz. antrenorRepo.syncAntrenorBildirimleri) ve
 // şimdilik yalnızca 'izin' + 'rezervasyon' türleri üretilir — hiç dolmayacak 'Mesaj'/'Yoklama'
@@ -68,7 +68,7 @@ export default function AntrenorBildirimlerScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -82,7 +82,7 @@ export default function AntrenorBildirimlerScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
           {FILTRELER.map((f) => (
-            <Pressable key={f.id} style={[styles.filterChip, filtre === f.id && styles.filterChipActive]} onPress={() => setFiltre(f.id)}>
+            <Pressable hitSlop={{ top: 8, bottom: 8 }} key={f.id} style={[styles.filterChip, filtre === f.id && styles.filterChipActive]} onPress={() => setFiltre(f.id)}>
               <Text style={[styles.filterChipText, filtre === f.id && styles.filterChipTextActive]}>{f.ad}</Text>
             </Pressable>
           ))}
@@ -109,7 +109,7 @@ export default function AntrenorBildirimlerScreen() {
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <View style={styles.notifTopRow}>
-                            <Text style={styles.notifTitle}>{n.baslik}</Text>
+                            <Text style={styles.notifTitle} numberOfLines={2}>{n.baslik}</Text>
                             <Text style={styles.notifTime}>{n.zaman}</Text>
                           </View>
                           <Text style={styles.notifDesc}>{n.aciklama}</Text>
@@ -135,7 +135,7 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   readAllLink: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   filterScroll: { flexGrow: 0, marginTop: spacing.xs },
   filterRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg },
@@ -144,13 +144,13 @@ function createStyles(colors: AppColors) {
   filterChipText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   filterChipTextActive: { color: colors.accent },
   scroll: { padding: spacing.lg, gap: spacing.xs, paddingBottom: spacing.xxl },
-  groupLabel: { fontFamily: fontFamily.mono, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm, marginBottom: spacing.xs },
+  groupLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.2, color: colors.textDim, marginTop: spacing.sm, marginBottom: spacing.xs },
   notifRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 13, marginBottom: spacing.xs },
   notifRowUnread: { borderColor: colors.accentBorder },
   notifIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   notifTopRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  notifTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  notifTime: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textDim },
+  notifTitle: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textBright },
+  notifTime: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   notifDesc: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: 5 },
   });

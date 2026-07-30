@@ -10,7 +10,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { useChild } from '../../../src/context/ChildContext';
 import { getYoklamaGelisim } from '../../../src/data/veliRepo';
 import type { YoklamaGelisim } from '../../../src/data/types-veli';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 function getGunRenk(colors: AppColors): Record<string, { bg: string; c: string; bd?: string }> {
   return {
@@ -59,7 +59,7 @@ export default function YoklamaGelisimScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -142,7 +142,7 @@ export default function YoklamaGelisimScreen() {
               <Text style={styles.calTitle}>Gelişim Karnesi</Text>
               {data.skills.map((s) => (
                 <View key={s.name} style={styles.skillRow}>
-                  <Text style={styles.skillName}>{s.name}</Text>
+                  <Text style={styles.skillName} numberOfLines={1}>{s.name}</Text>
                   <Text style={styles.skillLvl}>{s.lvl}/5</Text>
                   <View style={styles.skillSegs}>
                     {[1, 2, 3, 4, 5].map((i) => (
@@ -191,38 +191,38 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xxl },
   heroCard: { flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: radius.xxl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   heroPctWrap: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' },
-  heroPct: { fontFamily: fontFamily.archivoBold, fontSize: 19, color: colors.textBright },
-  heroLabel: { fontFamily: fontFamily.mono, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
-  heroSub: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: 5 },
+  heroPct: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright },
+  heroLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.8, color: colors.accent },
+  heroSub: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, lineHeight: lineHeightFor(fontSize.xl), color: colors.textBright, marginTop: 5 },
   heroTrend: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent, marginTop: 4 },
   statRow: { flexDirection: 'row', gap: spacing.sm },
   statBox: { flex: 1, borderRadius: 14, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, padding: 9, alignItems: 'center' },
   statBoxGreen: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   statBoxRed: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  statLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textMuted, marginTop: 1 },
+  statLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   calTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: colors.textBright },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm },
   calCell: { width: '12.5%', aspectRatio: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  calCellText: { fontFamily: fontFamily.manropeBold, fontSize: 12 },
+  calCellText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10.5, color: colors.textMuted },
+  legendLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted },
   skillRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.sm },
-  skillName: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
-  skillLvl: { fontFamily: fontFamily.manropeExtra, fontSize: 11, color: colors.textMuted },
+  skillName: { flex: 1, minWidth: 0, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted },
+  skillLvl: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted },
   skillSegs: { flexDirection: 'row', gap: 4 },
   skillSeg: { width: 16, height: 6, borderRadius: 3 },
   noteText: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, lineHeight: 21, marginTop: spacing.sm },
   noteFooter: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: spacing.md },
   noteAvatar: { width: 32, height: 32, borderRadius: 11, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
-  noteAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: 11, color: avatarColorAt(0).avFg },
+  noteAvatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.sm, color: avatarColorAt(0).avFg },
   noteCoach: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textBright },
-  noteDate: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textDim },
+  noteDate: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
   });
 }

@@ -8,7 +8,7 @@ import { Toast, useToast } from '../../../src/components/Toast';
 import { useKurum } from '../../../src/context/KurumContext';
 import { formatTL, getBireyselAntrenorler, getBireyselFiltreler, paketAvantajYuzdesi } from '../../../src/data/bireyselRepo';
 import type { BireyselAntrenor } from '../../../src/data/types-bireysel';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
 
 export default function BireyselDersListesi() {
   const colors = useColors();
@@ -45,7 +45,7 @@ export default function BireyselDersListesi() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -73,7 +73,7 @@ export default function BireyselDersListesi() {
               {filtreler.map((f) => {
                 const active = f === filtre;
                 return (
-                  <Pressable key={f} style={[styles.filtreChip, active && styles.filtreChipActive]} onPress={() => setFiltre(f)}>
+                  <Pressable hitSlop={{ top: 8, bottom: 8 }} key={f} style={[styles.filtreChip, active && styles.filtreChipActive]} onPress={() => setFiltre(f)}>
                     <Text style={[styles.filtreText, active && styles.filtreTextActive]}>{f}</Text>
                   </Pressable>
                 );
@@ -103,7 +103,7 @@ export default function BireyselDersListesi() {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={styles.nameRow}>
-                      <Text style={styles.name}>{a.ad}</Text>
+                      <Text style={styles.name} numberOfLines={1}>{a.ad}</Text>
                       {a.musait ? (
                         <View style={styles.musaitPill}>
                           <Text style={styles.musaitPillText}>BU HAFTA MÜSAİT</Text>
@@ -167,36 +167,36 @@ function createStyles(colors: AppColors) {
   filtreTextActive: { color: colors.accent },
   promoBanner: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 14, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 12 },
   promoIcon: { color: colors.accent, fontSize: 14 },
-  promoText: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: 11.5, color: colors.accent, lineHeight: 16 },
+  promoText: { flex: 1, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.accent, lineHeight: 16 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  listLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  listLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   listCount: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   card: { borderRadius: radius.xxl, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
   cardTop: { flexDirection: 'row', gap: 13 },
   avatarWrap: { position: 'relative' },
   avatar: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 19 },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl },
   musaitDot: { position: 'absolute', bottom: -3, right: -3, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.accent, borderWidth: 3, borderColor: colors.panel },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  name: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.lg, color: colors.textBright },
+  name: { flexShrink: 1, minWidth: 0, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.lg, color: colors.textBright },
   musaitPill: { backgroundColor: colors.accentSoft, paddingVertical: 3, paddingHorizontal: 8, borderRadius: radius.pill },
-  musaitPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.4, color: colors.accent },
+  musaitPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.4, color: colors.accent },
   doluPill: { backgroundColor: colors.chip, paddingVertical: 3, paddingHorizontal: 8, borderRadius: radius.pill },
-  doluPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.4, color: colors.textMuted },
+  doluPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.4, color: colors.textMuted },
   meta: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 3 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
   star: { color: colors.warning, fontSize: 12 },
-  puan: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.warning },
-  dersSay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim },
+  puan: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.warning },
+  dersSay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
   chevron: { color: colors.textDim, fontSize: 16, marginTop: 4 },
   priceRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 13 },
   priceBox: { flex: 1, borderRadius: 13, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.border, padding: 11 },
-  priceLabel: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.textDim },
-  priceValue: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.textBright, marginTop: 2 },
+  priceLabel: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.8, color: colors.textDim },
+  priceValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.textBright, marginTop: 2 },
   priceBoxAccent: { flex: 1, borderRadius: 13, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, padding: 11, position: 'relative' },
-  priceLabelAccent: { fontFamily: fontFamily.manropeExtra, fontSize: 9.5, letterSpacing: 0.8, color: colors.accent },
-  priceValueAccent: { fontFamily: fontFamily.archivoBold, fontSize: 15.5, color: colors.accent, marginTop: 2 },
-  priceNote: { position: 'absolute', top: 9, right: 11, fontFamily: fontFamily.manropeExtra, fontSize: 9, color: colors.accent },
+  priceLabelAccent: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, letterSpacing: 0.8, color: colors.accent },
+  priceValueAccent: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.md, color: colors.accent, marginTop: 2 },
+  priceNote: { position: 'absolute', top: 9, right: 11, fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.accent },
   footerNote: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.sm, lineHeight: 17 },
   });
 }

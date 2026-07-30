@@ -16,7 +16,7 @@ import {
   type AktifAntrenman,
 } from '../../../src/data/antrenorRepo';
 import type { YoklamaSatiri } from '../../../src/data/types-antrenor';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing, avatarColorAt } from '../../../src/theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing, avatarColorAt } from '../../../src/theme';
 
 export default function YoklamaAlScreen() {
   const colors = useColors();
@@ -118,7 +118,7 @@ export default function YoklamaAlScreen() {
     <ScreenBackground>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable hitSlop={8} style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -145,7 +145,7 @@ export default function YoklamaAlScreen() {
             <Text style={styles.kilitText}>
               Yoklama yalnızca antrenman saati içinde alınabilir. Bugünkü programı Bugün ekranından kontrol edebilirsiniz.
             </Text>
-            <Pressable style={styles.kilitBtn} onPress={() => router.back()}>
+            <Pressable hitSlop={{ top: 6, bottom: 6 }} style={styles.kilitBtn} onPress={() => router.back()}>
               <Text style={styles.kilitBtnText}>Geri Dön</Text>
             </Pressable>
           </View>
@@ -188,7 +188,7 @@ export default function YoklamaAlScreen() {
 
             <View style={styles.listHeader}>
               <Text style={styles.listLabel}>SPORCU LİSTESİ</Text>
-              <Pressable style={styles.allInBtn} onPress={onTumunuKatildi}>
+              <Pressable hitSlop={{ top: 10, bottom: 10 }} style={styles.allInBtn} onPress={onTumunuKatildi}>
                 <Text style={styles.allInBtnText}>Tümünü katıldı yap</Text>
               </Pressable>
             </View>
@@ -199,7 +199,7 @@ export default function YoklamaAlScreen() {
                   <Text style={styles.avatarText}>{s.init}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.name}>{s.ad}</Text>
+                  <Text style={styles.name} numberOfLines={1}>{s.ad}</Text>
                   {s.izinli && <Text style={styles.izinliSub}>İzinli · devamsızlık sayılmaz</Text>}
                 </View>
                 <View style={styles.toggleGroup}>
@@ -274,10 +274,10 @@ function createStyles(colors: AppColors) {
   backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.textMuted, fontSize: 22, marginTop: -2 },
   headerTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: 2 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
-  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.accent },
+  liveBadgeText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.accent },
   scroll: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, paddingBottom: 140 },
   kilitBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
   kilitIcon: { fontSize: 40 },
@@ -291,24 +291,24 @@ function createStyles(colors: AppColors) {
   statBoxGreen: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   statBoxRed: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
   statValue: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.lg, color: colors.textBright },
-  statLabel: { fontFamily: fontFamily.manropeBold, fontSize: 10, color: colors.textMuted, marginTop: 1 },
-  hintText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
+  statLabel: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
+  hintText: { textAlign: 'center', fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textMuted, marginTop: spacing.sm },
   izinBanner: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.warning, padding: 12 },
   izinIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.warningSoft, alignItems: 'center', justifyContent: 'center' },
   izinTitle: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.warning },
-  izinDetay: { fontFamily: fontFamily.manropeSemi, fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  izinDetay: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, marginTop: 1 },
   izinPill: { backgroundColor: colors.warningSoft, paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.pill },
-  izinPillText: { fontFamily: fontFamily.manropeExtra, fontSize: 10, color: colors.warning },
+  izinPillText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.micro, color: colors.warning },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  listLabel: { fontFamily: fontFamily.mono, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
+  listLabel: { fontFamily: fontFamily.mono, fontSize: fontSize.xs, fontWeight: '800', letterSpacing: 1.5, color: colors.textDim },
   allInBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, paddingVertical: 6, paddingHorizontal: 11, borderRadius: radius.pill },
-  allInBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: 11.5, color: colors.accent },
+  allInBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
   row: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 10 },
   rowIzinli: { borderColor: colors.warning },
   avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: avatarColorAt(0).avBg, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: 12.5, color: avatarColorAt(0).avFg },
+  avatarText: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.base, color: avatarColorAt(0).avFg },
   name: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.base, color: colors.textBright },
-  izinliSub: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.warning, marginTop: 1 },
+  izinliSub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.warning, marginTop: 1 },
   toggleGroup: { flexDirection: 'row', gap: 4, backgroundColor: colors.chip, padding: 4, borderRadius: 13 },
   toggleBtn: { width: 34, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   toggleBtnInActive: { backgroundColor: colors.accentSoft },
@@ -318,18 +318,18 @@ function createStyles(colors: AppColors) {
   saveBtn: { height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.md, color: colors.onAccent },
   savedBox: { height: 52, borderRadius: 16, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
-  savedText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.accent },
+  savedText: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.accent },
   unlockText: { textAlign: 'center', fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
   overlay: { position: 'absolute', inset: 0, backgroundColor: colors.scrim, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   overlayCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.accentSoft, borderWidth: 2, borderColor: colors.accentBorder, alignItems: 'center', justifyContent: 'center' },
   overlayCheck: { fontSize: 44, color: colors.accent },
   overlayTitle: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xl, color: colors.textBright, marginTop: spacing.lg },
-  overlaySub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs },
+  overlaySub: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, lineHeight: lineHeightFor(fontSize.base), color: colors.textMuted, marginTop: spacing.xs },
   overlayPills: { gap: spacing.xs, marginTop: spacing.lg, alignItems: 'center' },
   overlayPillIn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accentBorder, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 15 },
   overlayPillInText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.accent },
   overlayPillOut: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.danger, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 15 },
   overlayPillOutText: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.danger },
-  overlayTap: { fontFamily: fontFamily.manropeSemi, fontSize: 10.5, color: colors.textDim, marginTop: spacing.xl },
+  overlayTap: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textDim, marginTop: spacing.xl },
   });
 }

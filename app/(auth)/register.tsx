@@ -193,7 +193,7 @@ function createStyles(colors: AppColors) {
     flex: { flex: 1 },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xxl, gap: spacing.sm },
     successWrap: { flex: 1, justifyContent: 'center', padding: spacing.xxl, gap: spacing.md },
-    title: { fontFamily: fontFamily.archivoBold, fontSize: 32, color: colors.textBright, letterSpacing: -0.5 },
+    title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxxl, color: colors.textBright, letterSpacing: -0.5 },
     subtitle: {
       fontFamily: fontFamily.manropeMedium,
       fontSize: fontSize.base,
