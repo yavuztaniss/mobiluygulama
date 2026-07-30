@@ -331,9 +331,22 @@ export async function addSporcu(input: {
   return mapRow(data as unknown as SporcuRow, new Set<string>());
 }
 
+// `bransId` OPSİYONEL ve üç değerli: verilmezse (undefined) brans_id kolonuna
+// hiç dokunulmaz, açıkça null geçilirse branş kaldırılır, id geçilirse atanır.
+// Eskiden alan hiç güncellenmiyordu; mobilde branş addSporcu'da bir kez atanıp
+// sonra değiştirilemiyordu (panelde değiştirilebiliyor). Alanı koşulsuz yazmak
+// da olmazdı: branş seçicisi olmayan bir çağıran sporcunun branşını sessizce
+// silerdi.
 export async function updateSporcuBilgi(
   id: string,
-  input: { ad: string; grupId: string | null; veliAd: string; veliTelefon: string; veliYakinlik: string }
+  input: {
+    ad: string;
+    grupId: string | null;
+    bransId?: string | null;
+    veliAd: string;
+    veliTelefon: string;
+    veliYakinlik: string;
+  }
 ): Promise<Sporcu> {
   const [{ data, error }, { data: gecikenRow }] = await Promise.all([
     supabase
@@ -341,6 +354,7 @@ export async function updateSporcuBilgi(
       .update({
         ad: input.ad,
         grup_id: input.grupId,
+        ...(input.bransId !== undefined ? { brans_id: input.bransId } : {}),
         veli_ad: input.veliAd,
         veli_telefon: input.veliTelefon,
         veli_yakinlik: input.veliYakinlik,

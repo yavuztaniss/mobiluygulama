@@ -21,6 +21,9 @@
 --   5) kurulum/04_ilk_yonetici.sql   <-- bu dosya
 --   6) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
 --
+--   ✔ Bu altı adım YETERLİDİR: 01_sema.sql migration 0001–0025'in nihai halini
+--     içerir. app/supabase/migrations/ altındaki dosyaları ayrıca çalıştırmayın.
+--
 -- ÖN KOŞUL — ÖNCE HESAP OLUŞTURULMALI:
 --   Bu dosya var olan bir hesabı yetkilendirir, sıfırdan hesap OLUŞTURMAZ.
 --   Kulüp yöneticisi önce hesabını açmalı. İki yol var:
@@ -116,37 +119,64 @@ begin
   end if;
 
   if v_durum <> 'aktif' then
-    raise warning 'Hedef kulübün durumu ''%'' — yönetici giriş yapar ama hiçbir veri göremez. Açmak için: update public.kulup set durum = ''aktif'' where id = %L;', v_durum, v_kulup;
+    -- NOT: RAISE'in biçim dizesi yalnızca `%` yer tutucusunu tanır (`%L` / `%I`
+    -- format() fonksiyonuna aittir), o yüzden tırnaklar elle yazılıyor.
+    raise warning 'Hedef kulübün durumu ''%'' — yönetici giriş yapar ama hiçbir veri göremez. Açmak için: update public.kulup set durum = ''aktif'' where id = ''%'';', v_durum, v_kulup;
   end if;
+
+  -- --- 4) Hedefi aşağıdaki doğrulama bloğuna aktar.
+  -- PL/pgSQL değişkenleri DO blokları arasında taşınmaz; doğrulama ayrı bir
+  -- blokta olduğu için hedef kiracıyı oturum değişkeniyle geçiriyoruz. Aksi
+  -- halde doğrulama TÜM kulüpleri sayar ve ikinci bir kulüp kurulurken, bu
+  -- kurulum yarım kalmış olsa bile "Kurulum tamam" der (yanlış pozitif).
+  perform set_config('kurulum.hedef_kulup',  v_kulup::text,  false);
+  perform set_config('kurulum.hedef_profil', hedef_id::text, false);
 end $$;
 
 
 -- -----------------------------------------------------------------------------
--- DOĞRULAMA — en az bir yönetici olmalı VE kulübe bağlı olmalı
+-- DOĞRULAMA — HEDEF KULÜPTE en az bir yönetici olmalı VE kulübe bağlı olmalı
 -- -----------------------------------------------------------------------------
+-- ⚠ HER SORGU HEDEF KİRACIYA DARALTILMIŞTIR. Kulüp bazında değil proje bazında
+--   sayan bir doğrulama çok kiracılı bir projede yanıltıcıdır: ikinci kulübün
+--   kurulumunda BİRİNCİ kulübün yöneticisi sayıma girer, blok "Kurulum tamam"
+--   der ve yeni kulübün yöneticisiz kaldığı ancak panele girilince anlaşılır.
+--   Hedef kulüp / hedef profil yukarıdaki bloktan oturum değişkeniyle gelir.
 do $$
 declare
+  v_kulup         uuid := nullif(current_setting('kurulum.hedef_kulup',  true), '')::uuid;
+  v_profil        uuid := nullif(current_setting('kurulum.hedef_profil', true), '')::uuid;
+  v_kulup_ad      text;
   yonetici_sayisi int;
   kulupsuz_sayisi int;
   pasif_sayisi    int;
 begin
+  if v_kulup is null or v_profil is null then
+    raise exception 'Hedef kulüp okunamadı — bu dosya baştan sona TEK SEFERDE çalıştırılmalı; hedefi yukarıdaki blok belirliyor.';
+  end if;
+
+  select ad into v_kulup_ad from public.kulup where id = v_kulup;
+
   select count(*) into yonetici_sayisi
-    from public.profiles where role = 'yonetici';
+    from public.profiles where role = 'yonetici' and kulup_id = v_kulup;
 
   if yonetici_sayisi = 0 then
-    raise exception 'Hiç yönetici yok — kurulum kilitli kalır, yukarıdaki bloğu kontrol edin.';
+    raise exception 'Hedef kulüpte (%) hiç yönetici yok — kurulum kilitli kalır, yukarıdaki bloğu kontrol edin.', v_kulup;
   end if;
 
   -- kulup_id'si boş yönetici = sessiz kilitlenme (restrictive politikalar
   -- NULL karşılaştırmasında her satırı reddeder). Uyarı değil HATA veriyoruz:
   -- bu durumda panel açılır ama bomboş görünür ve sebebi bulunamaz.
+  -- Bu sorgu doğası gereği kulüple filtrelenemez (aranan şey zaten kulüpsüzlük),
+  -- o yüzden HEDEF PROFİLE daraltıldı: başka bir kulübün kopuk yöneticisi bu
+  -- kurulumu durdurmasın.
   select count(*) into kulupsuz_sayisi
-    from public.profiles where role = 'yonetici' and kulup_id is null;
+    from public.profiles where id = v_profil and role = 'yonetici' and kulup_id is null;
 
   if kulupsuz_sayisi > 0 then
     raise exception
-      'Kulübe bağlı olmayan % yönetici var (profiles.kulup_id IS NULL). Bu hesaplar giriş yapar ama hiçbir veri göremez. Düzeltme: update public.profiles set kulup_id = (select id from public.kulup limit 1) where role = ''yonetici'' and kulup_id is null;',
-      kulupsuz_sayisi;
+      'Yetkilendirilen yönetici hiçbir kulübe bağlı değil (profiles.kulup_id IS NULL). Bu hesap giriş yapar ama hiçbir veri göremez. Düzeltme: update public.profiles set kulup_id = ''%'' where id = ''%'';',
+      v_kulup, v_profil;
   end if;
 
   -- Kulübü 'aktif' olmayan yönetici de aynı sonucu yaşar; burada exception değil
@@ -154,13 +184,13 @@ begin
   select count(*) into pasif_sayisi
     from public.profiles p
     join public.kulup k on k.id = p.kulup_id
-   where p.role = 'yonetici' and k.durum <> 'aktif';
+   where p.role = 'yonetici' and p.kulup_id = v_kulup and k.durum <> 'aktif';
 
   if pasif_sayisi > 0 then
-    raise warning '% yöneticinin kulübü ''aktif'' değil — o kulüplerde hiçbir veri görünmez.', pasif_sayisi;
+    raise warning 'Hedef kulübün durumu ''aktif'' değil — % yönetici giriş yapar ama hiçbir veri göremez.', pasif_sayisi;
   end if;
 
-  raise notice 'Kurulum tamam: % yönetici hesabı var, hepsi bir kulübe bağlı.', yonetici_sayisi;
+  raise notice 'Kurulum tamam: "%" kulübünde % yönetici hesabı var, hepsi kulübe bağlı.', coalesce(v_kulup_ad, v_kulup::text), yonetici_sayisi;
 end $$;
 
 

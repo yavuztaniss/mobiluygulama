@@ -48,7 +48,11 @@ function mapRow(row: EtkinlikRow): Etkinlik {
 }
 
 export async function getGruplar(): Promise<{ id: string; ad: string }[]> {
-  const { data, error } = await supabase.from('grup').select('id, ad').order('ad');
+  // Pasife alınan gruba (0024 yumuşak silme) yeni etkinlik, başvuru ya da
+  // hakediş bağlanmamalı — bu liste yalnızca SEÇİM kutularını besliyor.
+  // Filtresizken kapatılan bir grup hâlâ seçilebiliyordu; sporcularRepo.getGruplar
+  // ve panelin ekleme formlarıyla aynı filtre uygulanıyor.
+  const { data, error } = await supabase.from('grup').select('id, ad').eq('aktif', true).order('ad');
   if (error) throw error;
   return data ?? [];
 }
@@ -161,17 +165,42 @@ export function sonucTuret(skorBiz: number, skorRakip: number): MacSonucu {
   return 'beraberlik';
 }
 
+// Oturumdaki kullanıcı yönetici mi? — "sonucu bekleyen maç" listesinin grup
+// filtresi buna bağlı (aşağıdaki açıklamaya bakın). mesajRepo.currentUserRole
+// ile aynı desen: rol profiles'tan okunur, oturum yoksa (devSignInAs ile sahte
+// giriş) false döner.
+async function kullaniciYoneticiMi(): Promise<boolean> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) return false;
+  const { data } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+  return (data as { role: string } | null)?.role === 'yonetici';
+}
+
 // Oynanmış ama sonucu girilmemiş maçlar — en yeni maç en üstte.
 // Tarih sınırı `<= bugün`: aynı gün oynanan maçın sonucu akşam girilebilsin
 // (0025'teki antrenör politikasındaki `tarih <= current_date` ile aynı sınır).
+//
+// GRUP FİLTRESİ NEDEN ROLE BAĞLI
+//   0009'un SELECT politikası antrenöre `grup_id is null` ("Tüm Gruplar")
+//   etkinliklerini de GÖSTERİR, ama 0025'in UPDATE politikası `grup_id is not
+//   null` şartı arar. Filtresizken gruba bağlanmamış geçmiş bir maç antrenörün
+//   listesine düşüyor, "Sonucu Gir" ise RLS'e takılıp 0 satır güncelliyordu —
+//   macSonucuKaydet bunu hataya çeviriyor ve mac-kadrosu ekranı kartı hep
+//   bekleyen[0]'a sabitlediği için ekran kalıcı hataya kilitleniyordu.
+//   Yöneticinin 0009'daki UPDATE politikasında böyle bir şart yok; o gruba
+//   bağlanmamış maçın sonucunu da girebildiği için listesi daraltılmıyor.
 export async function getSonucBekleyenMaclar(): Promise<MacSonucSatiri[]> {
-  const { data, error } = await supabase
+  const yoneticiMi = await kullaniciYoneticiMi();
+  let query = supabase
     .from('etkinlik')
     .select(SELECT_MAC_SONUC)
     .eq('tur', 'mac')
     .lte('tarih', todayStr())
     .is('sonuc', null)
     .order('tarih', { ascending: false });
+  if (!yoneticiMi) query = query.not('grup_id', 'is', null);
+  const { data, error } = await query;
   if (error) throw error;
   return (data as unknown as MacSonucRow[]).map(mapMacRow);
 }

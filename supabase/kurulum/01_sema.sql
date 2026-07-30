@@ -1,7 +1,7 @@
 -- ===========================================================================
 -- 01_sema.sql — Spor Kulübü Yönetim Platformu · TAM ŞEMA (sıfırdan kurulum)
 -- ===========================================================================
--- Bu dosya app/supabase/migrations/0001–0022 arasındaki TÜM migration'ların
+-- Bu dosya app/supabase/migrations/0001–0025 arasındaki TÜM migration'ların
 -- NİHAİ halini tek dosyada birleştirir. Ara adımlar (drop+recreate edilen
 -- politikalar, sonradan eklenen kolonlar, alter policy ile genişletilen
 -- muhasebe kuralları, search_path sertleştirmeleri) burada zincir olarak
@@ -20,6 +20,18 @@
 --   kulübe bağlanması) BİLİNÇLİ OLARAK DAHİL DEĞİLDİR: bu dosya sıfırdan kurulum
 --   içindir, taşınacak veri yoktur. Kulüp kaydı 03_kulup_olustur.sql'de açılır.
 --
+-- 0023–0025 DE DAHİLDİR:
+--   · 0023 abonelik kill-switch'i  → private.current_kulup_id() gövdesindeki
+--                                    `k.durum = 'aktif'` koşulu (bölüm 2)
+--   · 0024 yumuşak silme           → grup + sporcular tablolarında aktif /
+--                                    pasif_tarihi kolonları ve bileşik indeksler
+--   · 0025 maç sonucu girişi       → "etkinlik: antrenör kendi grubunun maç
+--                                    sonucunu girer" politikası (12.7),
+--                                    protect_etkinlik_sonuc() trigger'ı (13.8),
+--                                    etkinlik_sonuc_bekleyen_idx (bölüm 14)
+--   0023'ün "mevcut kulüpleri aktifleştir" UPDATE'i dahil DEĞİL (veri taşıması;
+--   kulüp zaten 03_kulup_olustur.sql'de 'aktif' doğar).
+--
 -- İÇERMEZ: hiçbir INSERT / demo verisi / kulübe özgü kayıt.
 --   · Platform kataloğu (tüm kulüplerde ortak) → kurulum/02_katalog.sql
 --   · Kulübün kendi başlangıç kayıtları        → kurulum/03_kulup_olustur.sql
@@ -35,6 +47,10 @@
 --        yoksa açık bir exception atar (bölüm 13.2).
 --   5) kurulum/04_ilk_yonetici.sql    hesabı 'yonetici' yapar (ZORUNLU)
 --   6) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
+--
+-- ✔ BU ADIMLAR YETERLİDİR — app/supabase/migrations/ altındaki dosyaların
+--   HİÇBİRİNİ ayrıca çalıştırmayın. Paket 0001–0025'in nihai halini içerir;
+--   migration klasörü yalnızca ZATEN KURULU bir projeyi güncellemek içindir.
 --
 -- Bu dosya baştan sona TEK SEFERDE çalıştırılır. Postgres 15+ / Supabase
 -- uyumludur. auth şeması, auth.users tablosu, `anon` / `authenticated` /
@@ -55,7 +71,7 @@
 --   11) Davet (çok kiracılı kayıt akışı)
 --   12) Row Level Security: etkinleştirme + rol politikaları + kiracı duvarı
 --   13) Fonksiyonlar, trigger'lar, grant/revoke
---   14) kulup_id indeksleri
+--   14) kulup_id indeksleri + bileşik/kısmi indeksler
 --   15) Realtime yayını
 -- ===========================================================================
 --
@@ -222,7 +238,8 @@ $$;
 -- ===========================================================================
 -- 3) KURUM TABLOLARI
 --    Kaynak: 0004 (şube, branş, hizmet türü, grup, sporcular, veli↔sporcu,
---            antrenör↔sporcu), 0021 (kulup_id + bileşik kısıtlar)
+--            antrenör↔sporcu), 0021 (kulup_id + bileşik kısıtlar),
+--            0024 (grup/sporcular yumuşak silme kolonları)
 -- ===========================================================================
 
 create table sube (
@@ -285,14 +302,33 @@ create table kurum_hizmet_turu_secimi (
     foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete cascade
 );
 
+-- YUMUŞAK SİLME (0024): grup ve sporcular kayıtları SİLİNMEZ, `aktif = false`
+-- ile pasife alınır. Gerekçe: sporcular(id)'ye bağlı FK'lerin çoğu ON DELETE
+-- CASCADE (ödeme, yoklama, gelişim, kadro...) — tek bir DELETE kapanmış bir
+-- muhasebe dönemini geriye dönük siler. Cascade'siz olanlar (fatura.sporcu_id,
+-- siparis.sporcu_id, antrenman.grup_id) ise DELETE'i zaten 23503 ile reddeder.
+-- İki kolon da kulup_id'den SONRA yazılıyor: 0024 bunları `alter table` ile
+-- ekliyor, yani migration yoluyla güncellenen bir veritabanında sıra budur
+-- (bkz. başlıktaki KİRACI KOLONU DESENİ notu — iki kurulum yolunun pg_dump
+-- çıktısı birebir aynı kalmalı).
+--
+-- Grup pasife alındığında sporcuların grup_id ataması BİLİNÇLİ OLARAK
+-- DEĞİŞTİRİLMEZ: grup geri alındığında kadro olduğu gibi geri gelsin diye.
 create table grup (
   id uuid primary key default gen_random_uuid(),
   ad text not null,
   brans_id uuid references brans(id),
   sube_id uuid references sube(id),
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
+  aktif boolean not null default true,
+  pasif_tarihi timestamptz,
   constraint grup_id_kulup_uniq unique (id, kulup_id)
 );
+
+comment on column grup.aktif is
+  'false = kapatılmış / pasife alınmış grup. Kayıt SİLİNMEZ; antrenman ve yoklama geçmişi korunur. Gruptaki sporcuların grup_id ataması değişmez.';
+comment on column grup.pasif_tarihi is
+  'aktif=false yapıldığı an. Geri alındığında NULL''a döner. Uygulama katmanında yazılır (gruplar/actions.ts).';
 
 -- Sporcular — birleşik roster. veli_ad/veli_telefon/veli_yakinlik ve odeme_durumu
 -- bilinçli olarak düz kolon: her veli için gerçek bir profiles satırı olmak zorunda
@@ -312,8 +348,15 @@ create table sporcular (
   kayit_tarihi text,
   created_at timestamptz not null default now(),
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
+  aktif boolean not null default true,
+  pasif_tarihi timestamptz,
   constraint sporcular_id_kulup_uniq unique (id, kulup_id)
 );
+
+comment on column sporcular.aktif is
+  'false = kulüpten ayrılmış / pasife alınmış sporcu. Kayıt SİLİNMEZ; ödeme ve yoklama geçmişi olduğu gibi korunur (0024).';
+comment on column sporcular.pasif_tarihi is
+  'aktif=false yapıldığı an. Geri alındığında NULL''a döner. Uygulama katmanında yazılır (sporcular/actions.ts).';
 
 create table veli_sporcu (
   veli_id uuid not null references profiles(id) on delete cascade,
@@ -444,7 +487,8 @@ create table gelisim_beceri_seviye (
 
 -- ===========================================================================
 -- 6) DUYURU / ETKİNLİK / MAÇ KADROSU
---    Kaynak: 0009, 0021 (kulup_id)
+--    Kaynak: 0009, 0021 (kulup_id), 0025 (maç sonucu yazma yetkisi — politika
+--            12.7'de, trigger 13.8'de, indeks 14.2'de)
 -- ===========================================================================
 
 create table duyuru (
@@ -876,7 +920,7 @@ create table mobil_ozellik (
 -- Expo push token kaydı — cihaz başına tek satır (token primary key).
 -- token PK'si bilinçli olarak GLOBAL kalıyor: token fiziksel bir cihazı temsil
 -- eder, aynı cihaz iki kulüpte aynı anda kayıtlı olamaz (push_token_devral()
--- trigger'ı zaten eski satırı siliyor — bölüm 13.8).
+-- trigger'ı zaten eski satırı siliyor — bölüm 13.9).
 create table push_token (
   token text primary key,
   user_id uuid not null references profiles(id) on delete cascade,
@@ -961,8 +1005,9 @@ create table davet (
 -- 12) ROW LEVEL SECURITY
 -- ===========================================================================
 -- 47 tablonun tamamında RLS açık. İki katman:
---   12.1–12.12  ROL POLİTİKALARI (permissive, 160 adet) — 0001–0020'nin nihai
---               hâli + kulup ve davet tablolarının kendi politikaları.
+--   12.1–12.12  ROL POLİTİKALARI (permissive, 161 adet) — 0001–0020'nin nihai
+--               hâli + kulup ve davet tablolarının kendi politikaları + 0025'in
+--               antrenör maç sonucu politikası.
 --               · 0016'nın drop+recreate ettiği etkinlik / yoklama(veli insert) /
 --                 bireysel_rezervasyon(antrenör update) / profiles(update)
 --                 politikaları yalnızca 0016 sonrası hâliyle,
@@ -1272,7 +1317,7 @@ create policy "gelisim_seviye: yönetici ve antrenör yazar" on gelisim_beceri_s
 
 
 -- ---------------------------------------------------------------------------
--- 12.7 duyuru / etkinlik / maç kadrosu  (0009 + 0016)
+-- 12.7 duyuru / etkinlik / maç kadrosu  (0009 + 0016 + 0025)
 -- ---------------------------------------------------------------------------
 create policy "duyuru: yönetici tümünü görür" on duyuru for select
   using (private.current_profile_role() = 'yonetici');
@@ -1326,6 +1371,40 @@ create policy "etkinlik: yönetici yazar" on etkinlik for insert
   with check (private.current_profile_role() = 'yonetici');
 create policy "etkinlik: yönetici günceller" on etkinlik for update
   using (private.current_profile_role() = 'yonetici') with check (private.current_profile_role() = 'yonetici');
+
+-- 0025: maç sonucu girişi. RLS SATIR düzeyinde çalışır, KOLON düzeyinde değil —
+-- antrenöre etkinlik UPDATE'i verildiği anda aynı satırın tarih/tesis/ucretli/
+-- tutar alanlarını da değiştirebilir hâle gelir. Kolon bazlı GRANT de çare değil:
+-- yönetici ve antrenör aynı `authenticated` Postgres rolünü paylaşır. Bu yüzden
+-- 0003/0016 deseni tekrarlanıyor — politika HANGİ SATIR'ı, protect_etkinlik_sonuc()
+-- trigger'ı (bölüm 13.8) HANGİ KOLONLAR'ı belirler. İkisi birlikte anlamlıdır.
+--
+-- Sahiplik testi "mac_kadro: antrenör kendi grubunu günceller" ile birebir aynı.
+-- İKİ BİLİNÇLİ DARALTMA:
+--   · `grup_id is not null` — antrenör yukarıdaki SELECT politikasıyla
+--     `grup_id is null` (kulüp geneli) etkinlikleri de GÖRÜR; görmek zararsız
+--     ama böyle bir etkinliğin sahibi hiçbir antrenör değildir, yazma yöneticide.
+--   · `tarih <= current_date` — sonuç ancak oynanmış maça girilir. Aynı gün
+--     oynanan maça akşam giriş yapılabilsin diye `<` değil `<=`.
+create policy "etkinlik: antrenör kendi grubunun maç sonucunu girer" on etkinlik for update
+  using (
+    tur = 'mac'
+    and grup_id is not null
+    and tarih <= current_date
+    and exists (
+      select 1 from sporcular s join sporcu_antrenor sa on sa.sporcu_id = s.id
+      where s.grup_id = etkinlik.grup_id and sa.antrenor_id = auth.uid()
+    )
+  )
+  with check (
+    tur = 'mac'
+    and grup_id is not null
+    and tarih <= current_date
+    and exists (
+      select 1 from sporcular s join sporcu_antrenor sa on sa.sporcu_id = s.id
+      where s.grup_id = etkinlik.grup_id and sa.antrenor_id = auth.uid()
+    )
+  );
 
 create policy "etkinlik_katilim: yönetici tümünü görür" on etkinlik_katilim for select
   using (private.current_profile_role() = 'yonetici');
@@ -1790,7 +1869,8 @@ $$;
 --     Kaynak: 0016 (fonksiyon gövdeleri), 0017 (search_path sertleştirmesi),
 --             0002/0005/0020 (revoke/grant), 0020 (push_token_devral),
 --             0021 (protect_profile_role'e kulup_id), 0022 (davet_coz,
---             protect_davet_sporcu, handle_new_user'ın nihai hali)
+--             protect_davet_sporcu, handle_new_user'ın nihai hali),
+--             0025 (protect_etkinlik_sonuc)
 -- ===========================================================================
 
 -- ---------------------------------------------------------------------------
@@ -2105,7 +2185,46 @@ create trigger on_bireysel_rezervasyon_protect
   for each row execute procedure public.protect_bireysel_rezervasyon();
 
 -- ---------------------------------------------------------------------------
--- 13.8 push_token_devral — cihaz devri. Aynı telefonda A çıkıp B girdiğinde token
+-- 13.8 protect_etkinlik_sonuc — 12.7'deki "antrenör maç sonucunu girer"
+-- politikasının kolon ayağı (0025): yönetici dışındaki kullanıcı etkinlik
+-- satırında YALNIZCA 4 sonuç alanını değiştirebilir.
+--
+-- KOLONLARI TEK TEK SAYMAK YERİNE to_jsonb FARKI:
+--   13.5/13.7 değişmemesi gereken kolonları tek tek sayıyor; orada tablo kapalı
+--   bir küme, burada değil — etkinlik'e 0021 kulup_id ekledi, ileride başkaları
+--   da eklenebilir. Kolon sayan bir gövde yeni her kolonu SESSİZCE serbest
+--   bırakırdı (fail-open). İzinli 4 alanı jsonb'den düşürüp geri kalanı bütün
+--   olarak karşılaştırmak fail-closed davranır: yarın eklenen kolon otomatik korunur.
+--
+-- SONUÇ ↔ SKOR TUTARLILIĞI BİLİNÇLİ OLARAK ZORLANMIYOR: `sonuc` normal akışta
+-- skordan türetiliyor (sonucTuret, app/src/data/etkinlikRepo.ts) ama hükmen
+-- galibiyet gibi skorla uyuşmayan meşru durumlar var. Değer kümesi zaten
+-- etkinlik tablosundaki check constraint ile kapalı.
+create or replace function public.protect_etkinlik_sonuc()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if current_user = 'authenticated'
+     and coalesce(private.current_profile_role()::text, '') <> 'yonetici' then
+    if to_jsonb(new) - 'skor_biz' - 'skor_rakip' - 'sonuc' - 'sonuc_notu'
+       is distinct from
+       to_jsonb(old) - 'skor_biz' - 'skor_rakip' - 'sonuc' - 'sonuc_notu' then
+      raise exception 'etkinlikte yalnızca maç sonucu alanları güncellenebilir';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger on_etkinlik_sonuc_protect
+  before update on public.etkinlik
+  for each row execute procedure public.protect_etkinlik_sonuc();
+
+-- ---------------------------------------------------------------------------
+-- 13.9 push_token_devral — cihaz devri. Aynı telefonda A çıkıp B girdiğinde token
 -- hâlâ A'nın satırındadır; B'nin insert'i PK çakışmasına, upsert'i RLS reddine
 -- takılırdı. Token cihazı temsil eder: INSERT'ten önce aynı token'ın eski satırı
 -- (sahibi kim olursa olsun) SECURITY DEFINER ile silinir.
@@ -2127,12 +2246,12 @@ create trigger on_push_token_devral
 
 
 -- ---------------------------------------------------------------------------
--- 13.9 Grant / revoke
+-- 13.10 Grant / revoke
 -- ---------------------------------------------------------------------------
 -- SIRA KRİTİK: önce toplu GRANT'ler, SONRA hedefli REVOKE'lar. Ters sırada
 -- `grant all on all routines` aşağıda kaldırılan EXECUTE haklarını geri verirdi.
 
--- --- 13.9.1 public şeması toplu izinleri (SAVUNMA AMAÇLI)
+-- --- 13.10.1 public şeması toplu izinleri (SAVUNMA AMAÇLI)
 -- Gerçek bir Supabase projesinde bu blok GEREKSİZDİR: proje kurulurken tanımlanan
 -- `alter default privileges` kuralları, public şemasında yeni yaratılan her
 -- tablo/sequence/fonksiyon için anon, authenticated ve service_role'e izinleri
@@ -2157,9 +2276,9 @@ grant all on all tables    in schema public to anon, authenticated, service_role
 grant all on all sequences in schema public to anon, authenticated, service_role;
 grant all on all routines  in schema public to anon, authenticated, service_role;
 
--- --- 13.9.2 private şeması
--- 0016: private şemasına USAGE. SECURITY INVOKER trigger'lar (13.5, 13.7) isim
--- çözümlemesini ÇAĞIRANIN yetkileriyle runtime'da yapar — USAGE olmadan her
+-- --- 13.10.2 private şeması
+-- 0016: private şemasına USAGE. SECURITY INVOKER trigger'lar (13.5, 13.7, 13.8)
+-- isim çözümlemesini ÇAĞIRANIN yetkileriyle runtime'da yapar — USAGE olmadan her
 -- authenticated UPDATE 'permission denied for schema private' verir.
 grant usage on schema private to authenticated, service_role;
 
@@ -2188,7 +2307,7 @@ revoke execute on function private.davet_coz(text, text) from anon;
 revoke execute on function private.davet_coz(text, text) from authenticated;
 grant  execute on function private.davet_coz(text, text) to service_role;
 
--- --- 13.9.3 public şemasındaki SECURITY DEFINER fonksiyonların kapatılması
+-- --- 13.10.3 public şemasındaki SECURITY DEFINER fonksiyonların kapatılması
 -- 0002 + 0016: handle_new_user() SECURITY DEFINER; yalnızca auth.users insert
 -- trigger'ı çağırmalı. Trigger'ın çalışması bu izne bağlı değildir.
 revoke execute on function public.handle_new_user() from public;
@@ -2203,8 +2322,10 @@ revoke execute on function public.push_token_devral() from authenticated;
 
 -- ===========================================================================
 -- 14) kulup_id İNDEKSLERİ
---     Kaynak: 0021 bölüm 8, 0022 bölüm 2.3
+--     Kaynak: 0021 bölüm 8, 0022 bölüm 2.3, 0024 bölüm 3, 0025 bölüm 3
 -- ===========================================================================
+-- 14.1 TEK KOLONLU kulup_id İNDEKSLERİ
+-- ---------------------------------------------------------------------------
 -- Restrictive politika artık HER sorguya `kulup_id = $1` predicate'i ekliyor;
 -- kulup_id indekssiz kalırsa çok kiracılı ortamda her okuma seq scan olur.
 -- Bileşik (id, kulup_id) unique index'leri kulup_id ile BAŞLAMADIĞI için
@@ -2232,6 +2353,26 @@ end
 $$;
 
 
+-- ---------------------------------------------------------------------------
+-- 14.2 BİLEŞİK / KISMİ İNDEKSLER  (0024 + 0025)
+-- ---------------------------------------------------------------------------
+-- Yukarıdaki tek kolonlu indeksler kiracı duvarını karşılıyor ama liste
+-- ekranlarının gerçek sorgusu iki koşullu. Bu üç indeks ikinci koşulu da kapsar.
+
+-- 0024: sporcu ve grup listelerinin varsayılan sorgusu artık
+--   `kulup_id = ? and aktif = true` biçiminde.
+create index if not exists sporcular_kulup_aktif_idx on public.sporcular (kulup_id, aktif);
+create index if not exists grup_kulup_aktif_idx      on public.grup      (kulup_id, aktif);
+
+-- 0025: "sonucu girilmemiş geçmiş maçlar" ekranlarının açılış sorgusu
+--   `where kulup_id = ? and tur = 'mac' and tarih < ? and sonuc is null`.
+-- Kısmi indeks yalnızca sonucu bekleyen satırları tutar; sonuç girildiği anda
+-- satır indeksten düşer, yani indeks sezon boyunca küçük kalır.
+create index if not exists etkinlik_sonuc_bekleyen_idx
+  on public.etkinlik (kulup_id, tarih desc)
+  where tur = 'mac' and sonuc is null;
+
+
 -- ===========================================================================
 -- 15) REALTIME YAYINI
 --     Kaynak: 0010
@@ -2257,8 +2398,18 @@ reset check_function_bodies;
 
 -- Doğrulama sorguları (elle çalıştırılabilir):
 --   select count(*) from pg_tables where schemaname = 'public';          -- 47
---   select count(*) from pg_policies where schemaname = 'public';        -- 215
---     (160 permissive + 55 restrictive)
+--   select count(*) from pg_policies where schemaname = 'public';        -- 216
+--     (161 permissive + 55 restrictive)
+--
+--   -- 0024/0025 entegrasyonu: 4 kolon + 3 indeks + 1 trigger dönmeli
+--   select table_name, column_name from information_schema.columns
+--    where table_schema='public' and table_name in ('sporcular','grup')
+--      and column_name in ('aktif','pasif_tarihi') order by 1, 2;
+--   select indexname from pg_indexes where schemaname='public'
+--    and indexname in ('sporcular_kulup_aktif_idx','grup_kulup_aktif_idx',
+--                      'etkinlik_sonuc_bekleyen_idx');
+--   select tgname from pg_trigger where tgrelid = 'public.etkinlik'::regclass
+--    and not tgisinternal;                       -- on_etkinlik_sonuc_protect
 --
 --   -- kulup_id taşıyan tablo sayısı → 46 (47 tablo eksi kulup'un kendisi)
 --   select count(*) from information_schema.columns

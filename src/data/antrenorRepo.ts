@@ -56,7 +56,9 @@ export async function getBugunkuGruplar(): Promise<BugunkuGrup[]> {
   return Promise.all(
     rows.map(async (r) => {
       const [{ count: sporcuSayisi }, { data: yoklamaRows }] = await Promise.all([
-        supabase.from('sporcular').select('id', { count: 'exact', head: true }).eq('grup_id', r.grup_id),
+        // Sayaç da aktif sporcuları sayar — yoksa kartta "12 sporcu" yazarken
+        // yoklama listesine 10 satır düşerdi (rosterForAntrenman aynı filtreyi uyguluyor).
+        supabase.from('sporcular').select('id', { count: 'exact', head: true }).eq('grup_id', r.grup_id).eq('aktif', true),
         supabase.from('yoklama').select('durum, izinli, izin_detay, sporcu:sporcular(ad)').eq('antrenman_id', r.id),
       ]);
       const yRows = (yoklamaRows ?? []) as any[];
@@ -78,8 +80,16 @@ export async function getBugunkuGruplar(): Promise<BugunkuGrup[]> {
   );
 }
 
+// PASİF SPORCU GÖRÜNMEZ (0024 yumuşak silme). Yönetici tarafı sporcuyu pasife
+// alırken ekranda "listede gizlenecek" diyor; filtre olmadığında sporcu yalnızca
+// YÖNETİCİ listesinden düşüyor, antrenör onu yoklamada, kadroda ve sporcu
+// listesinde görmeye devam ediyordu. sporcularRepo.getSporcular ile aynı filtre.
 export async function getSporcular(): Promise<Sporcu[]> {
-  const { data, error } = await supabase.from('sporcular').select('id, ad, numara, veli_ad, veli_telefon').order('ad');
+  const { data, error } = await supabase
+    .from('sporcular')
+    .select('id, ad, numara, veli_ad, veli_telefon')
+    .eq('aktif', true)
+    .order('ad');
   if (error) throw error;
   const roster = (data ?? []) as { id: string; ad: string; numara: number | null; veli_ad: string | null; veli_telefon: string | null }[];
   if (roster.length === 0) return [];
@@ -175,7 +185,14 @@ async function rosterForAntrenman(antrenmanId: string | null): Promise<{ id: str
     const { data: ant } = await supabase.from('antrenman').select('grup_id').eq('id', antrenmanId).maybeSingle();
     const grupId = (ant as { grup_id: string } | null)?.grup_id;
     if (grupId) {
-      const { data } = await supabase.from('sporcular').select('id, ad, veli_telefon').eq('grup_id', grupId).order('ad');
+      // aktif filtresi: pasife alınan sporcu yoklama listesinde çıkmasın
+      // (getSporcular'daki aynı gerekçe — burada roster doğrudan sorgulanıyor).
+      const { data } = await supabase
+        .from('sporcular')
+        .select('id, ad, veli_telefon')
+        .eq('grup_id', grupId)
+        .eq('aktif', true)
+        .order('ad');
       return ((data ?? []) as { id: string; ad: string; veli_telefon: string | null }[]).map((s) => ({
         id: s.id,
         ad: s.ad,

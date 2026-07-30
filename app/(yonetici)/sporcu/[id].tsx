@@ -10,6 +10,7 @@ import { Toast, useToast } from '../../../src/components/Toast';
 import {
   ayKaydir,
   buAyAnahtari,
+  getBranslar,
   getGruplar,
   getSporcuDetay,
   getSporcuYoklamaAyi,
@@ -42,6 +43,10 @@ export default function SporcuDetayScreen() {
   // Grup artık serbest metin DEĞİL, katalogdan id ile seçiliyor (bkz. sporcularRepo).
   const [editGrupId, setEditGrupId] = useState<string | null>(null);
   const [gruplar, setGruplar] = useState<KatalogSecenegi[]>([]);
+  // Branş da düzenlenebilir: eskiden yalnızca sporcu eklenirken atanıyordu,
+  // yanlış seçilen branş mobilden düzeltilemiyordu (panelde düzeltilebiliyor).
+  const [editBransId, setEditBransId] = useState<string | null>(null);
+  const [branslar, setBranslar] = useState<KatalogSecenegi[]>([]);
   const [editVeliAd, setEditVeliAd] = useState('');
   const [editVeliTelefon, setEditVeliTelefon] = useState('');
   const [editVeliYakinlik, setEditVeliYakinlik] = useState('');
@@ -62,10 +67,11 @@ export default function SporcuDetayScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [d, g] = await Promise.all([getSporcuDetay(id), getGruplar()]);
+      const [d, g, b] = await Promise.all([getSporcuDetay(id), getGruplar(), getBranslar()]);
       setDetay(d);
       setTakvim(d.takvim);
       setGruplar(g);
+      setBranslar(b);
     } catch {
       setError('Sporcu bilgisi yüklenemedi.');
     } finally {
@@ -108,6 +114,7 @@ export default function SporcuDetayScreen() {
     if (!detay) return;
     setEditAd(detay.ad);
     setEditGrupId(detay.grupId);
+    setEditBransId(detay.bransId);
     setEditVeliAd(detay.veliAd);
     setEditVeliTelefon(detay.veliTelefon);
     setEditVeliYakinlik(detay.veliYakinlik);
@@ -121,6 +128,13 @@ export default function SporcuDetayScreen() {
     detay?.grupId && !gruplar.some((g) => g.id === detay.grupId)
       ? [{ id: detay.grupId, ad: `${detay.grup || 'Mevcut grup'} (pasif)` }, ...gruplar]
       : gruplar;
+
+  // Sporcunun mevcut branşı katalogda bulunamazsa (kurum branş listesinden
+  // çıkarılmış olabilir) seçenek olarak eklenir — grup seçicideki aynı gerekçe.
+  const bransSecenekleri: KatalogSecenegi[] =
+    detay?.bransId && !branslar.some((b) => b.id === detay.bransId)
+      ? [{ id: detay.bransId, ad: detay.brans || 'Mevcut branş' }, ...branslar]
+      : branslar;
 
   async function onSaveEdit() {
     if (!id || !editAd.trim() || !editVeliAd.trim() || !editVeliTelefon.trim()) {
@@ -136,6 +150,7 @@ export default function SporcuDetayScreen() {
       await updateSporcuBilgi(id, {
         ad: editAd.trim(),
         grupId: editGrupId,
+        bransId: editBransId,
         veliAd: editVeliAd.trim(),
         veliTelefon: editVeliTelefon.trim(),
         veliYakinlik: editVeliYakinlik.trim() || 'Veli',
@@ -143,6 +158,11 @@ export default function SporcuDetayScreen() {
       await load();
       setEditOpen(false);
       showToast('Bilgiler güncellendi');
+    } catch {
+      // catch YOKKEN hata sessizce yutuluyordu: modal açık kalıyor, kullanıcı
+      // kaydın gittiğini sanıyor ve işlenmemiş promise reddi oluşuyordu
+      // (onAktiflikDegistir'deki aynı desen).
+      showToast('Bilgiler kaydedilemedi, tekrar dene');
     } finally {
       setKaydediliyor(false);
     }
@@ -402,6 +422,29 @@ export default function SporcuDetayScreen() {
                           onPress={() => setEditGrupId(g.id)}
                         >
                           <Text style={[styles.pickChipText, secili && styles.pickChipTextActive]}>{g.ad}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+              {/* Branş grupla aynı desende seçiliyor — eskiden bu alan formda hiç
+                  yoktu ve updateSporcuBilgi brans_id'ye dokunmuyordu. */}
+              <View>
+                <Text style={styles.fieldLabel}>BRANŞ</Text>
+                {bransSecenekleri.length === 0 ? (
+                  <Text style={styles.pickEmpty}>Kayıtlı branş yok — önce panelden branş açılmalı.</Text>
+                ) : (
+                  <View style={styles.pickRow}>
+                    {bransSecenekleri.map((b) => {
+                      const secili = editBransId === b.id;
+                      return (
+                        <Pressable
+                          key={b.id}
+                          style={[styles.pickChip, secili && styles.pickChipActive]}
+                          onPress={() => setEditBransId(secili ? null : b.id)}
+                        >
+                          <Text style={[styles.pickChipText, secili && styles.pickChipTextActive]}>{b.ad}</Text>
                         </Pressable>
                       );
                     })}

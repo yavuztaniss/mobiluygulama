@@ -47,6 +47,9 @@
 --   5) kurulum/04_ilk_yonetici.sql
 --   6) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
 --
+-- ✔ Bu altı adım YETERLİDİR: 01_sema.sql migration 0001–0025'in nihai halini
+--   içerir. app/supabase/migrations/ altındaki dosyaları ayrıca çalıştırmayın.
+--
 -- IDEMPOTENT: her insert `on conflict ... do nothing` ile yazılmıştır, dosya
 -- birden fazla kez çalıştırılabilir; var olan satırlar EZİLMEZ.
 --

@@ -21,6 +21,9 @@
 --   5) kurulum/04_ilk_yonetici.sql
 --   6) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
 --
+-- ✔ Bu altı adım YETERLİDİR: 01_sema.sql migration 0001–0025'in nihai halini
+--   içerir. app/supabase/migrations/ altındaki dosyaları ayrıca çalıştırmayın.
+--
 -- ⚠ SQL EDITOR'DA (postgres rolüyle) ÇALIŞTIRILIR.
 --   Bu bağlamda auth.uid() NULL'dur, dolayısıyla kolonların
 --   `default private.current_kulup_id()` değeri de NULL üretir. Bu yüzden

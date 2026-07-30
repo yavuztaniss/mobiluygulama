@@ -18,6 +18,26 @@ import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from
 //     yöneticisidir.
 // İstemcinin taşıdığı tek şey davet TOKEN'ıdır; o da bir iddia değil, kanıttır.
 
+// ---------------------------------------------------------------------------
+// DAVET KODU — link açılmadığında ELLE giriş
+// ---------------------------------------------------------------------------
+// Panel daveti oluştururken iki ayrı yerde "bağlantı açılmazsa kod kayıt
+// ekranına elle girilebilir" diyor. Bu alan olmadan o vaadin karşılığı yoktu:
+// token'ın tek kaynağı route parametresiydi, yani bağlantıyı açamayan kullanıcı
+// (bağlantı e-postada bozulmuş, uygulama başka cihazda kurulu, WhatsApp linki
+// kırpmış) kaydını hiçbir şekilde tamamlayamıyordu.
+//
+// Kod 0022'de `encode(gen_random_bytes(16), 'hex')` ile üretilir → 32 karakter,
+// yalnızca 0-9 ve a-f. Ham metin doğrudan gönderilmez: kopyala-yapıştırda araya
+// giren boşluk/satır sonu ve otomatik büyük harfe çeviren klavyeler yüzünden
+// GEÇERLİ bir kod sunucuda eşleşmeden reddedilirdi.
+const DAVET_KODU_UZUNLUK = 32;
+const DAVET_KODU_BICIMI = new RegExp(`^[0-9a-f]{${DAVET_KODU_UZUNLUK}}$`);
+
+function normalizeDavetKodu(ham: string): string {
+  return ham.replace(/\s/g, '').toLowerCase();
+}
+
 export default function RegisterScreen() {
   const { signUp } = useAuth();
   // Davet linki bu ekrana `davet` parametresiyle gelir: girişi app/davet/[token].tsx
@@ -29,11 +49,18 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [davetKodu, setDavetKodu] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const davetToken = typeof davet === 'string' ? davet.trim() : '';
+  // İki kaynak: (1) davet bağlantısının bıraktığı route parametresi,
+  // (2) kullanıcının elle yazdığı kod. Bağlantıdan gelen kazanır — o ekranda
+  // alan gösterilmez, kod yalnızca salt-okunur bilgi olarak yazılır.
+  const linkToken = normalizeDavetKodu(typeof davet === 'string' ? davet : '');
+  const linkleGeldi = linkToken.length > 0;
+  const elleGirilenToken = normalizeDavetKodu(davetKodu);
+  const davetToken = linkleGeldi ? linkToken : elleGirilenToken;
   const davetliMi = davetToken.length > 0;
 
   async function onSubmit() {
@@ -48,6 +75,15 @@ export default function RegisterScreen() {
     }
     if (password !== passwordConfirm) {
       setError('Şifreler eşleşmiyor.');
+      return;
+    }
+    // Elle yazılan kod BİÇİM kontrolünden geçer. Sunucuya bırakılsaydı tek bir
+    // eksik karakter bile "davet kabul edilmedi" hatasına dönüşür, kullanıcı da
+    // kodun yanlış YAZILDIĞINI değil geçersiz OLDUĞUNU sanırdı.
+    if (!linkleGeldi && elleGirilenToken.length > 0 && !DAVET_KODU_BICIMI.test(elleGirilenToken)) {
+      setError(
+        `Davet kodu ${DAVET_KODU_UZUNLUK} karakter olmalı ve yalnızca 0-9 ile a-f harflerinden oluşmalıdır. Kodu davet bağlantısındaki hâliyle kopyalayın.`
+      );
       return;
     }
     setLoading(true);
@@ -75,7 +111,7 @@ export default function RegisterScreen() {
           </Text>
           {davetliMi && (
             <Text style={styles.ipucu}>
-              Davet bağlantınız kullanıldı; tek kullanımlıktır ve aynı bağlantıyla ikinci bir hesap açılamaz.
+              Davetiniz kullanıldı; tek kullanımlıktır ve aynı davetle ikinci bir hesap açılamaz.
             </Text>
           )}
           <Link href="/(auth)/login" style={styles.link}>
@@ -91,20 +127,31 @@ export default function RegisterScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Kayıt Ol</Text>
+          {/* Alt başlık ELLE girilen koda göre değişmez (linkleGeldi'ye bakar):
+              kullanıcı kodu yazarken metnin satır sayısı değişip form zıplamasın. */}
           <Text style={styles.subtitle}>
-            {davetliMi ? 'Kulübünüzün gönderdiği davet bağlantısıyla hesabını oluştur.' : 'Veli hesabını oluştur.'}
+            {linkleGeldi
+              ? 'Kulübünüzün gönderdiği davet bağlantısıyla hesabını oluştur.'
+              : 'Hesabını oluştur. Kulübünüzden davet kodu aldıysan aşağıdaki alana gir.'}
           </Text>
 
           {/* Kulüp ADI bilinçli olarak gösterilmiyor: davet tablosu oturumsuz
               istemciye kapalı (0022 bölüm 3) ve çözümleyici fonksiyon PostgREST'e
               açılmıyor. Adı gösterebilmek için yalnızca kulüp adını döndüren dar
               bir RPC gerekir (0022 bölüm 8, madde U4) — o gelene kadar nötr metin. */}
-          {davetliMi && (
+          {linkleGeldi && (
             <View style={styles.davetBox}>
               <Text style={styles.davetBaslik}>Davetiye ile kayıt oluyorsunuz</Text>
               <Text style={styles.davetMetin}>
                 Kulübünüz ve uygulamadaki rolünüz davet bağlantısından gelir, burada seçmenize gerek yok. Davet size
                 özel bir e-posta adresine çıkarıldıysa kaydı o adresle tamamlamalısınız.
+              </Text>
+              {/* Bağlantıdan gelen kod SALT OKUNUR gösteriliyor: kullanıcı destekle
+                  konuşurken hangi daveti kullandığını söyleyebilsin, ama düzenleyip
+                  bozamasın. */}
+              <Text style={styles.davetKodEtiket}>DAVET KODU</Text>
+              <Text style={styles.davetKodDeger} selectable numberOfLines={1}>
+                {linkToken}
               </Text>
             </View>
           )}
@@ -128,6 +175,26 @@ export default function RegisterScreen() {
               onChangeText={setPasswordConfirm}
               placeholder="••••••••"
             />
+            {/* Bağlantıdan gelen kod varsa alan gösterilmez — iki kaynak aynı anda
+                açık olsaydı hangisinin geçerli olduğu belirsiz kalırdı. */}
+            {!linkleGeldi && (
+              <View>
+                <TextField
+                  label="Davet Kodu (varsa)"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  value={davetKodu}
+                  onChangeText={setDavetKodu}
+                  placeholder={`${DAVET_KODU_UZUNLUK} karakterli davet kodu`}
+                />
+                <Text style={styles.alanIpucu}>
+                  {DAVET_KODU_BICIMI.test(elleGirilenToken)
+                    ? 'Kod okundu. Kulübünüz ve rolünüz bu koddan gelecek.'
+                    : 'Davet bağlantısı açılmadıysa, bağlantının sonundaki kodu buraya yapıştırın. Davetiniz yoksa boş bırakın.'}
+                </Text>
+              </View>
+            )}
             {!!error && <Text style={styles.error}>{error}</Text>}
             <Button label="Hesap Oluştur" onPress={onSubmit} loading={loading} />
           </View>
@@ -137,7 +204,10 @@ export default function RegisterScreen() {
               yalnızca hatırlatma yapılıyor; birden fazla kulüp varsa sunucu
               reddedecek ve aşağıdaki çeviri devreye girecek. */}
           {!davetliMi && (
-            <Text style={styles.ipucu}>Kulübünüzden davet bağlantısı aldıysanız kaydınızı o bağlantıdan açın.</Text>
+            <Text style={styles.ipucu}>
+              Kulübünüzden davet bağlantısı aldıysanız kaydınızı o bağlantıdan açın; bağlantı açılmıyorsa kodu
+              yukarıdaki alana yazabilirsiniz.
+            </Text>
           )}
 
           <View style={styles.footer}>
@@ -182,10 +252,12 @@ function kayitHatasiniCevir(ham: string, davetliMi: boolean): string {
   }
 
   // Buraya düşen hata pratikte kayıt tetikleyicisinden gelir.
+  // Metin "bağlantı" demiyor: davet artık elle girilen kodla da kullanılabiliyor,
+  // kodu yazan kullanıcıya bağlantıdan söz etmek kafa karıştırırdı.
   if (davetliMi) {
-    return 'Davet bağlantısı kabul edilmedi. Bağlantının süresi dolmuş, daha önce kullanılmış ya da başka bir e-posta adresine düzenlenmiş olabilir. Kulüp yöneticinizden yeni bir davet bağlantısı isteyin.';
+    return 'Davetiniz kabul edilmedi. Davetin süresi dolmuş, daha önce kullanılmış, kod eksik/yanlış kopyalanmış ya da davet başka bir e-posta adresine çıkarılmış olabilir. Kulüp yöneticinizden yeni bir davet isteyin.';
   }
-  return 'Kayıt olabilmek için kulübünüzden davet bağlantısı almanız gerekiyor. Kulüp yöneticinize başvurun; size gönderilecek bağlantıyı açtığınızda kaydınızı buradan tamamlayabilirsiniz.';
+  return 'Kayıt olabilmek için kulübünüzden davet almanız gerekiyor. Kulüp yöneticinize başvurun; size gönderilecek bağlantıyı açarak ya da davet kodunu yukarıdaki alana girerek kaydınızı tamamlayabilirsiniz.';
 }
 
 function createStyles(colors: AppColors) {
@@ -211,6 +283,22 @@ function createStyles(colors: AppColors) {
     },
     davetBaslik: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.base, color: colors.accent },
     davetMetin: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.sm, color: colors.text, lineHeight: 19 },
+    davetKodEtiket: {
+      marginTop: spacing.xs,
+      fontFamily: fontFamily.mono,
+      fontSize: fontSize.xs,
+      fontWeight: '800',
+      letterSpacing: 1.4,
+      color: colors.textDim,
+    },
+    davetKodDeger: { fontFamily: fontFamily.mono, fontSize: fontSize.sm, color: colors.textMuted },
+    alanIpucu: {
+      marginTop: spacing.xs,
+      fontFamily: fontFamily.manropeMedium,
+      fontSize: fontSize.sm,
+      color: colors.textDim,
+      lineHeight: 18,
+    },
     ipucu: {
       marginTop: spacing.md,
       fontFamily: fontFamily.manropeMedium,

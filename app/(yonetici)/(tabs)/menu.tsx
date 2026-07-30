@@ -17,6 +17,9 @@ const MENU_ITEMS: { label: string; href: string }[] = [
   { label: 'Mağaza Yönetimi', href: '/magaza' },
   { label: 'Servis Rotaları', href: '/servis' },
   { label: 'Etkinlik Oluştur', href: '/etkinlik-olustur' },
+  // Maç Sonuçları ekranı (0025) vardı ama hiçbir menüden erişilemiyordu —
+  // yalnızca elle derin bağlantıyla açılabiliyordu.
+  { label: 'Maç Sonuçları', href: '/mac-sonuc' },
   { label: 'Başvurular', href: '/basvurular' },
   { label: 'Antrenör Kadrosu & Hakediş', href: '/antrenor-kadrosu' },
 ];

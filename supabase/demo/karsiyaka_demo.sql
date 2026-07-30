@@ -9,11 +9,14 @@
 --
 -- ÖN KOŞULLAR (sırayla):
 --   1) kurulum/01_sema.sql            çalıştırılmış olmalı
+--      (paket 0001–0025'i içerir; ayrıca migration çalıştırmak GEREKMEZ)
 --   2) kurulum/02_katalog.sql         çalıştırılmış olmalı
 --      (brans + beceri satırları buradaki kayıtların FK hedefidir)
 --   3) kurulum/03_kulup_olustur.sql   çalıştırılmış olmalı (kulüp + merkez şube)
 --   4) kurulum/04_ilk_yonetici.sql    çalıştırılmış olmalı
 --   5) ⚠ AŞAĞIDAKİ E-POSTAYA SAHİP BİR SUPABASE AUTH KULLANICISI ZATEN VAR OLMALI
+--   6) ⚠ DEMO KULÜBÜNÜN durum'u 'aktif' OLMALI (0023 kill-switch'i; BÖLÜM 0
+--      bunu kontrol eder ve değilse açıklayıcı bir hatayla durur)
 --
 -- =============================================================================
 -- ÇOK KİRACILILIK — bu dosya nasıl çalışıyor (0021/0022 sonrası)
@@ -48,21 +51,24 @@
 --   Supabase Auth'ta oluşturun (Authentication > Users > Add user), sonra bu
 --   dosyayı yeniden çalıştırın.
 --
---   ⚙ E-POSTAYI DEĞİŞTİRMEK İÇİN: aşağıdaki satırlarda geçen
---   'yavuzttaniss@gmail.com' değerini toplu olarak (bul & değiştir) güncelleyin.
---   Toplam 11 yer — bu dosyadaki satır numaraları:
+--   ⚙ E-POSTAYI DEĞİŞTİRMEK İÇİN: bu dosyada geçen 'yavuzttaniss@gmail.com'
+--   değerinin TAMAMINI toplu olarak (bul & değiştir) güncelleyin.
 --
---       satır  167 — veli_sporcu           (Ali Kaya bağı)          · Bölüm 4
---       satır  172 — veli_sporcu           (Zeynep Kaya bağı)       · Bölüm 4
---       satır  179 — sporcu_antrenor       (U12 Basketbol roster'ı) · Bölüm 4
---       satır  387 — konusma               (demo sohbet)            · Bölüm 10
---       satır  398 — mesaj                 (sohbetin 3 mesajı)      · Bölüm 10
---       satır  493 — bireysel_antrenor                              · Bölüm 13
---       satır  508 — bireysel_musaitlik                             · Bölüm 13
---       satır  514 — bireysel_paket                                 · Bölüm 13
---       satır  521 — bireysel_rezervasyon  (geçmiş / tamamlandı)    · Bölüm 13
---       satır  527 — bireysel_rezervasyon  (yaklaşan / onay bekl.)  · Bölüm 13
---       satır  541 — antrenor_grup_ucret                            · Bölüm 14
+--   SATIR NUMARASI BİLİNÇLİ OLARAK VERİLMİYOR: dosya her düzenlemede kayar,
+--   eski bir numara listesi doğru olmaktan çıkar ve yanlış satıra yönlendirir.
+--   Geçtiği yerler (bölüm bazında):
+--
+--       BÖLÜM 0   — oturum bağlamı ön kontrolü (sorgu + hata mesajı)
+--       Bölüm 4   — veli_sporcu (Ali Kaya + Zeynep Kaya bağı)
+--                   sporcu_antrenor (U12 Basketbol roster'ı)
+--       Bölüm 10  — konusma (demo sohbet) + mesaj (sohbetin 3 mesajı)
+--       Bölüm 13  — bireysel_antrenor, bireysel_musaitlik, bireysel_paket,
+--                   bireysel_rezervasyon (geçmiş + yaklaşan)
+--       Bölüm 14  — antrenor_grup_ucret
+--
+--   Değiştirdikten sonra editörde eski adresi tekrar aratın: hiç eşleşme
+--   kalmamalı. Baştaki dosyada toplam 15 eşleşme vardır — 13'ü çalışan SQL,
+--   2'si bu açıklama bloğu.
 --
 --   NOT: Migration 0004 ve 0008'de bu bağlar ESKİ test hesabına
 --   ('karsiyaka.test.20260721@gmail.com') kuruluydu. O hesap artık
@@ -95,17 +101,26 @@
 -- olur ve aşağıdaki tüm insert'lerde kulup_id varsayılanı
 -- (private.current_kulup_id()) demo kulübünü döndürür.
 --
--- Hesap yoksa ya da bir kulübe bağlı değilse dosya BURADA, açıklayıcı bir
--- hatayla durur — 100 satır ilerledikten sonra anlaşılmaz bir NOT NULL
--- ihlaliyle patlamak yerine.
+-- Hesap yoksa, bir kulübe bağlı değilse ya da kulübün durumu 'aktif' değilse
+-- dosya BURADA, açıklayıcı bir hatayla durur — 100 satır ilerledikten sonra
+-- anlaşılmaz bir NOT NULL ihlaliyle patlamak yerine.
+--
+-- ⚠ DURUM KONTROLÜ ZORUNLU (0023 kill-switch'i): private.current_kulup_id()
+-- gövdesinde `k.durum = 'aktif'` koşulu var. Kulüp 'deneme' ya da 'askida' ise
+-- fonksiyon — hesap kulübe bağlı olsa bile — NULL döner; aşağıdaki insert'lerin
+-- kulup_id varsayılanı NULL üretir ve ilk insert 23502 ile patlar. kulup.durum
+-- varsayılanının 'deneme' olduğu düşünülürse bu, kaçırılması çok kolay bir
+-- senaryodur: tam da bu bloğun önlemek için var olduğu hata.
 do $$
 declare
   v_uid   uuid;
   v_kulup uuid;
+  v_durum text;
 begin
-  select u.id, p.kulup_id into v_uid, v_kulup
+  select u.id, p.kulup_id, k.durum into v_uid, v_kulup, v_durum
     from auth.users u
     left join public.profiles p on p.id = u.id
+    left join public.kulup k on k.id = p.kulup_id
    where u.email = 'yavuzttaniss@gmail.com';
 
   if v_uid is null then
@@ -114,12 +129,16 @@ begin
   if v_kulup is null then
     raise exception 'Demo hesabının profili bir kulübe bağlı değil. Önce kurulum/03_kulup_olustur.sql ve kurulum/04_ilk_yonetici.sql çalıştırılmalı.';
   end if;
+  if v_durum is distinct from 'aktif' then
+    raise exception 'Demo kulübünün durumu ''%'' — ''aktif'' olmalı. Bu haliyle private.current_kulup_id() NULL döner ve aşağıdaki insert''ler NOT NULL (23502) hatasıyla durur. Açmak için: update public.kulup set durum = ''aktif'' where id = ''%'';',
+      coalesce(v_durum, '(kulüp kaydı yok)'), v_kulup;
+  end if;
 
   perform set_config('request.jwt.claims',
                      json_build_object('sub', v_uid, 'role', 'authenticated')::text,
                      false);   -- false = oturum boyunca geçerli (transaction'a bağlı değil)
 
-  raise notice 'Demo oturum bağlamı kuruldu — kulüp: %', v_kulup;
+  raise notice 'Demo oturum bağlamı kuruldu — kulüp: % (durum: %)', v_kulup, v_durum;
 end $$;
 
 
@@ -147,8 +166,18 @@ insert into kurum_hizmet_turu_secimi (sube_id, hizmet_turu_id) values
   ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001')
 on conflict do nothing;
 
--- Kurum adını demo kulübüne çevir (02_katalog.sql nötr bir yer tutucu yazar).
-update kurum_ayarlari set kulup_adi = 'Karşıyaka Spor Okulu', updated_at = now() where id;
+-- Kurum adını demo kulübüne çevir (03_kulup_olustur.sql nötr bir yer tutucu yazar).
+--
+-- ⚠ WHERE ŞARTI KİRACIYA GÖRE — `where id` YAZMAYIN. kurum_ayarlari.id bir
+-- BOOLEAN kolondur (singleton işareti, `check (id)`), tablonun gerçek PK'si
+-- kulup_id'dir. `where id` Postgres için `where true` demektir ve bu dosya SQL
+-- Editor'da `postgres` rolüyle koştuğu için RLS de baypas edilir: tek satırlık
+-- bu UPDATE, projedeki BÜTÜN kulüplerin adını 'Karşıyaka Spor Okulu' yapardı.
+-- BÖLÜM 0 oturum bağlamını zaten kurduğu için current_kulup_id() demo kulübünü
+-- döndürür ve güncelleme tek kiracıyla sınırlı kalır.
+update kurum_ayarlari
+   set kulup_adi = 'Karşıyaka Spor Okulu', updated_at = now()
+ where kulup_id = private.current_kulup_id();
 
 
 -- =============================================================================
