@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { LoadingState, ErrorState, EmptyState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { getKonusmalar, getRehber, sohbetBaslat } from '../../../src/data/mesajRepo';
 import type { KonusmaSatir, RehberKisi } from '../../../src/data/types-mesaj';
 import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
@@ -18,6 +18,7 @@ export default function MesajlarScreen() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const [rehberOpen, setRehberOpen] = useState(false);
   const [rehber, setRehber] = useState<RehberKisi[]>([]);
@@ -53,7 +54,14 @@ export default function MesajlarScreen() {
   async function onSecKisi(kisi: RehberKisi) {
     setBaslatiliyorId(kisi.id);
     try {
-      const konusmaId = await sohbetBaslat(kisi.id);
+      // Hata yutulduğunda rehber modalı sebepsiz açık kalıyor, kullanıcı
+      // dokunmanın işe yaramadığını sanıp tekrar tekrar deniyordu.
+      let konusmaId = '';
+      const oldu = await calistir(
+        async () => { konusmaId = await sohbetBaslat(kisi.id); },
+        'Sohbet başlatılamadı. Bağlantınızı kontrol edin.'
+      );
+      if (!oldu) return;
       setRehberOpen(false);
       router.push(`/mesajlar/${konusmaId}`);
     } finally {

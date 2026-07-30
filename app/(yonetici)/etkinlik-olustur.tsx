@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { TextField } from '../../src/components/TextField';
-import { Toast, useToast } from '../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../src/components/Toast';
 import { getGruplar, publishEtkinlik } from '../../src/data/etkinlikRepo';
 import type { EtkinlikTuru } from '../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../src/theme';
@@ -21,6 +21,7 @@ export default function EtkinlikOlusturScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
   const [gruplar, setGruplar] = useState<{ id: string; ad: string }[]>([]);
   const [tur, setTur] = useState<EtkinlikTuru>('mac');
   const [baslik, setBaslik] = useState('');
@@ -59,7 +60,14 @@ export default function EtkinlikOlusturScreen() {
     }
     setPublishing(true);
     try {
-      await publishEtkinlik({ tur, baslik, grupId, tesis, tarih, saat: saat || '—', lcv, ucretli, tutar: ucretli ? tutar : undefined });
+      // Hata yutulduğunda "yayınlandı" ekranı açılıyor ama etkinlik hiç
+      // oluşmuyordu. Başarı ekranı artık yalnızca gerçekten yazıldıysa geliyor;
+      // hatada form dolu kalıyor ve tekrar denenebiliyor.
+      const oldu = await calistir(
+        () => publishEtkinlik({ tur, baslik, grupId, tesis, tarih, saat: saat || '—', lcv, ucretli, tutar: ucretli ? tutar : undefined }),
+        'Etkinlik yayınlanamadı. Bağlantınızı kontrol edip tekrar deneyin.'
+      );
+      if (!oldu) return;
       setOzet(`${turMeta.label} · ${baslik} · ${grupAdi} · ${tarih} ${saat}`.trim());
       setDone(true);
     } finally {

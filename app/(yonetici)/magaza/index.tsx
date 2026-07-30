@@ -8,7 +8,7 @@ import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { addUrun, getSiparisler, getUrunler, setSiparisDurum, toggleUrunAktif } from '../../../src/data/magazaRepo';
 import type { Siparis, SiparisDurum, Urun } from '../../../src/data/types-magaza';
 import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
@@ -32,6 +32,7 @@ export default function MagazaScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
   const [durumSecId, setDurumSecId] = useState<string | null>(null);
 
   const [addOpen, setAddOpen] = useState(false);
@@ -58,9 +59,10 @@ export default function MagazaScreen() {
     load();
   }, [load]);
 
+  // Stoğu biten ürün pasife alınamazsa veliler sipariş vermeye devam eder.
   async function onToggle(id: string) {
-    await toggleUrunAktif(id);
-    setUrunler(await getUrunler());
+    const oldu = await calistir(() => toggleUrunAktif(id), 'Ürün durumu değiştirilemedi. Tekrar deneyin.');
+    if (oldu) setUrunler(await getUrunler());
   }
 
   async function onSubmitAdd() {
@@ -70,7 +72,13 @@ export default function MagazaScreen() {
     }
     setSaving(true);
     try {
-      await addUrun({ ad, fiyat: fiyat.startsWith('₺') ? fiyat : '₺' + fiyat, stok: parseInt(stok, 10) || 0 });
+      // Form alanları yalnızca kayıt geçtiyse temizleniyor; hatada girilen
+      // ad/fiyat/stok ekranda duruyor.
+      const oldu = await calistir(
+        () => addUrun({ ad, fiyat: fiyat.startsWith('₺') ? fiyat : '₺' + fiyat, stok: parseInt(stok, 10) || 0 }),
+        'Ürün eklenemedi. Tekrar deneyin.'
+      );
+      if (!oldu) return;
       setUrunler(await getUrunler());
       setAddOpen(false);
       setAd('');
@@ -83,7 +91,8 @@ export default function MagazaScreen() {
   }
 
   async function onPickDurum(id: string, durum: SiparisDurum) {
-    await setSiparisDurum(id, durum);
+    const oldu = await calistir(() => setSiparisDurum(id, durum), 'Sipariş durumu güncellenemedi. Tekrar deneyin.');
+    if (!oldu) return;
     setSiparisler(await getSiparisler());
     setDurumSecId(null);
     // Dürüst metin: veliye bildirim gitmiyor — yalnızca sipariş durumu güncelleniyor

@@ -6,7 +6,7 @@ import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { AppModal } from '../../src/components/AppModal';
 import { Button } from '../../src/components/Button';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
-import { Toast, useToast } from '../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../src/components/Toast';
 import { geriAlBasvuru, getBasvurular, onaylaBasvuru, reddetBasvuru } from '../../src/data/basvurularRepo';
 import { getGruplar } from '../../src/data/etkinlikRepo';
 import type { Basvuru } from '../../src/data/types';
@@ -19,6 +19,7 @@ export default function BasvurularScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const [grupSheetFor, setGrupSheetFor] = useState<Basvuru | null>(null);
   const [gruplar, setGruplar] = useState<{ id: string; ad: string }[]>([]);
@@ -43,10 +44,16 @@ export default function BasvurularScreen() {
 
   const pendingCount = basvurular.filter((b) => b.durum === 'bekliyor').length;
 
-  async function onaylaVeYenile(b: Basvuru, grupId?: string) {
-    await onaylaBasvuru(b.id, grupId);
+  // Onay iki yazma birden yapıyor (sporcu satırı + veli_sporcu bağı). Hata
+  // yutulduğunda ne kayıt oluşuyor ne de uyarı çıkıyordu; yönetici başvurunun
+  // onaylandığını sanıp listede "bekliyor" görmeye devam ediyordu.
+  // Dönüş değeri çağıranlara taşınıyor: grup sayfası ancak başarıda kapansın.
+  async function onaylaVeYenile(b: Basvuru, grupId?: string): Promise<boolean> {
+    const oldu = await calistir(() => onaylaBasvuru(b.id, grupId), 'Başvuru onaylanamadı. Tekrar deneyin.');
+    if (!oldu) return false;
     setBasvurular(await getBasvurular());
     showToast(`${b.ad.split(' ')[0]} onaylandı · gerçek sporcu kaydı oluşturuldu`);
+    return true;
   }
 
   async function onOnaylaTap(b: Basvuru) {
@@ -67,22 +74,25 @@ export default function BasvurularScreen() {
     }
     setOnaylaniyor(true);
     try {
-      await onaylaVeYenile(grupSheetFor, seciliGrup);
-      setGrupSheetFor(null);
+      // Sayfa yalnızca onay GERÇEKTEN geçtiyse kapanıyor; hata durumunda açık
+      // kalıyor ki yönetici seçtiği grubu kaybetmeden tekrar deneyebilsin.
+      const oldu = await onaylaVeYenile(grupSheetFor, seciliGrup);
+      if (oldu) setGrupSheetFor(null);
     } finally {
       setOnaylaniyor(false);
     }
   }
 
   async function onReddet(b: Basvuru) {
-    await reddetBasvuru(b.id);
+    const oldu = await calistir(() => reddetBasvuru(b.id), 'Başvuru reddedilemedi. Tekrar deneyin.');
+    if (!oldu) return;
     setBasvurular(await getBasvurular());
     showToast('Başvuru reddedildi · veliye iletildi');
   }
 
   async function onGeriAl(b: Basvuru) {
-    await geriAlBasvuru(b.id);
-    setBasvurular(await getBasvurular());
+    const oldu = await calistir(() => geriAlBasvuru(b.id), 'Geri alınamadı. Tekrar deneyin.');
+    if (oldu) setBasvurular(await getBasvurular());
   }
 
   return (

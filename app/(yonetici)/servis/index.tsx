@@ -6,7 +6,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { Card } from '../../../src/components/Card';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { addRota, getRotalar } from '../../../src/data/servisRepo';
 import type { ServisRota } from '../../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../../../src/theme';
@@ -18,6 +18,7 @@ export default function ServisListesiScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ad, setAd] = useState('');
@@ -62,7 +63,13 @@ export default function ServisListesiScreen() {
     }
     setKaydediliyor(true);
     try {
-      await addRota({ ad: ad.trim(), sofor: sofor.trim(), soforTelefon: soforTel.trim(), plaka: plaka.trim(), arac: arac.trim() || 'Belirtilmedi', alt: alt.trim() || 'Sefer saati belirlenmedi' });
+      // Sayfa yalnızca kayıt geçtiyse kapanıyor; hatada girilen rota bilgileri
+      // formda duruyor (eskiden sayfa açık kalıyordu ama sebebi söylenmiyordu).
+      const oldu = await calistir(
+        () => addRota({ ad: ad.trim(), sofor: sofor.trim(), soforTelefon: soforTel.trim(), plaka: plaka.trim(), arac: arac.trim() || 'Belirtilmedi', alt: alt.trim() || 'Sefer saati belirlenmedi' }),
+        'Rota eklenemedi. Tekrar deneyin.'
+      );
+      if (!oldu) return;
       await load();
       setSheetOpen(false);
       showToast('Yeni rota eklendi');

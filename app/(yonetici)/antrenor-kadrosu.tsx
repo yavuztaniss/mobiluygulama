@@ -7,7 +7,7 @@ import { AppModal } from '../../src/components/AppModal';
 import { Button } from '../../src/components/Button';
 import { TextField } from '../../src/components/TextField';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
-import { Toast, useToast } from '../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../src/components/Toast';
 import { getAntrenorSecenekleri, getHakedisler, odeHakedis, setDersUcreti, type AntrenorSecenegi } from '../../src/data/hakedisRepo';
 import { getGruplar } from '../../src/data/etkinlikRepo';
 import type { AntrenorHakedis } from '../../src/data/types';
@@ -27,6 +27,7 @@ export default function AntrenorKadrosuScreen() {
   const [error, setError] = useState<string | null>(null);
   const [acikId, setAcikId] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const [ucretSheet, setUcretSheet] = useState(false);
   const [antrenorler, setAntrenorler] = useState<AntrenorSecenegi[]>([]);
@@ -69,7 +70,14 @@ export default function AntrenorKadrosuScreen() {
     }
     setUcretKaydediliyor(true);
     try {
-      await setDersUcreti(seciliAntrenor, seciliGrup, parseInt(ucret, 10) || 0);
+      // Ücret yazılamazsa hakedişler ESKİ ücretle hesaplanmaya devam eder ve
+      // kimse fark etmez — bu yüzden hata mutlaka görünmeli. Sayfa da yalnızca
+      // başarıda kapanıyor ki girilen tutar kaybolmasın.
+      const oldu = await calistir(
+        () => setDersUcreti(seciliAntrenor, seciliGrup, parseInt(ucret, 10) || 0),
+        'Ders ücreti kaydedilemedi. Tekrar deneyin.'
+      );
+      if (!oldu) return;
       setUcretSheet(false);
       await load();
       showToast('Ders ücreti kaydedildi');
@@ -84,8 +92,13 @@ export default function AntrenorKadrosuScreen() {
   const toplamDers = hakedisler.reduce((a, h) => a + h.ders, 0);
   const pct = toplam ? Math.round((odenenTutar / toplam) * 100) : 0;
 
+  // EN TEHLİKELİ SESSİZ HATA: eskiden yazma başarısız olsa bile koşulsuz
+  // "Hakediş ödendi olarak işaretlendi" toast'ı gösteriliyordu. Yönetici ödemeyi
+  // yaptığını sanıyor, kayıt ödenmemiş kalıyordu — para işi olduğu için
+  // sonucu fatura/hakediş mutabakatında ortaya çıkardı.
   async function onOde(h: AntrenorHakedis) {
-    await odeHakedis(h.id);
+    const oldu = await calistir(() => odeHakedis(h.id), 'Hakediş işaretlenemedi. Tekrar deneyin.');
+    if (!oldu) return;
     setHakedisler(await getHakedisler());
     // Dürüst metin: dekont iletimi yok — yalnızca hakediş kaydı 'ödendi' işaretleniyor.
     showToast('Hakediş ödendi olarak işaretlendi');

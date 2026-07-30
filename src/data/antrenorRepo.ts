@@ -94,13 +94,33 @@ export async function getSporcular(): Promise<Sporcu[]> {
   const roster = (data ?? []) as { id: string; ad: string; numara: number | null; veli_ad: string | null; veli_telefon: string | null }[];
   if (roster.length === 0) return [];
 
+  // KATILIM YÜZDESİ SUNUCUDA TOPLANIYOR (0027 sporcu_yoklama_ozet görünümü).
+  //
+  // Eskiden burada tüm kadronun TÜM yoklama geçmişi çekilip yüzde JavaScript'te
+  // hesaplanıyordu. İki sebeple yanlıştı:
+  //   · PostgREST varsayılan olarak 1000 satırda keser ve HATA VERMEZ. Satır
+  //     sayısı kadroyla değil ZAMANLA büyüdüğü için (22 sporcu × haftada 3
+  //     antrenman ≈ 264 satır/ay) birkaç ay sonra yüzdeler sessizce yanlış
+  //     hesaplanmaya başlıyordu.
+  //   · Bir yüzde için bir sezonluk satırı telefona indirmek gereksiz trafik.
+  // Görünüm sporcu başına TEK satır döndürüyor; satır sayısı artık kadro
+  // boyutuyla sınırlı, yani limite doğru büyüyen bir eğri kalmadı.
   const ids = roster.map((s) => s.id);
-  const { data: yoklamaRows } = await supabase.from('yoklama').select('sporcu_id, durum').in('sporcu_id', ids).not('durum', 'is', null);
-  const yRows = (yoklamaRows ?? []) as { sporcu_id: string; durum: string }[];
+  const { data: ozetRows } = await supabase
+    .from('sporcu_yoklama_ozet')
+    .select('sporcu_id, toplam, katildi')
+    .in('sporcu_id', ids);
+
+  const ozet = new Map<string, { toplam: number; katildi: number }>();
+  for (const r of (ozetRows ?? []) as { sporcu_id: string; toplam: number; katildi: number }[]) {
+    ozet.set(r.sporcu_id, { toplam: r.toplam, katildi: r.katildi });
+  }
 
   return roster.map((s) => {
-    const kendi = yRows.filter((y) => y.sporcu_id === s.id);
-    const pct = kendi.length ? Math.round((kendi.filter((y) => y.durum === 'katildi').length / kendi.length) * 100) : 100;
+    // Hiç yoklaması olmayan sporcu için 100: yeni katılan biri "%0 devam" diye
+    // görünmesin (eski davranışın aynısı).
+    const k = ozet.get(s.id);
+    const pct = k && k.toplam > 0 ? Math.round((k.katildi / k.toplam) * 100) : 100;
     return {
       id: s.id,
       ad: s.ad,

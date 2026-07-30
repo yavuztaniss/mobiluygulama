@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { TextField } from '../../../src/components/TextField';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { getKadro, getKadroBaslik, getKadroYayinDurumu, kadroKilidiAc, kadroYayinla, lcvKatilanlariEkle, toggleKadroSecim } from '../../../src/data/antrenorRepo';
 import { getSonucBekleyenMaclar, macSonucuKaydet, sonucTuret, type MacSonucSatiri, type MacSonucu } from '../../../src/data/etkinlikRepo';
 import type { KadroSatiri } from '../../../src/data/types-antrenor';
@@ -40,6 +40,7 @@ export default function MacKadrosuScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   // Oynanmış ama sonucu girilmemiş maç — kadroyu zaten antrenör kurduğu için skoru da o
   // giriyor (yazma izni: 0025_mac_sonucu.sql). RLS yalnızca kendi grubunun maçlarını
@@ -86,32 +87,35 @@ export default function MacKadrosuScreen() {
       showToast('Kadro kilitli — "Düzenle"ye dokunun');
       return;
     }
-    await toggleKadroSecim(id);
-    setKadro(await getKadro());
+    const oldu = await calistir(() => toggleKadroSecim(id), 'Kadro değişikliği kaydedilemedi.');
+    if (oldu) setKadro(await getKadro());
   }
 
   async function onLcvEkle() {
     if (yayinlandi) return;
-    await lcvKatilanlariEkle();
-    setKadro(await getKadro());
+    const oldu = await calistir(() => lcvKatilanlariEkle(), 'Katılanlar eklenemedi. Tekrar deneyin.');
+    if (oldu) setKadro(await getKadro());
   }
 
   async function onYayinla() {
     setSaving(true);
     try {
-      await kadroYayinla();
-      setYayinlandi(true);
-      // "velilere bildirim gitti" iddiası kaldırıldı — push altyapısı yok; yayınlanan
-      // kadro veli uygulamasında gerçek veriden görünür.
-      showToast('Kadro yayınlandı');
+      // Hata yutulduğunda kadro "yayınlandı" görünüp velilere hiç ulaşmıyordu.
+      const oldu = await calistir(() => kadroYayinla(), 'Kadro yayınlanamadı. Tekrar deneyin.');
+      if (oldu) {
+        setYayinlandi(true);
+        // "velilere bildirim gitti" iddiası kaldırıldı — push altyapısı yok; yayınlanan
+        // kadro veli uygulamasında gerçek veriden görünür.
+        showToast('Kadro yayınlandı');
+      }
     } finally {
       setSaving(false);
     }
   }
 
   async function onDuzenle() {
-    await kadroKilidiAc();
-    setYayinlandi(false);
+    const oldu = await calistir(() => kadroKilidiAc(), 'Kilit açılamadı. Tekrar deneyin.');
+    if (oldu) setYayinlandi(false);
   }
 
   const biz = parseInt(skorBiz, 10);

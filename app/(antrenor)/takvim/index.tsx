@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import {
   getBekleyenRezervasyonlar,
@@ -37,6 +37,7 @@ export default function TakvimScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const [musaitOn, setMusaitOn] = useState(false);
   const [musaitlik, setMusaitlik] = useState<MusaitlikGunu[]>([]);
@@ -66,15 +67,24 @@ export default function TakvimScreen() {
     setGunIndex(i);
   }
 
+  // Rezervasyon yanıtı sessizce kaybolursa veli hâlâ "bekliyor" görür, antrenör
+  // ise cevabın gittiğini varsayar — iki taraf farklı gerçeği görür.
   async function onYanitla(rezervasyonId: string, cevap: 'onayla' | 'reddet') {
-    const { mesaj } = await rezervasyonYanitla(rezervasyonId, cevap);
+    let mesaj = '';
+    const oldu = await calistir(
+      async () => { ({ mesaj } = await rezervasyonYanitla(rezervasyonId, cevap)); },
+      'Yanıt gönderilemedi. Tekrar deneyin.'
+    );
+    if (!oldu) return;
     setBekleyenler((prev) => prev.filter((b) => b.id !== rezervasyonId));
     setHafta(await getBireyselTakvimHaftasi());
     showToast(mesaj);
   }
 
   async function onSonuclandir(rezervasyonId: string, sonuc: 'tamamlandi' | 'gelmedi') {
-    await rezervasyonSonuclandir(rezervasyonId, sonuc);
+    // Sonuçlandırma hakediş hesabına giriyor; sessiz başarısızlık ödemeyi eksiltir.
+    const oldu = await calistir(() => rezervasyonSonuclandir(rezervasyonId, sonuc), 'Ders sonucu kaydedilemedi. Tekrar deneyin.');
+    if (!oldu) return;
     setHafta(await getBireyselTakvimHaftasi());
     showToast(sonuc === 'tamamlandi' ? 'Ders tamamlandı olarak işaretlendi' : 'Ders gelmedi olarak işaretlendi');
   }
@@ -94,19 +104,21 @@ export default function TakvimScreen() {
     setIstisnalar(i);
   }
 
+  // Müsaitlik ve istisnalar veli tarafındaki rezervasyon slotlarını belirliyor.
+  // Sessiz başarısızlıkta antrenör kapattığını sanar, veli o saate ders alır.
   async function onToggleGun(index: number) {
-    await toggleMusaitlikGun(index);
-    setMusaitlik(await getMusaitlik());
+    const oldu = await calistir(() => toggleMusaitlikGun(index), 'Müsaitlik güncellenemedi. Tekrar deneyin.');
+    if (oldu) setMusaitlik(await getMusaitlik());
   }
 
   async function onIstisnaEkle() {
-    await istisnaEkle();
-    setIstisnalar(await getIstisnalar());
+    const oldu = await calistir(() => istisnaEkle(), 'İzinli gün eklenemedi. Tekrar deneyin.');
+    if (oldu) setIstisnalar(await getIstisnalar());
   }
 
   async function onIstisnaSil(id: string) {
-    await istisnaSil(id);
-    setIstisnalar(await getIstisnalar());
+    const oldu = await calistir(() => istisnaSil(id), 'İzinli gün kaldırılamadı. Tekrar deneyin.');
+    if (oldu) setIstisnalar(await getIstisnalar());
   }
 
   async function onMusaitKaydet() {

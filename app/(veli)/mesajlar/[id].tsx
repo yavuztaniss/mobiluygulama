@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import {
   getKonusmaBasligi,
   getMesajlar,
@@ -25,6 +26,8 @@ export default function SohbetScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -58,11 +61,15 @@ export default function SohbetScreen() {
     };
   }, [id]);
 
+  // SIRA KRİTİK: girdi ancak gönderim BAŞARILI olduktan sonra temizleniyor.
+  // Eskiden setDraft('') await'ten önceydi; zayıf sinyalde kullanıcının yazdığı
+  // mesaj ekrandan siliniyor, karşı tarafa da ulaşmıyor ve hiçbir uyarı
+  // çıkmıyordu — yazılan şey tamamen kayboluyordu.
   async function onSend() {
     const t = draft.trim();
     if (!t || !id) return;
-    setDraft('');
-    await sendMesaj(id, t);
+    const gonderildi = await calistir(() => sendMesaj(id, t), 'Mesaj gönderilemedi. Bağlantınızı kontrol edip tekrar deneyin.');
+    if (gonderildi) setDraft('');
   }
 
   return (
@@ -128,6 +135,7 @@ export default function SohbetScreen() {
             </View>
           </KeyboardAvoidingView>
         )}
+        <Toast message={toastMessage} />
       </SafeAreaView>
     </ScreenBackground>
   );

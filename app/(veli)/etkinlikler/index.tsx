@@ -6,6 +6,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { Card } from '../../../src/components/Card';
 import { useChildLabel } from '../../../src/components/ChildSwitcher';
 import { EmptyState, LoadingState, ErrorState } from '../../../src/components/StateViews';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { useChild } from '../../../src/context/ChildContext';
 import { getEtkinlikSonuclari, getEtkinlikler, setKatilimDurumu } from '../../../src/data/veliRepo';
 import type { Etkinlik, EtkinlikSonuc } from '../../../src/data/types-veli';
@@ -29,6 +30,8 @@ export default function EtkinliklerScreen() {
   const [sonuclar, setSonuclar] = useState<EtkinlikSonuc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,9 +51,11 @@ export default function EtkinliklerScreen() {
     load();
   }, [load]);
 
+  // RSVP sessizce kaybolursa çocuk maç kadrosuna alınmaz; veli "katılır" dediğini
+  // hatırlar, antrenör listede göremez. İki taraf farklı gerçeği görür.
   async function onKatilim(id: string, durum: 'katilir' | 'katilmaz') {
-    await setKatilimDurumu(id, selectedChildId, durum);
-    setEtkinlikler(await getEtkinlikler(selectedChildId));
+    const oldu = await calistir(() => setKatilimDurumu(id, selectedChildId, durum), 'Yanıtınız kaydedilemedi. Bağlantınızı kontrol edin.');
+    if (oldu) setEtkinlikler(await getEtkinlikler(selectedChildId));
   }
 
   // Sahte "Yaz Kampı kayıt" akışı kaldırıldı — hiçbir yere yazmıyordu (fire-and-forget
@@ -146,6 +151,7 @@ export default function EtkinliklerScreen() {
             )}
           </ScrollView>
         )}
+        <Toast message={toastMessage} />
       </SafeAreaView>
     </ScreenBackground>
   );

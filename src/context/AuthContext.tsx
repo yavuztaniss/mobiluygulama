@@ -126,6 +126,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }
 
+  // ŞİFRE SIFIRLAMA — bağlantı UYGULAMAYA DEĞİL PANELE gider, bilinçli.
+  //
+  // redirectTo verilmiyor; Supabase o zaman projenin `site_url` ayarını kullanır
+  // ve o adres YÖNETİM PANELİDİR. Veli bağlantıya dokununca panelin
+  // /sifre-belirle ekranı açılır, yeni şifresini yazar ve ekran ona "artık mobil
+  // uygulamadan giriş yapabilirsiniz" der (admin-panel/app/sifre-belirle).
+  //
+  // NEDEN UYGULAMAYA DEĞİL: e-postadaki bağlantının uygulamayı açabilmesi için
+  // https'li universal link kurulumu gerekir (alan adı + doğrulama dosyası).
+  // O kurulana kadar custom scheme'li bir bağlantı e-posta istemcilerinde
+  // çoğunlukla tıklanabilir bile olmaz — yani "uygulamaya yönlendirmek"
+  // çalışmayan bir akış üretirdi.
+  //
+  // ⚠ ÖN KOŞUL: Supabase panelinde Authentication > URL Configuration >
+  // Site URL, panelin gerçek adresine ayarlı olmalı. Ayarlı değilse bağlantı
+  // hiçbir yere gitmez ve veli şifresini sıfırlayamaz.
   async function resetPassword(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     return { error: error?.message ?? null };

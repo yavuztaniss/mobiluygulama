@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import {
   getAktifAntrenman,
   getYoklamaKayitDurumu,
@@ -30,6 +30,7 @@ export default function YoklamaAlScreen() {
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<{ inCount: number; outCount: number } | null>(null);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,14 +73,16 @@ export default function YoklamaAlScreen() {
       showToast('Kayıt kilitli — "Düzenle"ye dokunun');
       return;
     }
-    await setYoklamaDurum(id, durum, aktif.id);
-    setSatirlar(await getYoklamaSatirlari(aktif.id));
+    // Yoklama işaretleme günlük ve en çok tekrarlanan işlem; sessizce
+    // başarısız olması devamsızlık istatistiğini doğrudan bozar.
+    const oldu = await calistir(() => setYoklamaDurum(id, durum, aktif.id), 'İşaretlenemedi — bağlantıyı kontrol edin.');
+    if (oldu) setSatirlar(await getYoklamaSatirlari(aktif.id));
   }
 
   async function onTumunuKatildi() {
     if (!aktif || saved) return;
-    await tumunuKatildiYap(aktif.id);
-    setSatirlar(await getYoklamaSatirlari(aktif.id));
+    const oldu = await calistir(() => tumunuKatildiYap(aktif.id), 'İşaretlenemedi — bağlantıyı kontrol edin.');
+    if (oldu) setSatirlar(await getYoklamaSatirlari(aktif.id));
   }
 
   async function onSave() {
@@ -109,7 +112,8 @@ export default function YoklamaAlScreen() {
 
   async function onUnlock() {
     if (!aktif) return;
-    await yoklamaKilidiAc(aktif.id);
+    const oldu = await calistir(() => yoklamaKilidiAc(aktif.id), 'Kilit açılamadı. Tekrar deneyin.');
+    if (!oldu) return;
     setSaved(false);
     setSavedAt(null);
   }

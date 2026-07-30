@@ -2403,6 +2403,35 @@ $$;
 
 
 -- ===========================================================================
+-- 16) GÖRÜNÜMLER
+--     Kaynak: 0027
+-- ===========================================================================
+-- Sporcu başına katılım özeti. Mobil antrenör ekranı yüzdeyi buradan alıyor;
+-- eskiden tüm kadronun tüm yoklama geçmişini çekip JavaScript'te hesaplıyordu ve
+-- PostgREST'in 1000 satır sınırı aşıldığında sessizce yanlış sonuç üretiyordu
+-- (satır sayısı kadroyla değil ZAMANLA büyüyor).
+--
+-- security_invoker = on ZORUNLU: görünüm çağıranın yetkileriyle çalışır, yani
+-- alttaki yoklama tablosunun 9 permissive politikası ve "kulup izolasyonu"
+-- restrictive kiracı duvarı aynen geçerli olur. Varsayılan davranışta görünüm
+-- SAHİBİNİN yetkisiyle koşar ve tüm kulüplerin yoklamasını sızdırırdı.
+create or replace view public.sporcu_yoklama_ozet
+with (security_invoker = on) as
+select
+  y.sporcu_id,
+  count(*)::int                                    as toplam,
+  count(*) filter (where y.durum = 'katildi')::int as katildi
+from public.yoklama y
+where y.durum is not null   -- işaretlenmemiş satır yüzdeyi düşürmesin
+group by y.sporcu_id;
+
+comment on view public.sporcu_yoklama_ozet is
+  'Sporcu başına katılım toplamı (0027). security_invoker=on → alttaki yoklama tablosunun RLS''i ve kiracı duvarı aynen geçerlidir.';
+
+grant select on public.sporcu_yoklama_ozet to authenticated;
+
+
+-- ===========================================================================
 -- Kurulum sonu. Gövde doğrulaması tekrar açılıyor.
 -- ===========================================================================
 reset check_function_bodies;

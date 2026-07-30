@@ -15,6 +15,40 @@ export function useToast() {
   return { toastMessage: message, showToast };
 }
 
+// MUTASYON ÇALIŞTIRICI — "sessizce başarısız olma" sınıfını tek noktada kapatır.
+//
+// SORUN: veri yazan handler'ların çoğu `await repoFonksiyonu(...)` deyip geçiyordu.
+// Ağ koptuğunda ya da RLS reddettiğinde ortaya çıkan hata hiçbir yerde
+// yakalanmadığı için iki şey oluyordu:
+//   · SESSİZ NO-OP  — kullanıcı işlemin olduğunu sanıyor, aslında olmuyor.
+//   · VERİ KAYBI    — girdi await'ten ÖNCE temizlendiği için yazdığı şey hem
+//                     ekrandan siliniyor hem sunucuya ulaşmıyor.
+//
+// KULLANIM — sıra önemli, önce SONUCU BEKLE sonra temizle:
+//   const { toastMessage, showToast } = useToast();
+//   const calistir = useIslem(showToast);
+//   ...
+//   const oldu = await calistir(() => sendMesaj(id, metin), 'Mesaj gönderilemedi.');
+//   if (oldu) setDraft('');
+//
+// Dönüş değeri bilinçli olarak boolean: "girdiyi temizleyeyim mi, modalı kapatayım
+// mı, listeyi yenileyeyim mi" kararını çağırana bırakıyor. Hata durumunda
+// kullanıcının emeği ekranda DURUYOR ve tekrar deneyebiliyor.
+export function useIslem(showToast: (mesaj: string) => void) {
+  return useCallback(
+    async (islem: () => Promise<unknown>, hataMesaji: string): Promise<boolean> => {
+      try {
+        await islem();
+        return true;
+      } catch {
+        showToast(hataMesaji);
+        return false;
+      }
+    },
+    [showToast]
+  );
+}
+
 export function Toast({ message }: { message: string | null }) {
   const colors = useColors();
   const styles = createStyles(colors);

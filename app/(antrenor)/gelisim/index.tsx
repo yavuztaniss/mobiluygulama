@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import {
   GELISIM_TEMPLATES,
   gelisimGonder,
@@ -31,6 +31,7 @@ export default function GelisimScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const loadSporcular = useCallback(async () => {
     try {
@@ -71,35 +72,43 @@ export default function GelisimScreen() {
       showToast('Kayıt kilitli — "Düzenle"ye dokunun');
       return;
     }
-    await setGelisimSeviye(seciliId, beceriId, seviye);
-    setKayit(await getGelisimKaydi(seciliId));
+    const oldu = await calistir(() => setGelisimSeviye(seciliId, beceriId, seviye), 'Seviye kaydedilemedi. Bağlantınızı kontrol edin.');
+    if (oldu) setKayit(await getGelisimKaydi(seciliId));
   }
 
+  // NOT YAZMA — her tuş vuruşunda sunucuya yazılıyor ve hata SESSİZCE yutuluyordu.
+  // Sonuç: antrenör uzun bir gelişim notu yazar, ekranda "kaydedilmiş gibi" durur,
+  // ama "Gönder"e bastığında veliye NOTSUZ bir değerlendirme giderdi. Artık hata
+  // görünüyor; metin state'te durduğu için antrenör tekrar deneyebiliyor.
   async function onNotChange(text: string) {
     setNot(text);
-    await setGelisimNot(seciliId, text);
+    await calistir(() => setGelisimNot(seciliId, text), 'Not kaydedilemedi — yazdıklarınız henüz sunucuya ulaşmadı.');
   }
 
-  function ekleTemplate(t: string) {
+  // Şablon ekleme: promise hiç await EDİLMİYORDU (floating promise), yani hata
+  // yakalanamaz haldeydi. Artık bekleniyor ve hata bildiriliyor.
+  async function ekleTemplate(t: string) {
     const yeni = not ? not + ' ' + t + '.' : t + '.';
     setNot(yeni);
-    setGelisimNot(seciliId, yeni);
+    await calistir(() => setGelisimNot(seciliId, yeni), 'Not kaydedilemedi — yazdıklarınız henüz sunucuya ulaşmadı.');
   }
 
   async function onGonder() {
     setSaving(true);
     try {
-      await gelisimGonder(seciliId);
-      setKayit(await getGelisimKaydi(seciliId));
-      showToast('Gelişim değerlendirmesi veliye iletildi');
+      const oldu = await calistir(() => gelisimGonder(seciliId), 'Değerlendirme gönderilemedi. Tekrar deneyin.');
+      if (oldu) {
+        setKayit(await getGelisimKaydi(seciliId));
+        showToast('Gelişim değerlendirmesi veliye iletildi');
+      }
     } finally {
       setSaving(false);
     }
   }
 
   async function onDuzenle() {
-    await gelisimKilidiAc(seciliId);
-    setKayit(await getGelisimKaydi(seciliId));
+    const oldu = await calistir(() => gelisimKilidiAc(seciliId), 'Kilit açılamadı. Tekrar deneyin.');
+    if (oldu) setKayit(await getGelisimKaydi(seciliId));
   }
 
   return (

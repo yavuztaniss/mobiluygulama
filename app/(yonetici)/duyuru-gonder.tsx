@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
-import { Toast, useToast } from '../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../src/components/Toast';
 import { useKurum } from '../../src/context/KurumContext';
 import { duyuruGonder, duyuruHedefSayisi, getDuyuruHedefleri } from '../../src/data/yoneticiRepo';
 import type { DuyuruHedefi, DuyuruTuru } from '../../src/data/types';
@@ -31,6 +31,7 @@ export default function DuyuruGonderScreen() {
   const [error, setError] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   // Form boş açılır — eski DUYURU_TASLAK_VARSAYILAN mock taslağı kaldırıldı,
   // örnek metinler yalnızca placeholder olarak duruyor.
@@ -67,13 +68,22 @@ export default function DuyuruGonderScreen() {
     }
     setGonderiliyor(true);
     try {
-      const sonuc = await duyuruGonder({ hedefIds: seciliHedefler, baslik: baslik.trim(), mesaj: mesaj.trim(), tur, smsIle });
+      // Duyuru tüm velilere gidiyor; sessizce başarısız olması "gönderdim
+      // sanıyorum ama kimse görmedi" durumunu üretiyordu. Başlık ve mesaj
+      // hatada state'te duruyor, yönetici tekrar deneyebiliyor.
+      let sonuc: Awaited<ReturnType<typeof duyuruGonder>> | null = null;
+      const oldu = await calistir(
+        async () => { sonuc = await duyuruGonder({ hedefIds: seciliHedefler, baslik: baslik.trim(), mesaj: mesaj.trim(), tur, smsIle }); },
+        'Duyuru gönderilemedi. Bağlantınızı kontrol edip tekrar deneyin.'
+      );
+      if (!oldu || !sonuc) return;
       // Push artık gerçek (0020) — kayıtlı cihaz varsa sayısı gösterilir; yoksa
       // yalnızca uygulama içi görünürlük bildirilir (SMS hâlâ yalnızca kayıt).
+      const s: { pushCihaz: number; veliSayisi: number } = sonuc;
       showToast(
-        sonuc.pushCihaz > 0
-          ? `Duyuru yayınlandı ✓ ${sonuc.veliSayisi} veli · ${sonuc.pushCihaz} cihaza push gönderildi`
-          : `Duyuru yayınlandı ✓ ${sonuc.veliSayisi} veli uygulamada görebilecek`
+        s.pushCihaz > 0
+          ? `Duyuru yayınlandı ✓ ${s.veliSayisi} veli · ${s.pushCihaz} cihaza push gönderildi`
+          : `Duyuru yayınlandı ✓ ${s.veliSayisi} veli uygulamada görebilecek`
       );
     } finally {
       setGonderiliyor(false);

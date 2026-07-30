@@ -8,7 +8,7 @@ import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
-import { Toast, useToast } from '../../../src/components/Toast';
+import { Toast, useIslem, useToast } from '../../../src/components/Toast';
 import { addAidatPlani, getFinansOzet, recordPayment, updateAidatPlani } from '../../../src/data/finansRepo';
 import { getSporcular } from '../../../src/data/sporcularRepo';
 import type { AidatPlani, FinansOzet, OdemeYontemi, Sporcu } from '../../../src/data/types';
@@ -27,6 +27,7 @@ export default function FinansScreen() {
   const [error, setError] = useState<string | null>(null);
   const [segment, setSegment] = useState<Segment>('aidat');
   const { toastMessage, showToast } = useToast();
+  const calistir = useIslem(showToast);
 
   const [paySheetOpen, setPaySheetOpen] = useState(false);
   const [sporcular, setSporcular] = useState<Sporcu[]>([]);
@@ -118,13 +119,18 @@ export default function FinansScreen() {
     const fiyatEtiketi = planFiyat.trim().startsWith('₺') ? planFiyat.trim() : `₺${planFiyat.trim()}`;
     setPlanKaydediliyor(true);
     try {
-      if (editingPlan) {
-        await updateAidatPlani(editingPlan.id, { ad: planAd.trim(), alt: planAlt.trim(), fiyat: fiyatEtiketi, beklenen: editingPlan.beklenen });
-        showToast('Aidat planı güncellendi');
-      } else {
-        await addAidatPlani({ ad: planAd.trim(), alt: planAlt.trim(), fiyat: fiyatEtiketi, beklenen: fiyatEtiketi });
-        showToast('Yeni aidat planı eklendi');
-      }
+      // Aidat fiyatı yazılamazsa ESKİ fiyat yürürlükte kalır ve kimse fark
+      // etmez — doğrudan tahsilatı etkileyen bir sessiz hataydı. Sayfa yalnızca
+      // başarıda kapanıyor ki girilen değerler kaybolmasın.
+      const oldu = await calistir(
+        () =>
+          editingPlan
+            ? updateAidatPlani(editingPlan.id, { ad: planAd.trim(), alt: planAlt.trim(), fiyat: fiyatEtiketi, beklenen: editingPlan.beklenen })
+            : addAidatPlani({ ad: planAd.trim(), alt: planAlt.trim(), fiyat: fiyatEtiketi, beklenen: fiyatEtiketi }),
+        editingPlan ? 'Aidat planı güncellenemedi. Tekrar deneyin.' : 'Aidat planı eklenemedi. Tekrar deneyin.'
+      );
+      if (!oldu) return;
+      showToast(editingPlan ? 'Aidat planı güncellendi' : 'Yeni aidat planı eklendi');
       await load();
       setPlanSheetOpen(false);
     } finally {

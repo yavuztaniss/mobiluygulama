@@ -12,12 +12,20 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+import { HataEkrani } from '../src/components/HataEkrani';
 import { AuthProvider } from '../src/context/AuthContext';
 import { KurumProvider } from '../src/context/KurumContext';
 import { OzellikProvider } from '../src/context/OzellikContext';
 import { ThemeProvider, useThemeMode, useThemeReady } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// expo-router SÖZLEŞMESİ: bir route dosyası `ErrorBoundary` adında bir bileşen
+// dışa aktarırsa, o route ağacındaki render hataları o bileşenle karşılanır.
+// Kök layout'tan aktarıldığı için uygulamanın TAMAMI kapsanıyor.
+// Bu satır olmadan tek bir render hatası üretim derlemesinde beyaz ekrana
+// düşürüyor ve kullanıcının uygulamayı kapatmaktan başka çıkışı kalmıyordu.
+export { HataEkrani as ErrorBoundary };
 
 function ThemedStatusBar() {
   const mode = useThemeMode();
