@@ -1,12 +1,16 @@
 import { supabase } from '../lib/supabase';
 import type { Brans, HizmetTuruSecenegi, KurumBranslariDurumu } from './types';
 
-/** Beyaz etiket bilgileri — kulübün görünen adı ve iletişim alanları. */
+/** Beyaz etiket bilgileri — kulübün görünen adı, iletişim ve tahsilat alanları. */
 export interface KurumBilgi {
   kulupAdi: string;
   telefon: string | null;
   eposta: string | null;
   adres: string | null;
+  /** 0028 — veli aidatını havale ile yatırıyor; nereye yatıracağı burada. */
+  iban: string | null;
+  ibanSahibi: string | null;
+  odemeAciklamasi: string | null;
 }
 
 /**
@@ -58,7 +62,7 @@ async function getVarsayilanSubeId(): Promise<string> {
 export async function getKurumBilgi(): Promise<KurumBilgi | null> {
   try {
     const [{ data: ayarlar, error: e1 }, { data: kulup, error: e2 }] = await Promise.all([
-      supabase.from('kurum_ayarlari').select('kulup_adi, telefon, eposta, adres').maybeSingle(),
+      supabase.from('kurum_ayarlari').select('kulup_adi, telefon, eposta, adres, iban, iban_sahibi, odeme_aciklamasi').maybeSingle(),
       supabase.from('kulup').select('ad').maybeSingle(),
     ]);
     if (e1 || e2) return null;
@@ -71,6 +75,10 @@ export async function getKurumBilgi(): Promise<KurumBilgi | null> {
       telefon: ayarlar?.telefon ?? null,
       eposta: ayarlar?.eposta ?? null,
       adres: ayarlar?.adres ?? null,
+      // 0028 — veli ödeme ekranında gösteriliyor.
+      iban: ayarlar?.iban ?? null,
+      ibanSahibi: ayarlar?.iban_sahibi ?? null,
+      odemeAciklamasi: ayarlar?.odeme_aciklamasi ?? null,
     };
   } catch {
     return null;

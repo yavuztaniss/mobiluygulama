@@ -26,6 +26,10 @@ interface KurumContextValue {
   telefon: string | null;
   eposta: string | null;
   adres: string | null;
+  /** Tahsilat bilgisi (0028) — veli ödeme ekranında gösterilir. */
+  iban: string | null;
+  ibanSahibi: string | null;
+  odemeAciklamasi: string | null;
   /** İlk okuma sürüyor — ekranlar isterse iskelet gösterebilir (zorunlu değil). */
   yukleniyor: boolean;
 }
@@ -35,6 +39,9 @@ const BOS: Omit<KurumContextValue, 'yukleniyor'> = {
   telefon: null,
   eposta: null,
   adres: null,
+  iban: null,
+  ibanSahibi: null,
+  odemeAciklamasi: null,
 };
 
 const KurumContext = createContext<KurumContextValue | null>(null);

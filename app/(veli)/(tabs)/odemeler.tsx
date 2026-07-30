@@ -5,6 +5,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { ChildSwitcherCompact, useChildLabel } from '../../../src/components/ChildSwitcher';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
+import { OdemeBilgisiKarti } from '../../../src/components/OdemeBilgisiKarti';
 import { useChild } from '../../../src/context/ChildContext';
 import { useKurum } from '../../../src/context/KurumContext';
 import { getOdemeOzet } from '../../../src/data/veliRepo';
@@ -78,6 +79,7 @@ export default function OdemelerScreen() {
                       : 'Ödeme kulüp resepsiyonu, banka havalesi veya elden alınır. Kulüp kaydı işleyince durumun burada otomatik güncellenir.'}
                   </Text>
                 </View>
+
               </View>
             ) : (
               <View style={styles.paidCard}>
@@ -89,6 +91,15 @@ export default function OdemelerScreen() {
                 <Text style={styles.paidNext}>Sıradaki aidat ({sonrakiDonem}) kulüp kaydı açılınca burada görünür</Text>
               </View>
             )}
+
+            {/* ÖDEME BİLGİSİ HER İKİ DURUMDA DA GÖRÜNÜR — bilinçli.
+                Uygulama havaleyle ödeme yapılacağını söylüyor ama IBAN'ı hiçbir
+                yerde yazmıyordu; veli parayı nereye yatıracağını bilmiyordu.
+                Kartı yalnızca "borç var" durumunda göstermek yetmez: veli
+                sıradaki aidatı erken yatırmak ya da bilgiyi kaydetmek isteyebilir
+                ve o an ekranda hiçbir şey bulamazdı.
+                Kulüp IBAN'ını girmemişse kart hiç çizilmez. */}
+            <OdemeBilgisiKarti />
 
             <View style={styles.historyHeader}>
               <Text style={styles.historyTitle}>Geçmiş Ödemeler</Text>

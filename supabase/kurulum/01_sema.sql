@@ -907,6 +907,12 @@ create table kurum_ayarlari (
   eposta text,
   adres text,
   para_birimi text not null default 'TRY' check (para_birimi in ('TRY', 'USD', 'EUR')),
+  -- 0028: veli aidatını havale ile yatırıyor; nereye yatıracağı da bir yerde
+  -- yazmalı. iban_sahibi ayrı bir alan çünkü bankalar havalede ad eşleşmesi
+  -- ister, IBAN tek başına yetmez.
+  iban text,
+  iban_sahibi text,
+  odeme_aciklamasi text,
   updated_at timestamptz not null default now(),
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
   constraint kurum_ayarlari_pkey primary key (kulup_id)
