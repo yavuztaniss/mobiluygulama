@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from './ScreenBackground';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing } from '../theme';
 
 export function TabPlaceholder({ title, note }: { title: string; note?: string }) {
   const colors = useColors();
@@ -19,7 +19,17 @@ export function TabPlaceholder({ title, note }: { title: string; note?: string }
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     wrap: { flex: 1, padding: spacing.lg, gap: spacing.xs },
-    title: { fontFamily: fontFamily.archivoBold, fontSize: fontSize.xxl, color: colors.textBright },
-    subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted },
+    title: {
+      fontFamily: fontFamily.archivoBold,
+      fontSize: fontSize.xxl,
+      lineHeight: lineHeightFor(fontSize.xxl, 1.2),
+      color: colors.textBright,
+    },
+    subtitle: {
+      fontFamily: fontFamily.manropeMedium,
+      fontSize: fontSize.base,
+      lineHeight: lineHeightFor(fontSize.base),
+      color: colors.textMuted,
+    },
   });
 }

@@ -5,6 +5,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { AppModal } from '../../../src/components/AppModal';
 import { Card } from '../../../src/components/Card';
 import { LoadingState, ErrorState, EmptyState } from '../../../src/components/StateViews';
+import { useKurum } from '../../../src/context/KurumContext';
 import { getOzet, getSubeler } from '../../../src/data/yoneticiRepo';
 import type { Sube, YoneticiOzet } from '../../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
@@ -12,6 +13,7 @@ import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from
 export default function OzetScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { kulupAdi } = useKurum();
   const [subeler, setSubeler] = useState<Sube[]>([]);
   // Şube id'leri artık gerçek `sube` tablosundan (uuid) — başlangıçta null,
   // repo null'da ilk şubeyi seçer. KPI'lar şube-bağımsız hesaplanır (bkz. yoneticiRepo.getOzet).
@@ -57,7 +59,7 @@ export default function OzetScreen() {
             <View style={styles.headerLeft}>
               <View style={styles.brandRow}>
                 <View style={styles.dot} />
-                <Text style={styles.brand}>KARŞIYAKA SPOR OKULU</Text>
+                <Text style={styles.brand}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
               </View>
               <Pressable style={styles.subeBtn} onPress={() => setSubeOpen(true)}>
                 <Text style={styles.subeText}>{ozet?.subeAd ?? '—'}</Text>

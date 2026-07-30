@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../theme';
 
 interface TextFieldProps extends TextInputProps {
   label: string;
@@ -45,6 +45,7 @@ function createStyles(colors: AppColors) {
     label: {
       fontFamily: fontFamily.mono,
       fontSize: fontSize.xs,
+      lineHeight: lineHeightFor(fontSize.xs),
       fontWeight: '700',
       letterSpacing: 1.4,
       color: colors.textDim,
@@ -68,9 +69,12 @@ function createStyles(colors: AppColors) {
     inputError: {
       borderColor: colors.danger,
     },
+    // Doğrulama mesajları çok satıra sarabiliyor ("Girdiğiniz e-posta adresi
+    // kayıtlı değil." gibi) — satır yüksekliği veriliyor.
     errorText: {
       fontFamily: fontFamily.manropeMedium,
       fontSize: fontSize.sm,
+      lineHeight: lineHeightFor(fontSize.sm),
       color: colors.danger,
     },
   });

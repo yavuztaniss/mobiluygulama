@@ -1,5 +1,5 @@
 export { darkColors, lightColors, type AppColors, type ColorToken } from './colors';
-export { fontFamily, fontSize, tabularNums } from './typography';
+export { fontFamily, fontSize, lineHeightFor, tabularNums } from './typography';
 export { avatarColorAt, type AvatarColor } from './avatarPalette';
 export { spacing, radius } from './spacing';
 export {

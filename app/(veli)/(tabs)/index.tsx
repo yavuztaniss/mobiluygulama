@@ -9,6 +9,7 @@ import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useChild } from '../../../src/context/ChildContext';
+import { useKurum } from '../../../src/context/KurumContext';
 import { useOzellik } from '../../../src/context/OzellikContext';
 import { getAnaSayfa, getBildirimler } from '../../../src/data/veliRepo';
 import type { AnaSayfaOzet, Bildirim } from '../../../src/data/types-veli';
@@ -21,6 +22,7 @@ export default function VeliAnaSayfa() {
   const styles = createStyles(colors);
   const { profile } = useAuth();
   const { selectedChildId } = useChild();
+  const { kulupAdi } = useKurum();
   const { ozellikAcik } = useOzellik();
   const [ozet, setOzet] = useState<AnaSayfaOzet | null>(null);
   const [bildirimler, setBildirimler] = useState<Bildirim[]>([]);
@@ -66,7 +68,7 @@ export default function VeliAnaSayfa() {
             <View>
               <View style={styles.brandRow}>
                 <View style={styles.dot} />
-                <Text style={styles.brand}>KARŞIYAKA SPOR OKULU</Text>
+                <Text style={styles.brand}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
               </View>
               <Text style={styles.title}>Merhaba, {veliAdi}</Text>
               <Text style={styles.subtitle}>{bugunEtiketi}</Text>

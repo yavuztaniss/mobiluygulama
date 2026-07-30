@@ -7,6 +7,7 @@ import { AppModal } from '../../../src/components/AppModal';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useChild } from '../../../src/context/ChildContext';
+import { useKurum } from '../../../src/context/KurumContext';
 import { useChildLabel } from '../../../src/components/ChildSwitcher';
 import {
   formatTL,
@@ -23,6 +24,7 @@ export default function BireyselDersDetay() {
   const styles = createStyles(colors);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { selectedChildId } = useChild();
+  const { kulupAdi } = useKurum();
   const childLabel = useChildLabel();
   const [antrenor, setAntrenor] = useState<BireyselAntrenor | null>(null);
   const [paket, setPaket] = useState<BireyselPaketDurumu | null>(null);
@@ -124,7 +126,9 @@ export default function BireyselDersDetay() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.profileName}>{antrenor.ad}</Text>
-                  <Text style={styles.profileMeta}>{antrenor.brans} · Karşıyaka Spor Okulu</Text>
+                  <Text style={styles.profileMeta}>
+                    {antrenor.brans} · {kulupAdi}
+                  </Text>
                   <View style={styles.ratingRow}>
                     <Text style={styles.star}>★</Text>
                     <Text style={styles.puan}>{antrenor.puan}</Text>

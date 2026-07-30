@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useToast } from '../../../src/components/Toast';
+import { useKurum } from '../../../src/context/KurumContext';
 import { formatTL, getBireyselAntrenorler, getBireyselFiltreler, paketAvantajYuzdesi } from '../../../src/data/bireyselRepo';
 import type { BireyselAntrenor } from '../../../src/data/types-bireysel';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
@@ -12,6 +13,7 @@ import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from
 export default function BireyselDersListesi() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { kulupAdi } = useKurum();
   const [antrenorler, setAntrenorler] = useState<BireyselAntrenor[]>([]);
   const [filtreler, setFiltreler] = useState<string[]>([]);
   const [filtre, setFiltre] = useState('Tümü');
@@ -49,7 +51,7 @@ export default function BireyselDersListesi() {
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.brandRow}>
               <View style={styles.dot} />
-              <Text style={styles.brand}>KARŞIYAKA SPOR OKULU</Text>
+              <Text style={styles.brand}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
             </View>
             <Text style={styles.title}>Bireysel Ders</Text>
             <Text style={styles.subtitle}>Kulüp antrenörlerinden birebir ders alın</Text>

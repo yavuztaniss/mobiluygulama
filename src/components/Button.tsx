@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../theme';
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string;
@@ -58,15 +58,19 @@ function createStyles(colors: AppColors) {
     primaryPressed: {
       backgroundColor: colors.accentPressed,
     },
+    // lineHeight: Android'de "Çıkış Yap", "Kaydı Tamamla" gibi etiketlerdeki ç/ş/ğ
+    // alt uzantıları varsayılan satır kutusunda kırpılabiliyor.
     primaryText: {
       color: colors.onAccent,
       fontFamily: fontFamily.manropeExtra,
       fontSize: fontSize.md,
+      lineHeight: lineHeightFor(fontSize.md, 1.3),
     },
     secondaryText: {
       color: colors.text,
       fontFamily: fontFamily.manropeSemi,
       fontSize: fontSize.md,
+      lineHeight: lineHeightFor(fontSize.md, 1.3),
     },
   });
 }

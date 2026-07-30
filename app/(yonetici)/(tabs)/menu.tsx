@@ -8,6 +8,7 @@ import { Button } from '../../../src/components/Button';
 import { ThemePreferencePicker } from '../../../src/components/ThemePreferencePicker';
 import { Toast, useToast } from '../../../src/components/Toast';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useKurum } from '../../../src/context/KurumContext';
 import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
 
 const MENU_ITEMS: { label: string; href: string }[] = [
@@ -24,6 +25,7 @@ export default function MenuScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { profile, signOut, devSignInAs } = useAuth();
+  const { kulupAdi } = useKurum();
   const { toastMessage, showToast } = useToast();
   const [gecisYapiliyor, setGecisYapiliyor] = useState(false);
 
@@ -43,7 +45,7 @@ export default function MenuScreen() {
           <Text style={styles.title}>Menü</Text>
           <Card style={styles.profileCard}>
             <Text style={styles.profileName}>{profile?.ad || 'Yönetici'}</Text>
-            <Text style={styles.profileRole}>Yönetici · Karşıyaka Spor Okulu</Text>
+            <Text style={styles.profileRole}>Yönetici · {kulupAdi}</Text>
 
             {__DEV__ && (
               <>

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
 import { Toast, useToast } from '../../src/components/Toast';
+import { useKurum } from '../../src/context/KurumContext';
 import { duyuruGonder, duyuruHedefSayisi, getDuyuruHedefleri } from '../../src/data/yoneticiRepo';
 import type { DuyuruHedefi, DuyuruTuru } from '../../src/data/types';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../src/theme';
@@ -19,6 +20,7 @@ const TURLER: { value: DuyuruTuru; label: string }[] = [
 export default function DuyuruGonderScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { kulupAdi } = useKurum();
   const [hedefler, setHedefler] = useState<DuyuruHedefi[]>([]);
   const [seciliHedefler, setSeciliHedefler] = useState<string[]>(['tum']);
   const [tur, setTur] = useState<DuyuruTuru>('genel');
@@ -161,7 +163,7 @@ export default function DuyuruGonderScreen() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={styles.previewNotifTop}>
-                    <Text style={styles.previewSender}>KARŞIYAKA SPOR OKULU</Text>
+                    <Text style={styles.previewSender}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
                     <Text style={styles.previewNow}>şimdi</Text>
                   </View>
                   <Text style={styles.previewTitle} numberOfLines={1}>{baslik || 'Başlık'}</Text>

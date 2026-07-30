@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, radius, spacing } from '../theme';
 
 export function useToast() {
   const [message, setMessage] = useState<string | null>(null);
@@ -38,6 +38,7 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: spacing.lg,
       fontFamily: fontFamily.manropeBold,
       fontSize: fontSize.base,
+      lineHeight: lineHeightFor(fontSize.base),
       color: colors.textBright,
       textAlign: 'center',
       overflow: 'hidden',

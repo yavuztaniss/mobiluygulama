@@ -5,10 +5,15 @@ import { Button } from '../../src/components/Button';
 import { TextField } from '../../src/components/TextField';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { useAuth } from '../../src/context/AuthContext';
+import { useKurum } from '../../src/context/KurumContext';
 import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../src/theme';
 
 export default function LoginScreen() {
   const { signIn, devSignInAs } = useAuth();
+  // Giriş ekranında henüz oturum yok — kulüp adı okunamaz ve nötr yer tutucu
+  // ('Spor Kulübü') görünür. Oturum kapatıp geri dönen kullanıcıda ise bir
+  // önceki kulübün adı ekranda KALMAZ (KurumContext oturum kapanınca sıfırlar).
+  const { kulupAdi } = useKurum();
   const colors = useColors();
   const styles = createStyles(colors);
   const [email, setEmail] = useState('');
@@ -38,7 +43,7 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.brandRow}>
             <View style={styles.dot} />
-            <Text style={styles.brand}>KARŞIYAKA SPOR OKULU</Text>
+            <Text style={styles.brand}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
           </View>
           <Text style={styles.title}>Giriş Yap</Text>
           <Text style={styles.subtitle}>Hesabına giriş yaparak devam et.</Text>

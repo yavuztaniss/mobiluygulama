@@ -6,6 +6,7 @@ import { AppModal } from '../../../src/components/AppModal';
 import { ChildSwitcherCompact, useChildLabel } from '../../../src/components/ChildSwitcher';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { useChild } from '../../../src/context/ChildContext';
+import { useKurum } from '../../../src/context/KurumContext';
 import { getOdemeOzet } from '../../../src/data/veliRepo';
 import type { OdemeGecmisKalem, OdemeOzet } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, radius, spacing } from '../../../src/theme';
@@ -14,6 +15,7 @@ export default function OdemelerScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
   const { selectedChildId } = useChild();
+  const { kulupAdi } = useKurum();
   const childLabel = useChildLabel();
   const [ozet, setOzet] = useState<OdemeOzet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,7 @@ export default function OdemelerScreen() {
                   <ReceiptRow label="Tarih" value={receiptOpen.date} />
                   <ReceiptRow label="Ödeme yöntemi" value={receiptOpen.method} />
                   <ReceiptRow label="Tutar" value={receiptOpen.amount} accent />
-                  <ReceiptRow label="Düzenleyen" value="Karşıyaka Spor Okulu" last />
+                  <ReceiptRow label="Düzenleyen" value={kulupAdi} last />
                 </View>
                 <Text style={styles.receiptFootnote}>Resmî makbuz/dekont için kulüp muhasebesiyle iletişime geçebilirsiniz.</Text>
               </>

@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { EmptyState, LoadingState, ErrorState } from '../../../src/components/StateViews';
+import { useKurum } from '../../../src/context/KurumContext';
 import { getTumDuyurular } from '../../../src/data/veliRepo';
 import type { KulupDuyurusu } from '../../../src/data/types-veli';
 import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../../../src/theme';
@@ -13,6 +14,7 @@ const DUYURU_ICON: Record<KulupDuyurusu['tur'], string> = { kamp: '🏕️', ser
 export default function TumDuyurularScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { kulupAdi } = useKurum();
   const [duyurular, setDuyurular] = useState<KulupDuyurusu[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function TumDuyurularScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Kulüp Duyuruları</Text>
-            <Text style={styles.headerSub}>Karşıyaka Spor Okulu</Text>
+            <Text style={styles.headerSub}>{kulupAdi}</Text>
           </View>
         </View>
 

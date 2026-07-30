@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ScreenBackground } from './ScreenBackground';
 import { Button } from './Button';
 import { useAuth } from '../context/AuthContext';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing } from '../theme';
 
 export function PlaceholderHome({ title }: { title: string }) {
   const colors = useColors();
@@ -27,13 +27,25 @@ function createStyles(colors: AppColors) {
     eyebrow: {
       fontFamily: fontFamily.mono,
       fontSize: fontSize.xs,
+      lineHeight: lineHeightFor(fontSize.xs),
       fontWeight: '800',
       letterSpacing: 1.8,
       color: colors.accent,
       marginBottom: spacing.sm,
     },
-    title: { fontFamily: fontFamily.archivoBold, fontSize: 28, color: colors.textBright },
-    subtitle: { fontFamily: fontFamily.manropeMedium, fontSize: fontSize.base, color: colors.textMuted, marginTop: spacing.xs },
+    title: {
+      fontFamily: fontFamily.archivoBold,
+      fontSize: fontSize.xxl,
+      lineHeight: lineHeightFor(fontSize.xxl, 1.2),
+      color: colors.textBright,
+    },
+    subtitle: {
+      fontFamily: fontFamily.manropeMedium,
+      fontSize: fontSize.base,
+      lineHeight: lineHeightFor(fontSize.base),
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
     spacer: { height: spacing.xxl },
   });
 }

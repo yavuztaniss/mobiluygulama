@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
-import { useColors, type AppColors, fontFamily, fontSize, spacing } from '../theme';
+import { useColors, type AppColors, fontFamily, fontSize, lineHeightFor, spacing } from '../theme';
 
 export function LoadingState({ label = 'Yükleniyor…' }: { label?: string }) {
   const colors = useColors();
@@ -58,16 +58,23 @@ function createStyles(colors: AppColors) {
     emptyTitle: {
       fontFamily: fontFamily.manropeSemi,
       fontSize: fontSize.md,
+      lineHeight: lineHeightFor(fontSize.md, 1.3),
       color: colors.textBright,
+      textAlign: 'center',
     },
     errorTitle: {
       fontFamily: fontFamily.archivoSemi,
       fontSize: fontSize.lg,
+      lineHeight: lineHeightFor(fontSize.lg, 1.3),
       color: colors.danger,
+      textAlign: 'center',
     },
+    // Çok satıra sarılan tek metin — "Veriler yüklenemedi. Bağlantını kontrol et." gibi
+    // uzun Türkçe cümleler için 1.4 satır yüksekliği.
     mutedText: {
       fontFamily: fontFamily.manropeMedium,
       fontSize: fontSize.base,
+      lineHeight: lineHeightFor(fontSize.base),
       color: colors.textMuted,
       textAlign: 'center',
     },

@@ -6,6 +6,7 @@ import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { AppModal } from '../../src/components/AppModal';
 import { LoadingState, ErrorState } from '../../src/components/StateViews';
 import { Toast, useToast } from '../../src/components/Toast';
+import { useKurum } from '../../src/context/KurumContext';
 import {
   getBranslar,
   getHizmetTurleri,
@@ -25,6 +26,7 @@ const TERIMLER = [
 export default function KurumBranslariScreen() {
   const colors = useColors();
   const styles = createStyles(colors);
+  const { kulupAdi } = useKurum();
   const [branslar, setBranslar] = useState<Brans[]>([]);
   const [hizmetTurleri, setHizmetTurleri] = useState<HizmetTuruSecenegi[]>([]);
   const [seciliBranslar, setSeciliBranslar] = useState<string[]>([]);
@@ -47,8 +49,12 @@ export default function KurumBranslariScreen() {
       setHizmetTurleri(h);
       setSeciliBranslar(d.seciliBranslar);
       setSeciliHizmet(d.seciliHizmetTurleri);
-    } catch {
-      setError('Branşlar yüklenemedi.');
+    } catch (e) {
+      // Branş seçimleri kulübün şubesine yazılır; kulübün hiç şubesi yoksa
+      // kurumRepo AÇIKLAYICI bir Error fırlatır (Supabase'in kendi hata nesneleri
+      // Error örneği DEĞİLDİR, bu yüzden ayrım güvenli). Kullanıcının ne yapması
+      // gerektiğini söyleyen bu metin genel "yüklenemedi" mesajını ezer.
+      setError(e instanceof Error ? e.message : 'Branşlar yüklenemedi.');
     } finally {
       setLoading(false);
     }
@@ -58,14 +64,26 @@ export default function KurumBranslariScreen() {
     load();
   }, [load]);
 
+  // İyimser güncelleme: yazma başarısız olursa (ör. şube yok, ağ hatası) seçim
+  // GERİ ALINIR — ekranda kaydedilmiş gibi duran bir seçim kalmasın.
   async function onToggleBrans(id: string) {
     setSeciliBranslar((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-    await toggleBrans(id);
+    try {
+      await toggleBrans(id);
+    } catch (e) {
+      setSeciliBranslar((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+      showToast(e instanceof Error ? e.message : 'Branş seçimi kaydedilemedi');
+    }
   }
 
   async function onToggleHizmet(id: string) {
     setSeciliHizmet((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-    await toggleHizmetTuru(id);
+    try {
+      await toggleHizmetTuru(id);
+    } catch (e) {
+      setSeciliHizmet((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+      showToast(e instanceof Error ? e.message : 'Hizmet türü seçimi kaydedilemedi');
+    }
   }
 
   async function onKaydet() {
@@ -101,7 +119,7 @@ export default function KurumBranslariScreen() {
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.headerTitle}>Kurum Branşları</Text>
-            <Text style={styles.headerSub}>Karşıyaka Spor Okulu için geçerli olanların tümünü seçin</Text>
+            <Text style={styles.headerSub}>{kulupAdi} için geçerli olanların tümünü seçin</Text>
           </View>
         </View>
 
