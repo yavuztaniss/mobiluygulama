@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { LoadingState, ErrorState } from '../../../src/components/StateViews';
 import { Toast, useIslem, useToast } from '../../../src/components/Toast';
+import { SohbetModerasyon } from '../../../src/components/SohbetModerasyon';
 import {
   getKonusmaBasligi,
   getMesajlar,
@@ -27,6 +28,8 @@ export default function SohbetScreen() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const { toastMessage, showToast } = useToast();
+  // Engelliyken yazma alani kapanir; kullaniciya sebebi yazilir.
+  const [engelli, setEngelli] = useState(false);
   const calistir = useIslem(showToast);
 
   const load = useCallback(async () => {
@@ -89,6 +92,14 @@ export default function SohbetScreen() {
                 <Text style={styles.headerName} numberOfLines={1}>{konusma.ad}</Text>
                 <Text style={styles.headerRole} numberOfLines={1}>{konusma.role}</Text>
               </View>
+              {/* Guideline 1.2: sikayet ve engelleme, konustugu kisi
+                  baglamindayken erisilebilir olmali. */}
+              <SohbetModerasyon
+                hedefId={konusma.karsiTarafId}
+                hedefAd={konusma.ad}
+                konusmaId={konusma.id}
+                onDegisim={setEngelli}
+              />
             </>
           )}
         </View>
@@ -118,21 +129,33 @@ export default function SohbetScreen() {
               ))}
             </ScrollView>
 
-            <View style={styles.composer}>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Mesaj yazın…"
-                  placeholderTextColor={colors.textDim}
-                  value={draft}
-                  onChangeText={setDraft}
-                  onSubmitEditing={() => onSend()}
-                />
-                <Pressable style={[styles.sendBtn, !draft.trim() && styles.sendBtnDisabled]} onPress={() => onSend()}>
-                  <Text style={{ fontSize: 16 }}>➤</Text>
-                </Pressable>
+            {/* ENGELLİYKEN YAZMA ALANI HİÇ ÇİZİLMİYOR.
+                Sunucu zaten reddediyor (0031 mesaj politikası), ama kullanıcıyı
+                yazdırıp sonra hata göstermek kötü bir deneyim: emeği boşa gider
+                ve sebebini anlamaz. Sebep burada, denemeden önce yazılı. */}
+            {engelli ? (
+              <View style={styles.composer}>
+                <Text style={styles.engelNotu}>
+                  Bu kişiyi engellediniz. Mesajlaşmayı yeniden açmak için üstteki ⋯ menüsünden engeli kaldırın.
+                </Text>
               </View>
-            </View>
+            ) : (
+              <View style={styles.composer}>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Mesaj yazın…"
+                    placeholderTextColor={colors.textDim}
+                    value={draft}
+                    onChangeText={setDraft}
+                    onSubmitEditing={() => onSend()}
+                  />
+                  <Pressable style={[styles.sendBtn, !draft.trim() && styles.sendBtnDisabled]} onPress={() => onSend()}>
+                    <Text style={{ fontSize: 16 }}>➤</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </KeyboardAvoidingView>
         )}
         <Toast message={toastMessage} />
@@ -163,6 +186,7 @@ function createStyles(colors: AppColors) {
   bubbleText: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base, color: colors.textBright, lineHeight: 19 },
   bubbleTime: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim, textAlign: 'right', marginTop: 3 },
   composer: { padding: spacing.md, paddingBottom: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
+  engelNotu: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', lineHeight: 19 },
   inputRow: { flexDirection: 'row', gap: 9, alignItems: 'center' },
   input: { flex: 1, height: 46, borderRadius: 16, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, color: colors.textBright, fontFamily: fontFamily.manropeSemi, fontSize: fontSize.base },
   sendBtn: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },

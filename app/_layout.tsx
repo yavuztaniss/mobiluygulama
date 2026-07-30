@@ -13,6 +13,7 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { HataEkrani } from '../src/components/HataEkrani';
+import { SurumKapisi } from '../src/components/SurumKapisi';
 import { AuthProvider } from '../src/context/AuthContext';
 import { KurumProvider } from '../src/context/KurumContext';
 import { OzellikProvider } from '../src/context/OzellikContext';
@@ -45,14 +46,21 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   if (!ready) return null;
 
   return (
-    <AuthProvider>
-      <KurumProvider>
-        <OzellikProvider>
-          <ThemedStatusBar />
-          <Slot />
-        </OzellikProvider>
-      </KurumProvider>
-    </AuthProvider>
+    // SurumKapisi EN DIŞTA — oturum sağlayıcılarının bile üstünde.
+    // Zorunlu güncelleme kontrolü oturumdan bağımsız olmalı: oturumu bozulmuş
+    // ya da hiç açılmamış bir kullanıcı da kapıyı görebilmeli. İçeride olsaydı
+    // kapı yalnızca giriş yapmış kullanıcılara çıkardı.
+    // Kontrol yapılamadığında hiçbir şey engellenmez (fail-open).
+    <SurumKapisi>
+      <AuthProvider>
+        <KurumProvider>
+          <OzellikProvider>
+            <ThemedStatusBar />
+            <Slot />
+          </OzellikProvider>
+        </KurumProvider>
+      </AuthProvider>
+    </SurumKapisi>
   );
 }
 

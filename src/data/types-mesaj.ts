@@ -1,5 +1,7 @@
 export interface KonusmaSatir {
   id: string;
+  /** Karşı tarafın kullanıcı kimliği — engelleme ve şikâyet bunu kullanıyor (0031). */
+  karsiTarafId: string;
   ad: string;
   init: string;
   role: string;

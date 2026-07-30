@@ -1,7 +1,7 @@
 -- ===========================================================================
 -- 01_sema.sql — Spor Kulübü Yönetim Platformu · TAM ŞEMA (sıfırdan kurulum)
 -- ===========================================================================
--- Bu dosya app/supabase/migrations/0001–0025 arasındaki TÜM migration'ların
+-- Bu dosya app/supabase/migrations/0001–0031 arasındaki TÜM migration'ların
 -- NİHAİ halini tek dosyada birleştirir. Ara adımlar (drop+recreate edilen
 -- politikalar, sonradan eklenen kolonlar, alter policy ile genişletilen
 -- muhasebe kuralları, search_path sertleştirmeleri) burada zincir olarak
@@ -184,6 +184,10 @@ create table profiles (
   avatar_url text,
   created_at timestamptz not null default now(),
   kulup_id uuid references kulup(id),
+  -- 0029: erişimi kaldırılmış kullanıcı. false ise current_kulup_id() NULL
+  -- döner ve 55 restrictive politikanın hepsi o kişi için kapanır.
+  aktif boolean not null default true,
+  pasif_tarihi timestamptz,
   constraint profiles_id_kulup_uniq unique (id, kulup_id),
   -- 0026: platform_admin KULÜPSÜZDÜR. Bölüm 12.13'teki restrictive kiracı duvarı
   -- `kulup_id = current_kulup_id()` der; platform_admin'in kulup_id'si NULL
@@ -242,7 +246,8 @@ as $$
     from public.profiles p
     join public.kulup k on k.id = p.kulup_id
    where p.id = auth.uid()
-     and k.durum = 'aktif'
+     and p.aktif                -- 0029: erişimi kaldırılmış kullanıcı
+     and k.durum = 'aktif'      -- 0023: aboneliği durmuş kulüp
 $$;
 
 
@@ -593,8 +598,9 @@ create table mac_kadro_sporcu (
 
 create table konusma (
   id uuid primary key default gen_random_uuid(),
-  veli_id uuid not null references profiles(id),
-  antrenor_id uuid not null references profiles(id),
+  -- 0029: kişi silinince konuşma da gider (içeriği onun kişisel verisi).
+  veli_id uuid not null references profiles(id) on delete cascade,
+  antrenor_id uuid not null references profiles(id) on delete cascade,
   son_mesaj text,
   son_mesaj_zaman timestamptz,
   veli_okundu_zaman timestamptz,
@@ -610,7 +616,7 @@ create table konusma (
 create table mesaj (
   id uuid primary key default gen_random_uuid(),
   konusma_id uuid not null references konusma(id) on delete cascade,
-  gonderen_id uuid not null references profiles(id),
+  gonderen_id uuid not null references profiles(id) on delete cascade,   -- 0029
   metin text not null,
   gonderen_rol text not null default 'veli' check (gonderen_rol in ('veli', 'antrenor')),
   created_at timestamptz not null default now(),
@@ -761,7 +767,9 @@ create table bireysel_istisna (
 -- (antrenör, sporcu) skalasında — her paket satışı yeni satır, üzerine yazılmaz.
 create table bireysel_paket (
   id uuid primary key default gen_random_uuid(),
-  antrenor_id uuid not null references profiles(id) on delete cascade,
+  -- 0029: paket SPORCUNUNDUR; antrenör ayrılınca velinin ödediği ders hakkı
+  -- silinmemeli.
+  antrenor_id uuid references profiles(id) on delete set null,
   sporcu_id uuid not null references sporcular(id) on delete cascade,
   toplam int not null,
   kalan int not null check (kalan >= 0),
@@ -772,7 +780,7 @@ create table bireysel_paket (
 
 create table bireysel_rezervasyon (
   id uuid primary key default gen_random_uuid(),
-  antrenor_id uuid not null references profiles(id),
+  antrenor_id uuid references profiles(id) on delete set null,   -- 0029
   sporcu_id uuid not null references sporcular(id) on delete cascade,
   tarih date not null,
   saat text not null,
@@ -808,7 +816,9 @@ create table antrenor_grup_ucret (
 
 create table hakedis (
   id uuid primary key default gen_random_uuid(),
-  antrenor_id uuid not null references profiles(id) on delete cascade,
+  -- 0029: BORDRO KAYDI KULÜBÜNDÜR. Eskiden cascade'di ve antrenör hesabı
+  -- silinince tüm hakediş geçmişi sessizce siliniyordu.
+  antrenor_id uuid references profiles(id) on delete set null,
   donem_ay date not null,
   tutar numeric not null default 0,
   odendi boolean not null default false,
@@ -2408,6 +2418,353 @@ end
 $$;
 
 
+
+-- ===========================================================================
+-- 17) MODERASYON, HESAP SİLME VE SÜRÜM KAPISI
+--     Kaynak: 0029 (hesap silme + erişim kaldırma), 0030 (asgari sürüm),
+--             0031 (engelleme + şikâyet)
+-- ===========================================================================
+-- Bu bölüm App Store zorunluluklarının karşılığıdır: 5.1.1(v) uygulama içinden
+-- hesap silme, Guideline 1.2 kullanıcı engelleme + içerik şikâyeti. Ayrıca
+-- zorunlu güncelleme kapısı (şema değiştiren migration sonrası eski sürümlerin
+-- sessizce boş ekran göstermesini engeller) ve kulübün personel erişimini
+-- kaldırma yetkisi burada.
+drop policy if exists "profiles: yönetici personeli pasife alır" on public.profiles;
+create policy "profiles: yönetici personeli pasife alır" on public.profiles for update
+  using (
+    private.current_profile_role() = 'yonetici'
+    -- Yönetici kendini pasife alamaz: kulübü kilitlemenin en kolay yolu bu olurdu.
+    and id <> auth.uid()
+  )
+  with check (
+    private.current_profile_role() = 'yonetici'
+    and id <> auth.uid()
+  );
+
+
+-- ===========================================================================
+-- 5) public.hesabimi_sil()
+-- ===========================================================================
+-- Kullanıcının KENDİ hesabını silmesi. Parametre YOK — hedef her zaman
+-- auth.uid(). Bu bilinçli: parametre alsaydı "başkasının hesabını sil" ucu
+-- olurdu ve tek bir yetki hatası tüm kullanıcıları silinebilir yapardı.
+--
+-- SECURITY DEFINER gerekli çünkü:
+--   · auth.users tablosuna normal kullanıcının yazma yetkisi yok,
+--   · silinen satırlar (konuşmalar, bağlar) RLS altında kısmen görünmez.
+-- Fonksiyon postgres olarak koştuğu için RLS'i baypas eder; bu yüzden gövdedeki
+-- HER İFADE auth.uid() ile sınırlandırılmıştır.
+--
+-- NE SİLİNİR / NE KALIR
+--   Silinir : giriş hesabı (auth.users), profil satırı, push cihaz kayıtları,
+--             veli↔sporcu bağı, kişinin konuşmaları ve mesajları.
+--   Kalır   : sporcu kaydı (kulübün kaydı), ödemeler ve yoklama (mali/hukuki
+--             kayıt), hakediş ve rezervasyon geçmişi — bunlarda kişi bağı NULL'a
+--             düşer. Bu ayrım KVKK'nın "saklama yükümlülüğü olan veri hariç"
+--             istisnasının karşılığı.
+--
+-- REDDEDİLEN DURUM: kulübün son yöneticisi. Silinirse kulüp panelsiz kalır ve
+-- kurtarma yolu yalnızca SQL olur; kullanıcıya ne yapması gerektiği söyleniyor.
+create or replace function public.hesabimi_sil()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id    uuid := auth.uid();
+  v_rol   app_role;
+  v_kulup uuid;
+  v_diger int;
+begin
+  if v_id is null then
+    raise exception 'Oturum bulunamadı.';
+  end if;
+
+  select p.role, p.kulup_id into v_rol, v_kulup
+    from public.profiles p where p.id = v_id;
+
+  if v_rol is null then
+    raise exception 'Profil bulunamadı.';
+  end if;
+
+  -- Son yönetici koruması.
+  if v_rol = 'yonetici' then
+    select count(*) into v_diger
+      from public.profiles
+     where role = 'yonetici' and kulup_id = v_kulup and aktif and id <> v_id;
+
+    if v_diger = 0 then
+      raise exception 'Kulübün tek yöneticisi olduğunuz için hesabınız silinemiyor. Önce başka bir yönetici davet edin, sonra tekrar deneyin.';
+    end if;
+  end if;
+
+  -- --- Kişiye ait bağlar ---------------------------------------------------
+  delete from public.push_token   where user_id = v_id;
+  delete from public.veli_sporcu  where veli_id = v_id;
+  delete from public.sporcu_antrenor where antrenor_id = v_id;
+  -- Konuşmalar cascade ile mesajları da götürür (bölüm 1.1).
+  delete from public.konusma where veli_id = v_id or antrenor_id = v_id;
+  -- Kullanılmamış davetler denetim izi taşımıyor.
+  delete from public.davet where olusturan_id = v_id and kullanildi_at is null;
+
+  -- --- Kulübe ait kayıtlarda kişi bağını boşalt ----------------------------
+  -- Bu satırlar FK'de zaten nullable; burada AÇIKÇA boşaltılıyorlar ki silme
+  -- sırasının ne yaptığı fonksiyonun gövdesinden okunabilsin.
+  -- ⚠ BU LİSTE ŞEMADAN DOĞRULANDI, tahminle yazılmadı. İlk yazımda antrenman ve
+  -- mac_kadro da buradaydı; o tablolarda olusturan_id KOLONU YOK ve fonksiyon
+  -- çalışma anında "column does not exist" ile patlıyordu. Yeni bir kişi bağı
+  -- kolonu eklenirse buraya da eklenmeli, aksi halde silinen kullanıcı o
+  -- tablodan FK ile geri bağlı kalır.
+  update public.duyuru                 set olusturan_id = null where olusturan_id = v_id;
+  update public.etkinlik               set olusturan_id = null where olusturan_id = v_id;
+  update public.gider                  set olusturan_id = null where olusturan_id = v_id;
+  update public.fatura                 set olusturan_id = null where olusturan_id = v_id;
+  update public.basvuru                set created_by   = null where created_by   = v_id;
+  update public.gelisim_degerlendirme  set antrenor_id  = null where antrenor_id  = v_id;
+  update public.davet                  set olusturan_id = null where olusturan_id = v_id;
+
+  -- --- Giriş hesabı --------------------------------------------------------
+  -- profiles satırı buradan cascade ile gider (profiles.id → auth.users(id)
+  -- on delete cascade), hakediş/rezervasyon/paket bağları da bölüm 1'deki
+  -- set null davranışıyla boşalır.
+  --
+  -- ⚠ MEVCUT BELİRTEÇ: silinen kullanıcının elindeki JWT süresi dolana kadar
+  -- (varsayılan 1 saat) teknik olarak geçerlidir. Pratikte hiçbir şey göremez
+  -- çünkü profiles satırı yok → current_kulup_id() NULL → kiracı duvarı kapalı.
+  -- İstemci ayrıca signOut çağırıyor.
+  delete from auth.users where id = v_id;
+end;
+$$;
+
+-- Yalnızca oturum açmış kullanıcı çağırabilir. anon'a VERİLMEZ: kimliği
+-- olmayan bir isteğin silecek bir hesabı yok, uç açıkta durmasın.
+revoke execute on function public.hesabimi_sil() from public;
+revoke execute on function public.hesabimi_sil() from anon;
+grant  execute on function public.hesabimi_sil() to authenticated;
+
+
+
+
+create table if not exists public.uygulama_surumu (
+  -- id boolean/check(id) deseni: tabloda EN FAZLA BİR satır olabilir
+  -- (kurum_ayarlari'ndaki aynı hile). İki satır olsaydı "hangisi geçerli"
+  -- sorusu doğardı ve istemci rastgele birini okurdu.
+  id             boolean primary key default true check (id),
+  -- Bu sürümden ESKİ uygulamalar engellenir. Karşılaştırma semver mantığıyla
+  -- yapılır (1.10.0 > 1.9.0), düz metin karşılaştırmasıyla değil.
+  asgari_surum   text not null default '1.0.0',
+  -- Kullanıcıya gösterilecek metin. Sebep her seferinde farklı olabildiği için
+  -- (güvenlik yaması / veri yapısı değişikliği) sabit metin yerine alan.
+  mesaj          text,
+  ios_url        text,
+  android_url    text,
+  updated_at     timestamptz not null default now()
+);
+
+insert into public.uygulama_surumu (id, asgari_surum, mesaj)
+values (true, '1.0.0', 'Uygulamanın yeni bir sürümü var. Devam etmek için güncelleyin.')
+on conflict (id) do nothing;
+
+comment on table public.uygulama_surumu is
+  'Zorunlu güncelleme kapısı (0030). Tek satır. Platforma ait, kiracıya değil — kulup_id yok. Yazma yalnızca service_role.';
+comment on column public.uygulama_surumu.asgari_surum is
+  'Bu sürümden eski uygulamalar engellenir. app.json > expo.version ile karşılaştırılır (semver).';
+
+alter table public.uygulama_surumu enable row level security;
+
+-- Okuma herkese açık (yukarıdaki gerekçe). Yazma politikası YOK: politikası
+-- olmayan işlem RLS altında reddedilir (fail-closed), yani anon/authenticated
+-- bu tabloya yazamaz. service_role RLS'i baypas ettiği için süper-admin
+-- konsolu değeri değiştirebilir.
+drop policy if exists "uygulama_surumu: herkes okur" on public.uygulama_surumu;
+create policy "uygulama_surumu: herkes okur" on public.uygulama_surumu for select using (true);
+
+grant select on public.uygulama_surumu to anon, authenticated;
+
+-- ===========================================================================
+-- KULLANIM
+--   -- Zorunlu güncellemeyi açmak (süper-admin, SQL Editor):
+--   update public.uygulama_surumu
+--      set asgari_surum = '1.2.0',
+--          mesaj = 'Ödeme ekranı yenilendi; devam etmek için güncelleyin.',
+--          updated_at = now();
+--
+--   ⚠ Değeri MAĞAZADAKİ sürüm yayınlandıktan SONRA yükselt. Önce yükseltirsen
+--     kullanıcılar indirebilecekleri bir güncelleme olmadan kilitlenir.
+-- ===========================================================================
+
+
+create table if not exists public.engelleme (
+  engelleyen_id uuid not null references public.profiles(id) on delete cascade,
+  engellenen_id uuid not null references public.profiles(id) on delete cascade,
+  created_at    timestamptz not null default now(),
+  kulup_id      uuid not null default private.current_kulup_id() references public.kulup(id),
+  primary key (engelleyen_id, engellenen_id),
+  -- Kendini engellemek anlamsız; kontrolü veritabanına bırakmak, her istemci
+  -- sürümünde tekrar hatırlamaktan güvenli.
+  constraint engelleme_kendini_check check (engelleyen_id <> engellenen_id)
+);
+
+create index if not exists engelleme_engellenen_idx on public.engelleme (engellenen_id);
+create index if not exists engelleme_kulup_id_idx   on public.engelleme (kulup_id);
+
+-- ⚠ GRANT AÇIKÇA VERİLİYOR — YENİ TABLO KURAN HER MIGRATION BUNU YAPMALI.
+-- kurulum/01_sema.sql'in sonundaki `grant all on all tables in schema public`
+-- yalnızca O AN var olan tablolara uygulanır; sonradan gelen migration'ların
+-- tabloları bu grant'ı ALMAZ. Sonuç, RLS'ten önce gelen ve teşhisi zor bir
+-- hata: "permission denied for table engelleme" — politikalar doğru olsa bile.
+-- (Bu tam olarak yaşandı: testte engelleme kaydı oluşturulamadı.)
+-- İzinlerin gerçek daraltıcısı GRANT değil RLS'tir; 01_sema'daki aynı gerekçe.
+grant all on public.engelleme to anon, authenticated, service_role;
+
+alter table public.engelleme enable row level security;
+
+-- Kiracı duvarı (0021 ŞABLON-A): `to` yan tümcesi YOK, fonksiyon select ile sarılı.
+drop policy if exists "kulup izolasyonu" on public.engelleme;
+create policy "kulup izolasyonu" on public.engelleme
+  as restrictive for all
+  using (kulup_id = (select private.current_kulup_id()))
+  with check (kulup_id = (select private.current_kulup_id()));
+
+-- Kullanıcı YALNIZCA kendi engellemelerini yönetir. Başkasının engel listesini
+-- okumak da yazmak da mümkün değil.
+drop policy if exists "engelleme: kendi listesini yönetir" on public.engelleme;
+create policy "engelleme: kendi listesini yönetir" on public.engelleme for all
+  using (engelleyen_id = auth.uid())
+  with check (engelleyen_id = auth.uid());
+
+-- ⚠ ÇİFT YÖNLÜ ETKİ İÇİN OKUMA GENİŞLETİLMİYOR.
+-- "Beni kim engelledi" bilgisi kullanıcıya AÇILMIYOR: engellendiğini bilmek
+-- çoğu üründe bilinçli olarak gizlenir. Engelin çift yönlü çalışması aşağıdaki
+-- private.engel_var() fonksiyonuyla sağlanıyor — fonksiyon SECURITY DEFINER
+-- olduğu için RLS'e takılmadan iki yönü de görebiliyor.
+
+
+-- ===========================================================================
+-- 2) private.engel_var() — mesaj politikalarının dayanağı
+-- ===========================================================================
+-- İki kullanıcı arasında HERHANGİ BİR yönde engel var mı?
+--
+-- SECURITY DEFINER: engelleme satırını yalnızca engelleyen okuyabiliyor (bölüm
+-- 1). Politikanın içinden normal bir sorgu yazılsaydı, engellenen taraf için
+-- satır GÖRÜNMEZ olur ve engel onun tarafında hiç uygulanmazdı — tam da
+-- kaçınılmak istenen durum.
+--
+-- private şemasında: PostgREST yalnızca public'i yayımlar, bu fonksiyon
+-- /rest/v1/rpc üzerinden çağrılamaz. Çağrılabilseydi "beni kim engelledi"
+-- sorusunu yanıtlayan bir uç olurdu.
+create or replace function private.engel_var(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.engelleme e
+     where (e.engelleyen_id = a and e.engellenen_id = b)
+        or (e.engelleyen_id = b and e.engellenen_id = a)
+  )
+$$;
+
+revoke execute on function private.engel_var(uuid, uuid) from public;
+revoke execute on function private.engel_var(uuid, uuid) from anon;
+-- authenticated'a EXECUTE veriliyor çünkü aşağıdaki RLS politikaları
+-- kullanıcının kendi isteği içinde bu fonksiyonu çağırıyor.
+grant execute on function private.engel_var(uuid, uuid) to authenticated;
+
+
+-- ===========================================================================
+-- 3) MESAJ YAZMAYI ENGELE BAĞLA
+-- ===========================================================================
+-- Mevcut "mesaj: katılımcı yazar" politikası yerine, aynı koşullara engel
+-- kontrolü eklenmiş hali. Politika RESTRICTIVE değil PERMISSIVE olarak
+-- değiştirilmiyor — var olanın yerine geçiyor ki mantık tek yerde kalsın.
+drop policy if exists "mesaj: katılımcı yazar" on public.mesaj;
+create policy "mesaj: katılımcı yazar" on public.mesaj for insert
+  with check (
+    gonderen_id = auth.uid()
+    and exists (
+      select 1 from public.konusma k
+       where k.id = mesaj.konusma_id
+         and (k.veli_id = auth.uid() or k.antrenor_id = auth.uid())
+         -- Taraflardan biri diğerini engellediyse yazma reddedilir.
+         and not private.engel_var(k.veli_id, k.antrenor_id)
+    )
+  );
+
+
+-- ===========================================================================
+-- 4) sikayet
+-- ===========================================================================
+-- Şikâyet KULÜP YÖNETİCİSİNE düşer, platforma değil: içeriği bilen, tarafları
+-- tanıyan ve yaptırım uygulayabilecek olan kulüptür (antrenörü uyarabilir,
+-- erişimini kaldırabilir — 0029). Apple'ın istediği "zamanında yanıt" da bu
+-- şekilde gerçek bir sürece bağlanıyor.
+create table if not exists public.sikayet (
+  id             uuid primary key default gen_random_uuid(),
+  sikayet_eden_id uuid not null references public.profiles(id) on delete cascade,
+  -- Şikâyet edilen kişi silinirse şikâyet kaydı DURUR (denetim izi), bağ boşalır.
+  hedef_id       uuid references public.profiles(id) on delete set null,
+  konusma_id     uuid references public.konusma(id) on delete set null,
+  sebep          text not null check (sebep in ('uygunsuz_icerik', 'taciz', 'spam', 'sahte_hesap', 'diger')),
+  aciklama       text,
+  durum          text not null default 'acik' check (durum in ('acik', 'incelendi', 'kapatildi')),
+  yonetici_notu  text,
+  created_at     timestamptz not null default now(),
+  kulup_id       uuid not null default private.current_kulup_id() references public.kulup(id)
+);
+
+create index if not exists sikayet_kulup_durum_idx on public.sikayet (kulup_id, durum);
+
+-- Yukarıdaki aynı gerekçe.
+grant all on public.sikayet to anon, authenticated, service_role;
+
+alter table public.sikayet enable row level security;
+
+drop policy if exists "kulup izolasyonu" on public.sikayet;
+create policy "kulup izolasyonu" on public.sikayet
+  as restrictive for all
+  using (kulup_id = (select private.current_kulup_id()))
+  with check (kulup_id = (select private.current_kulup_id()));
+
+-- Kullanıcı şikâyet OLUŞTURUR ve yalnızca KENDİ şikâyetlerini görür.
+-- Güncelleme yetkisi YOK: şikâyeti açan kişi durumunu değiştiremesin.
+drop policy if exists "sikayet: kullanıcı kendi şikâyetini açar" on public.sikayet;
+create policy "sikayet: kullanıcı kendi şikâyetini açar" on public.sikayet for insert
+  with check (sikayet_eden_id = auth.uid());
+
+drop policy if exists "sikayet: kullanıcı kendi şikâyetini görür" on public.sikayet;
+create policy "sikayet: kullanıcı kendi şikâyetini görür" on public.sikayet for select
+  using (sikayet_eden_id = auth.uid());
+
+-- Yönetici kulübün tüm şikâyetlerini görür ve durumunu günceller.
+drop policy if exists "sikayet: yönetici yönetir" on public.sikayet;
+create policy "sikayet: yönetici yönetir" on public.sikayet for select
+  using (private.current_profile_role() = 'yonetici');
+
+drop policy if exists "sikayet: yönetici günceller" on public.sikayet;
+create policy "sikayet: yönetici günceller" on public.sikayet for update
+  using (private.current_profile_role() = 'yonetici')
+  with check (private.current_profile_role() = 'yonetici');
+
+
+-- ===========================================================================
+-- 5) DOĞRULAMA
+-- ===========================================================================
+--   -- Engel iki yönde de yazmayı durduruyor mu?
+--   insert into public.engelleme (engelleyen_id, engellenen_id) values ('<A>','<B>');
+--   -- B oturumunda A ile olan konuşmaya mesaj yazmayı dene → RLS reddetmeli.
+--
+--   -- Politika sayıları: engelleme 2 (1 restrictive + 1 permissive),
+--   -- sikayet 5 (1 restrictive + 4 permissive)
+--   select tablename, count(*) from pg_policies
+--    where schemaname='public' and tablename in ('engelleme','sikayet')
+--    group by tablename;
+-- ===========================================================================
+
+
 -- ===========================================================================
 -- 16) GÖRÜNÜMLER
 --     Kaynak: 0027
@@ -2443,9 +2800,9 @@ grant select on public.sporcu_yoklama_ozet to authenticated;
 reset check_function_bodies;
 
 -- Doğrulama sorguları (elle çalıştırılabilir):
---   select count(*) from pg_tables where schemaname = 'public';          -- 47
---   select count(*) from pg_policies where schemaname = 'public';        -- 216
---     (161 permissive + 55 restrictive)
+--   select count(*) from pg_tables where schemaname = 'public';          -- 50
+--   select count(*) from pg_policies where schemaname = 'public';        -- 225
+--     (168 permissive + 57 restrictive)
 --
 --   -- 0024/0025 entegrasyonu: 4 kolon + 3 indeks + 1 trigger dönmeli
 --   select table_name, column_name from information_schema.columns

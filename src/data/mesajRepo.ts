@@ -94,6 +94,9 @@ export async function getKonusmalar(): Promise<KonusmaSatir[]> {
     const palette = avatarColorAt(i);
     return {
       id: r.id,
+      // Engelleme/şikâyet karşı tarafın kimliğini gerektiriyor; ekranda
+      // gösterilmiyor ama moderasyon menüsüne veriliyor.
+      karsiTarafId: benVeliyim ? r.antrenor_id : r.veli_id,
       ad: karsiAd,
       init: initialsOf(karsiAd),
       role: benVeliyim ? 'Antrenör' : 'Veli',
