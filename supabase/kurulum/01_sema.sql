@@ -1,7 +1,7 @@
 -- ===========================================================================
 -- 01_sema.sql — Spor Kulübü Yönetim Platformu · TAM ŞEMA (sıfırdan kurulum)
 -- ===========================================================================
--- Bu dosya app/supabase/migrations/0001–0031 arasındaki TÜM migration'ların
+-- Bu dosya app/supabase/migrations/0001–0035 arasındaki TÜM migration'ların
 -- NİHAİ halini tek dosyada birleştirir. Ara adımlar (drop+recreate edilen
 -- politikalar, sonradan eklenen kolonlar, alter policy ile genişletilen
 -- muhasebe kuralları, search_path sertleştirmeleri) burada zincir olarak
@@ -2534,6 +2534,17 @@ begin
   update public.gelisim_degerlendirme  set antrenor_id  = null where antrenor_id  = v_id;
   update public.davet                  set olusturan_id = null where olusturan_id = v_id;
 
+  -- --- BİLEREK SİLİNMEYEN: sporcular.veli_ad / veli_telefon / veli_yakinlik
+  -- Çocuk kulübe kayıtlı olduğu sürece kulübün acil durumda ulaşabileceği bir
+  -- iletişim bilgisine ihtiyacı var; velinin uygulama hesabını silmesi onun
+  -- veli olmaktan çıkması demek değil. Bu alanlar kulübün kendi kaydıdır ve
+  -- KVKK'nın saklama istisnası kapsamında değerlendirilir.
+  -- Bu tercih kullanıcıya ACIKCA soyleniyor: src/components/HesabiSil.tsx
+  -- icindeki "KULUPTE KALACAKLAR" listesinde ayri bir madde olarak yaziyor.
+  -- Soylenmeseydi liste yaniltici olurdu — asil kusur silmemek degil,
+  -- silinmedigini gizlemekti. Hukukcu gorusu aksini soylerse buraya uc
+  -- update satiri eklenir.
+
   -- --- Giriş hesabı --------------------------------------------------------
   -- profiles satırı buradan cascade ile gider (profiles.id → auth.users(id)
   -- on delete cascade), hakediş/rezervasyon/paket bağları da bölüm 1'deki
@@ -2792,8 +2803,8 @@ security definer
 set search_path = public
 as $$
 declare
-  v_kilitli boolean;
-  v_rol     text;
+  v_kilitli    boolean;
+  v_olusturan  app_role;
 begin
   if new.rol <> 'yonetici' then
     return new;   -- antrenör/muhasebeci/veli daveti serbest
@@ -2806,16 +2817,18 @@ begin
     return new;   -- bu kulüp için kilit açılmış
   end if;
 
-  -- private.current_profile_role() oturumdaki rolü verir. service_role ile
-  -- (platform konsolu) auth.uid() NULL olduğu için NULL döner — o yol serbest.
-  v_rol := private.current_profile_role();
+  -- YETKİ SATIRDAN OKUNUYOR (0034'teki hatanın düzeltmesi).
+  -- Fonksiyon SECURITY DEFINER olduğu için profiles'ı RLS'e takılmadan okur;
+  -- bu şart, çünkü kulüp yöneticisi platform_admin satırını göremez.
+  select p.role into v_olusturan
+    from public.profiles p where p.id = new.olusturan_id;
 
-  if v_rol = 'yonetici' then
-    raise exception 'Yönetici hesapları yalnızca yazılım sağlayıcısı tarafından açılabilir. Yeni yönetici için sağlayıcınızla iletişime geçin.'
-      using errcode = 'insufficient_privilege';
+  if v_olusturan = 'platform_admin' then
+    return new;
   end if;
 
-  return new;
+  raise exception 'Yönetici hesapları yalnızca yazılım sağlayıcısı tarafından açılabilir. Yeni yönetici için sağlayıcınızla iletişime geçin.'
+    using errcode = 'insufficient_privilege';
 end;
 $$;
 

@@ -21,7 +21,7 @@
 --   5) kurulum/04_ilk_yonetici.sql   <-- bu dosya
 --   6) (yalnızca demo/satış ortamında) demo/karsiyaka_demo.sql
 --
---   ✔ Bu altı adım YETERLİDİR: 01_sema.sql migration 0001–0031'in nihai halini
+--   ✔ Bu altı adım YETERLİDİR: 01_sema.sql migration 0001–0035'in nihai halini
 --     içerir. app/supabase/migrations/ altındaki dosyaları ayrıca çalıştırmayın.
 --
 -- ÖN KOŞUL — ÖNCE HESAP OLUŞTURULMALI:

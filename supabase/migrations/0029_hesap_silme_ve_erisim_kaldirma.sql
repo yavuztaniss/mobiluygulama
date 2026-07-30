@@ -241,6 +241,17 @@ begin
   update public.gelisim_degerlendirme  set antrenor_id  = null where antrenor_id  = v_id;
   update public.davet                  set olusturan_id = null where olusturan_id = v_id;
 
+  -- --- BİLEREK SİLİNMEYEN: sporcular.veli_ad / veli_telefon / veli_yakinlik
+  -- Çocuk kulübe kayıtlı olduğu sürece kulübün acil durumda ulaşabileceği bir
+  -- iletişim bilgisine ihtiyacı var; velinin uygulama hesabını silmesi onun
+  -- veli olmaktan çıkması demek değil. Bu alanlar kulübün kendi kaydıdır ve
+  -- KVKK'nın saklama istisnası kapsamında değerlendirilir.
+  -- Bu tercih kullanıcıya ACIKCA soyleniyor: src/components/HesabiSil.tsx
+  -- icindeki "KULUPTE KALACAKLAR" listesinde ayri bir madde olarak yaziyor.
+  -- Soylenmeseydi liste yaniltici olurdu — asil kusur silmemek degil,
+  -- silinmedigini gizlemekti. Hukukcu gorusu aksini soylerse buraya uc
+  -- update satiri eklenir.
+
   -- --- Giriş hesabı --------------------------------------------------------
   -- profiles satırı buradan cascade ile gider (profiles.id → auth.users(id)
   -- on delete cascade), hakediş/rezervasyon/paket bağları da bölüm 1'deki

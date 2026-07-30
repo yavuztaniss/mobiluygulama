@@ -9,7 +9,7 @@
 --
 -- ÖN KOŞULLAR (sırayla):
 --   1) kurulum/01_sema.sql            çalıştırılmış olmalı
---      (paket 0001–0025'i içerir; ayrıca migration çalıştırmak GEREKMEZ)
+--      (paket 0001–0035'i içerir; ayrıca migration çalıştırmak GEREKMEZ)
 --   2) kurulum/02_katalog.sql         çalıştırılmış olmalı
 --      (brans + beceri satırları buradaki kayıtların FK hedefidir)
 --   3) kurulum/03_kulup_olustur.sql   çalıştırılmış olmalı (kulüp + merkez şube)

@@ -85,8 +85,18 @@ export function HesabiSil() {
               <Text style={styles.listeBaslik}>KULÜPTE KALACAKLAR</Text>
               <Text style={styles.listeSatir}>• Sporcunun kulüp kaydı ve yoklamaları</Text>
               <Text style={styles.listeSatir}>• Ödeme kayıtları (yasal saklama)</Text>
+              {/* BU SATIR EKSİKTİ ve listenin dürüstlüğünü bozuyordu.
+                  hesabimi_sil() sporcular.veli_ad / veli_telefon / veli_yakinlik
+                  alanlarına DOKUNMUYOR: çocuk kulübe kayıtlı olduğu sürece
+                  kulübün acil durumda ulaşabileceği bir iletişim bilgisine
+                  ihtiyacı var. Bunu silmemek savunulabilir bir tercih, ama
+                  SÖYLEMEMEK değil — kullanıcı neyin kaldığını bilerek karar
+                  vermeli. */}
+              <Text style={styles.listeSatir}>• Acil durum iletişim bilgisi (adınız ve telefonunuz)</Text>
               <Text style={styles.listeAciklama}>
-                Bunlar kulübün kendi kayıtlarıdır; sizinle bağlantısı kaldırılır.
+                Bunlar kulübün kendi kayıtlarıdır; hesabınızla bağlantısı kaldırılır. Çocuğunuz kulüpte kayıtlı
+                olduğu sürece kulübün acil durumda size ulaşabilmesi için iletişim bilginiz kulüpte kalır.
+                Tamamen silinmesini istiyorsanız kulübünüzle görüşün.
               </Text>
             </View>
 
