@@ -22,6 +22,24 @@
 --   verilen hesap yabancı birinin elinde ve araya yalnızca RLS girer. Ayrı
 --   proje, patlama yarıçapını sıfırlar.
 --
+-- NEDEN SECURITY DEFINER DEĞİL
+--   İlk sürüm ikisini de DEFINER yazmıştı. Denetim turu bunun tehlikesini
+--   ölçtü: `revoke` tek katmandı ve 01_sema.sql'in toplu
+--   `grant all on all routines` satırı bu dosyadan sonra çalışırsa izni GERİ
+--   VERİYORDU. O noktada sıradan bir VELİ `demo_kulup_sil` çağırıp bütün
+--   kulübü sildi — ölçüldü, `kulup 1 -> 0`.
+--
+--   İlk düzeltme fonksiyonların içine `auth.uid() is not null` kapısı koymaktı.
+--   KARŞI-TEST onu da çürüttü: kapı bir OTURUM AYARINA bağlı
+--   (`request.jwt.claims`), ayar aynı oturumda daha önce kurulduysa asılı
+--   kalıyor ve MEŞRU kurulum çağrısı da reddediliyordu.
+--
+--   Doğru çözüm yapısal: bu fonksiyonlar OPERATÖR ARACI, ayrıcalık yükseltmesi
+--   gerektirmiyorlar. INVOKER olarak çağıranın yetkisiyle çalışıyorlar —
+--   kurulumu yapan postgres `auth.users`'a yazabiliyor, bir veli yazamıyor.
+--   Koruma bir kapıdan değil, izin sisteminin kendisinden geliyor; unutulacak
+--   ya da oturum durumuna takılacak bir şey kalmıyor.
+--
 -- ÖNKOŞUL: demo projesinde 01_sema.sql ve 02_katalog.sql çalıştırılmış olmalı.
 --
 -- KULLANIM (demo projesinin SQL Editor'ında):
@@ -37,7 +55,7 @@ create or replace function public.demo_kulup_olustur(
   p_sifre     text
 ) returns table (yeni_kulup_id uuid, giris_eposta text, giris_sifre text, sporcu_sayisi int)
 language plpgsql
-security definer
+security invoker   -- ŞART — bkz. başlıktaki "NEDEN SECURITY DEFINER DEĞİL"
 set search_path = public
 as $$
 declare
@@ -245,7 +263,7 @@ revoke all on function public.demo_kulup_olustur(text, text, text) from public, 
 create or replace function public.demo_kulup_sil(p_kulup_id uuid)
 returns void
 language plpgsql
-security definer
+security invoker   -- ŞART — bkz. başlıktaki "NEDEN SECURITY DEFINER DEĞİL"
 set search_path = public
 as $$
 declare

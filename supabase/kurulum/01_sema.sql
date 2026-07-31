@@ -5625,6 +5625,37 @@ end $$;
 -- entegrasyon tek komutla veritabanını boşaltabilirdi.
 revoke truncate on all tables in schema public from anon, authenticated;
 
+-- ---------------------------------------------------------------------------
+-- KURULUM ARACI FONKSİYONLARI DA GERİ ALINIYOR
+-- ---------------------------------------------------------------------------
+-- `06_demo_kulup.sql` demo kulübü açan/silen iki fonksiyon kuruyor ve kendi
+-- sonunda EXECUTE iznini geri alıyor. Ama bu dosyadaki toplu
+-- `grant all on all routines` 06'dan SONRA çalışırsa izni GERİ VERİYOR.
+-- ÖLÇÜLDÜ: izin geri geldiğinde sıradan bir VELİ `demo_kulup_sil` çağırıp
+-- bütün kulübü sildi (kulup 1 -> 0).
+--
+-- ⚠ ASIL KORUMA BU BLOK DEĞİL, FONKSİYONLARIN İÇİNDEKİ KAPI.
+--   Bu dosya tekrar çalıştırılabilir DEĞİL: 116. satırdaki
+--   `create type app_role` "already exists" ile düşüyor ve akış buraya hiç
+--   ulaşmıyor (ölçüldü). Yani "01'i yeniden çalıştırdım" senaryosunda bu revoke
+--   devreye girmez. Gerçek savunma, 06'daki iki fonksiyonun `auth.uid() is not
+--   null` kontrolü: izin ne olursa olsun oturumlu çağrıyı reddediyorlar.
+--   Bu blok yalnızca ikinci katman — toplu grant satırı elle ya da bir bakım
+--   betiğiyle tek başına çalıştırılırsa devreye giriyor.
+--
+-- Fonksiyonlar yoksa (canlı projede olmamalılar) bu döngü hiçbir şey yapmaz.
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure as imza
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname like 'demo\_kulup\_%'
+  loop
+    execute format('revoke all on function %s from public, anon, authenticated', r.imza);
+  end loop;
+end $$;
+
 
 -- Sıradaki adım: kurulum/02_katalog.sql (platform kataloğu).
 -- ===========================================================================
