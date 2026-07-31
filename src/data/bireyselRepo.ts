@@ -228,16 +228,27 @@ export async function rezervasyonOlustur(
       // TUTAR GÖNDERİLMİYOR — sunucu antrenörün ilan ettiği ücretten yazıyor (0036).
       // Eskiden istemcinin daha önce okuduğu paket_fiyat üzerinden hesaplanıp
       // gönderiliyordu; değiştirilmiş bir istemci istediği rakamı yazdırabilirdi.
+      // TUTAR ve PAKET DÜŞÜMÜ SUNUCUDA (0036 + 0037).
+      // Eskiden düşüm burada, AYRI bir istekte yapılıyordu — istemci o isteği
+      // atlayabiliyor ve paket hiç azalmadan sınırsız ders alınabiliyordu.
+      // Denetimde ölçüldü: 3 rezervasyon açıldı, kalan 6'da kaldı; paket
+      // tükendikten sonra bile geçiyordu. Artık düşüm rezervasyonla AYNI
+      // transaction'da, tetikleyicide: paket satırı kilitleniyor,
+      // sporcu/antrenör eşleşmesi ve kalan > 0 doğrulanıyor, sonra azaltılıyor.
       const { error } = await supabase
         .from('bireysel_rezervasyon')
         .insert({ antrenor_id: antrenorId, sporcu_id: sporcuId, tarih, saat, odeme_tipi: 'paket', paket_id: p.id });
       if (error) throw mapRezervasyonError(error);
-      const kalan = p.kalan - 1;
-      // 0016 trigger'ı (yalnızca kalan-1'e izin verir) bu update'i reddedebilir (ör.
-      // eşzamanlı ikinci rezervasyonda bayat kalan değeri) — hata yutulursa veliye
-      // "düşüldü" denip DB'de düşüm yapılmamış olur, o yüzden mutlaka kontrol et.
-      const { error: paketHata } = await supabase.from('bireysel_paket').update({ kalan }).eq('id', p.id);
-      if (paketHata) throw paketHata;
+
+      // Güncel kalanı SUNUCUDAN oku. İstemcide hesaplamak, düşümü sunucuya
+      // taşımanın anlamını kaybettirirdi: ekranda gösterilen sayı ile
+      // veritabanındaki değer ayrışabilirdi.
+      const { data: guncel } = await supabase
+        .from('bireysel_paket')
+        .select('kalan')
+        .eq('id', p.id)
+        .maybeSingle();
+      const kalan = (guncel as { kalan: number } | null)?.kalan ?? p.kalan - 1;
       return { odemeNotu: `Paketten düşüldü · kalan ${kalan}/${p.toplam} ders`, kalanPaket: kalan };
     }
   }
