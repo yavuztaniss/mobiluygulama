@@ -10,13 +10,37 @@
 -- MİMARİNİN ÜÇ TAŞIYICI KARARI
 -- ===========================================================================
 --
--- 1) JETON HİÇBİR UYGULAMA KODUNA UĞRAMAZ.
---    Erişim jetonu Supabase Vault'ta şifreli durur; isteği Postgres'in kendisi
---    pg_net ile atar. Ne mobil uygulama, ne panel, ne de kulüp yöneticisi jetonu
---    görebilir. Alternatif (jetonu bir tabloda tutup Next.js'ten göndermek)
---    jetonu her dağıtım ortamına ve her log satırına yayardı.
---    ÖLÇÜLDÜ: `set local role authenticated; select * from vault.decrypted_secrets;`
---      → ERROR: permission denied for schema vault
+-- 1) JETON UYGULAMA KODUNA UĞRAMAZ — AMA VERİTABANI İÇİNDE AÇIKTA.
+--
+--    ⚠⚠ BU MADDE ÖNCE YANLIŞ YAZILDI. "Ne mobil uygulama, ne panel, ne de kulüp
+--    yöneticisi jetonu görebilir" deniyordu. Birinci yarısı doğru, ikinci yarısı
+--    YANLIŞ. Denetim turu buldu, bağımsız olarak doğrulandı:
+--
+--      set local role authenticated;          -- sıradan bir VELİ
+--      select count(*) from net.http_request_queue
+--       where headers::text like '%EAAG_...%';
+--        → 1 satırda jeton GÖRÜNÜYOR
+--
+--    Vault tarafı sağlam: `select * from vault.decrypted_secrets` authenticated
+--    için "permission denied for schema vault" veriyor. Ama jeton Vault'tan
+--    çıkıp Meta'ya giderken `net.http_post` onu Authorization başlığıyla
+--    `net.http_request_queue` tablosuna DÜZ METİN yazıyor ve o tablonun PUBLIC
+--    izni var. Kiracı ayrımı da yok: bir kulübün velisi TÜM kulüplerin jetonunu
+--    görebiliyor.
+--
+--    BUGÜN API'DEN ULAŞILAMIYOR: PostgREST yalnızca public ve graphql_public
+--    şemalarını yayınlıyor, `net` listede değil (Accept-Profile: net → 406).
+--    Yani duvar ŞEMADA DEĞİL, PostgREST AYARINDA — TEK KATMAN. "Exposed
+--    schemas" listesine bir gün `net` eklenirse anında kritik olur.
+--
+--    VERİTABANI İÇİNDEN KAPATILAMIYOR (ölçüldü): izinleri supabase_admin verdi,
+--    `postgres` superuser değil (rolsuper = f) ve supabase_admin üyesi değil;
+--    revoke, alter owner ve enable rls üçü de reddediliyor. 0048 YAZMA yolunu
+--    tetikleyiciyle kapattı, OKUMA açık kaldı.
+--
+--    KALICI ÇÖZÜM: gönderimi Edge Function'a taşımak — jeton hiç `net.*`'a
+--    uğramaz. Bu, aşağıdaki mimarinin değişmesi demek ve ayrı bir iş olarak
+--    planlanmalı. O zamana kadar risk yukarıdaki tek katmana bağlı.
 --
 -- 2) pg_net ASENKRON VE TRANSACTION'LIDIR.
 --    `net.http_post` bir `bigint` request_id döner; yanıt SONRA

