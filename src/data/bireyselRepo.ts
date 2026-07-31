@@ -183,17 +183,25 @@ export async function getBireyselHafta(antrenorId: string): Promise<BireyselGunS
   const istisnaTarihler = new Set(((istRows ?? []) as { tarih: string }[]).map((r) => r.tarih));
   const doluSet = new Set(((rezRows ?? []) as { tarih: string; saat: string }[]).map((r) => `${r.tarih}|${r.saat}`));
 
+  // 0041: bugünün ISO'su. Hafta Pazartesi'den başladığı için haftanın ilk
+  // günleri geçmişte kalabiliyor ve bunlar rezervasyona kapalı.
+  const bugunIso = toISO(new Date());
+
   return days.map((d, i) => {
     const iso = toISO(d);
+    const gecmis = iso < bugunIso;
     const musRow = mus.find((m) => m.gun_index === i && m.aktif);
     let slotlar: BireyselSlot[] = [];
-    if (musRow && !istisnaTarihler.has(iso)) {
+    // Geçmiş güne slot üretilmiyor: veritabanı zaten reddediyor (veli INSERT
+    // politikası `tarih >= current_date`), boş yere seçilebilir göstermek
+    // kullanıcıyı hataya sürüklerdi.
+    if (musRow && !istisnaTarihler.has(iso) && !gecmis) {
       slotlar = saatAraligi(musRow.baslangic_saat, musRow.bitis_saat).map((saat) => ({
         saat,
         durum: doluSet.has(`${iso}|${saat}`) ? 'dolu' : 'musait',
       }));
     }
-    return { gunAdi: GUN_ADLARI[i], gunNo: String(d.getDate()), slotlar };
+    return { gunAdi: GUN_ADLARI[i], gunNo: String(d.getDate()), slotlar, gecmis };
   });
 }
 

@@ -147,13 +147,22 @@ end $$;
 -- =============================================================================
 -- Şube id '1000...0001' (Merkez) mobil uygulamada koda gömülüdür
 -- (app/src/data/kurumRepo.ts → MERKEZ_SUBE_ID). Değiştirmeyin.
--- alt_bilgi'deki sporcu/branş sayıları statik vitrin metnidir, gerçek satır
--- sayılarıyla eşleşmez (demo amaçlı bilinçli abartı).
-
+-- alt_bilgi ARTIK SAYI TAŞIMIYOR — semt bilgisi taşıyor.
+--
+-- Eskiden burada '184 sporcu · 6 branş' gibi statik vitrin metinleri vardı ve
+-- "gerçek satır sayılarıyla eşleşmez, demo amaçlı bilinçli abartı" diye not
+-- düşülmüştü. O not, alanı hiçbir ekran göstermediği sürece zararsızdı.
+-- Ayarlar > Şubeler ekranı geldiğinde (0038) alt_bilgi, GERÇEK sayımın hemen
+-- üstünde çizilmeye başladı: aynı kartta "58 sporcu · 3 branş" ile "1 sporcu ·
+-- 0 grup" yan yana düştü. Demoyu izleyen kulüp için bu, ürünün kendi kendisiyle
+-- çeliştiği anlamına gelir.
+--
+-- Alanın gerçek işi zaten bu: şubeyi ayırt eden kısa bir konum notu (formdaki
+-- ipucu da "ör. semt"). Sayı üreten tek yer sunucudaki sayım olmalı.
 insert into sube (id, ad, alt_bilgi) values
-  ('10000000-0000-0000-0000-000000000001', 'Merkez',           '184 sporcu · 6 branş'),
-  ('10000000-0000-0000-0000-000000000002', 'Karşıyaka Sahil',  '96 sporcu · 4 branş'),
-  ('10000000-0000-0000-0000-000000000003', 'Bostanlı',         '58 sporcu · 3 branş')
+  ('10000000-0000-0000-0000-000000000001', 'Merkez',           'Alaybey, Karşıyaka'),
+  ('10000000-0000-0000-0000-000000000002', 'Karşıyaka Sahil',  'Sahil Mah., Karşıyaka'),
+  ('10000000-0000-0000-0000-000000000003', 'Bostanlı',         'Bostanlı Mah., Karşıyaka')
 on conflict (id) do nothing;
 
 -- Merkez şubede açık olan branşlar (Bale ve Satranç hariç 6 branş).

@@ -137,7 +137,10 @@ export default function BireyselDersListesi() {
               </Pressable>
             ))}
 
-            <Text style={styles.footerNote}>Ödemeler kulüp üzerinden güvenle alınır ·{'\n'}24 saatten geç iptalde seans yanar</Text>
+            {/* 0040: "24 saatten geç iptalde seans yanar" kaldırıldı — uygulamada
+                veli için iptal düğmesi HİÇ YOK, hiçbir kod yolu durum='iptal'
+                yazmıyor. Cümle, olmayan bir özelliğin kuralını anlatıyordu. */}
+            <Text style={styles.footerNote}>Ödemeler kulüp üzerinden güvenle alınır ·{'\n'}İptal için kulübünüzle iletişime geçin</Text>
           </ScrollView>
         )}
       </SafeAreaView>

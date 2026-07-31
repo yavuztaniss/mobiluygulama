@@ -273,7 +273,11 @@ create table sube (
 -- 0004'te de böyleydi: profiles → sube FK'si tablo yaratıldıktan SONRA bağlanır.
 -- Burada zorunluluk daha da katı (bölüm 2'deki sıra notu).
 alter table profiles
-  add constraint profiles_sube_id_fkey foreign key (sube_id) references sube(id);
+  add constraint profiles_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id)
+  on delete set null (sube_id);
+-- profiles.kulup_id NULLABLE (platform_admin kulüpsüzdür): bileşik FK MATCH
+-- SIMPLE davranışıyla kulup_id NULL olduğunda hiç kontrol edilmez — istenen bu.
 
 -- --- ORTAK KATALOG (3 tablo): brans / hizmet_turu / beceri
 --     kulup_id NULLABLE. NULL = platform kataloğu (her kulüp okur, kimse
@@ -338,7 +342,7 @@ create table grup (
   id uuid primary key default gen_random_uuid(),
   ad text not null,
   brans_id uuid references brans(id),
-  sube_id uuid references sube(id),
+  sube_id uuid,
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
   aktif boolean not null default true,
   pasif_tarihi timestamptz,
@@ -359,7 +363,7 @@ create table sporcular (
   numara int,
   brans_id uuid references brans(id),
   grup_id uuid references grup(id),
-  sube_id uuid references sube(id),
+  sube_id uuid,
   odeme_durumu text not null default 'guncel' check (odeme_durumu in ('guncel', 'gecikmis')),
   veli_ad text,
   veli_telefon text,
@@ -413,7 +417,7 @@ create table aidat_plani (
   alt text,
   fiyat numeric not null,
   beklenen numeric,
-  sube_id uuid references sube(id),
+  sube_id uuid,
   kulup_id uuid not null default private.current_kulup_id() references kulup(id)
 );
 
@@ -655,7 +659,7 @@ create table servis_rota (
   konum_saat text,
   konum_hiz text,
   sofor_telefon text,
-  sube_id uuid references sube(id),
+  sube_id uuid,
   created_at timestamptz not null default now(),
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
   constraint servis_rota_id_kulup_uniq unique (id, kulup_id)
@@ -700,7 +704,7 @@ create table urun (
   aktif boolean not null default true,
   badge text,
   jersey boolean not null default false,
-  sube_id uuid references sube(id),
+  sube_id uuid,
   created_at timestamptz not null default now(),
   kulup_id uuid not null default private.current_kulup_id() references kulup(id),
   constraint urun_id_kulup_uniq unique (id, kulup_id)
@@ -788,7 +792,12 @@ create table bireysel_paket (
   kalan int not null check (kalan >= 0),
   tutar numeric not null,
   created_at timestamptz not null default now(),
-  kulup_id uuid not null default private.current_kulup_id() references kulup(id)
+  kulup_id uuid not null default private.current_kulup_id() references kulup(id),
+  -- 0041: TAVAN DA KISITTA. Tetikleyicideki least(kalan + 1, toplam) yalnızca
+  -- İADE yolunu koruyordu; yöneticinin bireysel_paket üzerindeki DOĞRUDAN UPDATE
+  -- politikası tetikleyiciden geçmiyor ve kalan = 99 yazılabiliyordu (ölçüldü).
+  -- Kısıt veritabanı düzeyinde: hangi yoldan gelinirse gelinsin tutuyor.
+  constraint bireysel_paket_kalan_tavan check (kalan <= toplam)
 );
 
 create table bireysel_rezervasyon (
@@ -865,7 +874,7 @@ create table basvuru (
   dogum_yili int,
   brans_id uuid references brans(id),
   grup_id uuid references grup(id),
-  sube_id uuid references sube(id),
+  sube_id uuid,
   veli_ad text,
   veli_telefon text,
   tag text not null check (tag in ('DENEME', 'KAYIT')),
@@ -1039,6 +1048,60 @@ create table davet (
   -- sporcu bağı yalnızca veli davetinde anlamlı.
   constraint davet_sporcu_rol_check check (sporcu_id is null or rol = 'veli')
 );
+
+
+-- ===========================================================================
+-- 11.9  ŞUBE: KİRACI BÜTÜNLÜĞÜ, İNDEKSLER, BENZERSİZ AD   (kaynak: 0038 + 0039)
+-- ===========================================================================
+-- NEDEN BİLEŞİK FK — düz `references sube(id)` YETMEZ.
+--   Düz FK yalnızca "böyle bir şube var mı" diye sorar, "BENİM kulübümün şubesi
+--   mi" diye sormaz. Bir kulüp yöneticisi başka kulübün şube UUID'sini bilirse
+--   kendi sporcusunu O şubeye etiketleyebilirdi. RLS bunu yakalamıyor: WITH
+--   CHECK yalnızca kulup_id'ye bakıyor, sube_id'ye bakmıyor.
+--
+--   Zararı, şube filtreleri devreye girdiği anda somutlaşıyor: yabancı şubeye
+--   etiketlenmiş sporcu kendi kulübünün şube filtresinde KAYBOLUR — sessiz veri
+--   kaybı. Çözüm 0021'in bağ tablolarındaki desenin aynısı; `sube` üzerindeki
+--   (id, kulup_id) benzersizliği zaten var (sube_id_kulup_uniq).
+--
+-- NEDEN `on delete set null (sube_id)` — KOLON LİSTESİ ŞART.
+--   Kolonsuz `on delete set null` bileşik FK'nin TÜM kolonlarını NULL yapar,
+--   yani kulup_id'yi de. kulup_id NOT NULL olduğu için şube silme şu hatayla
+--   reddediliyordu:
+--       null value in column "kulup_id" of relation "sporcular"
+--       violates not-null constraint
+--   Sonuç: içinde tek bir sporcu bile olan şube SİLİNEMİYORDU. Kolon listeli
+--   biçim (PostgreSQL 15+) yalnızca sube_id'yi boşaltır. Bu tam olarak istenen
+--   davranış: şube kapanır, sporcular şubesiz kalır ama SİLİNMEZ.
+--
+-- SÜRÜM ŞARTI: PostgreSQL 15+. Supabase bunu karşılıyor.
+
+alter table sporcular   add constraint sporcular_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete set null (sube_id);
+alter table grup        add constraint grup_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete set null (sube_id);
+alter table aidat_plani add constraint aidat_plani_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete set null (sube_id);
+alter table urun        add constraint urun_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete set null (sube_id);
+alter table servis_rota add constraint servis_rota_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete set null (sube_id);
+alter table basvuru     add constraint basvuru_sube_kulup_fkey
+  foreign key (sube_id, kulup_id) references sube(id, kulup_id) on delete set null (sube_id);
+
+-- İNDEKSLER. Şube filtresi her listede `kulup_id = ? and sube_id = ?` biçiminde
+-- çalışıyor; kiracı duvarı kulup_id predicate'ini zaten ekliyor. Bileşik indeks
+-- ikisini birden karşılar. İndekssiz kalırsa restrictive politika her sorguda
+-- seq scan'e döner (0021 bölüm 8 ile aynı gerekçe).
+create index if not exists sporcular_kulup_sube_idx   on sporcular   (kulup_id, sube_id);
+create index if not exists grup_kulup_sube_idx        on grup        (kulup_id, sube_id);
+create index if not exists aidat_plani_kulup_sube_idx on aidat_plani (kulup_id, sube_id);
+create index if not exists urun_kulup_sube_idx        on urun        (kulup_id, sube_id);
+
+-- ŞUBE ADI KULÜP İÇİNDE BENZERSİZ. İki "Merkez" şubesi, filtrede hangisinin
+-- seçildiğini anlaşılmaz kılar ve raporu ikiye böler. Kulüp bazında yeterli:
+-- iki farklı kulüp elbette "Merkez" adını kullanabilir.
+create unique index if not exists sube_kulup_ad_uniq on sube (kulup_id, ad);
 
 
 -- ===========================================================================
@@ -1681,9 +1744,28 @@ create policy "bireysel_rezervasyon: antrenör kendi rezervasyonunu görür" on 
   using (antrenor_id = auth.uid());
 create policy "bireysel_rezervasyon: veli bağlı sporcusunu görür" on bireysel_rezervasyon for select
   using (exists (select 1 from veli_sporcu vs where vs.sporcu_id = bireysel_rezervasyon.sporcu_id and vs.veli_id = auth.uid()));
-create policy "bireysel_rezervasyon: veli kendi sporcusu için rezervasyon açar" on bireysel_rezervasyon for insert
+-- 0041 — İKİ DEĞİŞİKLİK:
+--
+--  1) `tarih >= current_date` — GEÇMİŞE REZERVASYON YOK.
+--     Kaybın asıl kaynağı buydu: politikada tarih koşulu yoktu, uygulama ekranı
+--     da haftanın Pazartesi–Pazar'ını sunup geçmiş günleri elemiyordu. Veli
+--     geçmiş bir güne rezervasyon açabiliyor, sonra o rezervasyon reddedilince
+--     ya da iptal edilince paket hakkı yanabiliyordu.
+--     Bugün serbest (`>=` kullanıldı): aynı gün ders almak meşru bir istek,
+--     iade kuralı ayrı katmanda (paket_iade) duruyor.
+--
+--  2) POLİTİKA ADI "…rezervasyon aç" oldu (eskiden "…açar").
+--     Migration zinciri (0013) "…aç" kullanıyordu, kurulum paketi "…açar".
+--     İki kaynağın farklı ad taşıması, politikayı drop+create eden bir
+--     migration'ın YENİ KURULUMDA eskisini düşürememesine yol açıyordu:
+--     `drop policy if exists "…aç"` sessizce hiçbir şey yapmaz, ardından
+--     "…aç" adıyla ikinci bir politika oluşurdu. Permissive politikalar
+--     OR'landığı için tarih koşulu OLMAYAN eski kural yenisini tamamen
+--     etkisiz kılardı. Ad birleştirildi.
+create policy "bireysel_rezervasyon: veli kendi sporcusu için rezervasyon aç" on bireysel_rezervasyon for insert
   with check (
     durum = 'onay_bekliyor'
+    and tarih >= current_date
     and exists (select 1 from veli_sporcu vs where vs.sporcu_id = bireysel_rezervasyon.sporcu_id and vs.veli_id = auth.uid())
   );
 create policy "bireysel_rezervasyon: yönetici ekler" on bireysel_rezervasyon for insert
@@ -1693,13 +1775,23 @@ create policy "bireysel_rezervasyon: yönetici ekler" on bireysel_rezervasyon fo
 create policy "bireysel_rezervasyon: antrenör onaylar/reddeder/sonuçlandırır" on bireysel_rezervasyon for update
   using (antrenor_id = auth.uid() and durum in ('onay_bekliyor', 'onaylandi'))
   with check (antrenor_id = auth.uid() and durum in ('onaylandi', 'reddedildi', 'tamamlandi', 'gelmedi'));
+-- 0040: `tarih > current_date` — VELİ GEÇMİŞ DERSİ İPTAL EDEMEZ.
+-- Tetikleyicideki iade koşulunun ikinci katmanı. İkisi ayrı iş yapıyor:
+-- tetikleyici "verilmiş ders iade edilmez" değişmezini herkese uygular,
+-- bu politika "geçmişi yeniden yazamazsın" iş kuralını gerçek kullanıcıya.
+-- Tek katman yetmezdi: yalnızca tetikleyici olsaydı velinin iptali BAŞARILI
+-- olur ama sessizce iade almazdı — kullanıcı hata görmediği için "kayboldu" derdi.
+-- ⚠ AYNI GÜN İPTAL ARTIK MÜMKÜN DEĞİL; sömürü tam o aralıkta gerçekleşiyor.
+-- Meşru aynı gün iptali antrenör ya da yönetici üzerinden yapılır.
 create policy "bireysel_rezervasyon: veli kendi rezervasyonunu iptal eder" on bireysel_rezervasyon for update
   using (
     durum in ('onay_bekliyor', 'onaylandi')
+    and tarih > current_date
     and exists (select 1 from veli_sporcu vs where vs.sporcu_id = bireysel_rezervasyon.sporcu_id and vs.veli_id = auth.uid())
   )
   with check (
     durum = 'iptal'
+    and tarih > current_date
     and exists (select 1 from veli_sporcu vs where vs.sporcu_id = bireysel_rezervasyon.sporcu_id and vs.veli_id = auth.uid())
   );
 create policy "bireysel_rezervasyon: yönetici günceller" on bireysel_rezervasyon for update
@@ -2200,6 +2292,68 @@ $$;
 create trigger on_konusma_taraflar_protect
   before update on public.konusma
   for each row execute procedure public.protect_konusma_taraflar();
+
+-- ---------------------------------------------------------------------------
+-- 13.6b mesaj_gonderen_rol_turet — mesajın "kim yazdı" etiketi SUNUCUDA türetilir.
+--       Kaynak: 0046.
+--
+-- NEDEN VAR: `gonderen_rol` 0011'de istemcinin beyanı olarak eklenmişti. RLS
+-- mesajı YAZANI doğruluyor (gonderen_id = auth.uid() + konuşmanın tarafı olmak)
+-- ama NE SIFATLA yazdığına bakmıyordu. Yerelde ölçüldü: bir veli kendi
+-- konuşmasına `gonderen_rol = 'antrenor'` ile satır yazabiliyordu ve
+-- admin-panel/app/(panel)/mesajlar/page.tsx yalnızca bu kolona baktığı için
+-- (gonderen_id'yi hiç seçmiyor) mesaj yöneticinin "Salt izleme" ekranında
+-- ANTRENÖRÜN balonunda çiziliyordu. Yani veli, antrenörün ağzından yazışma
+-- uydurup şikâyet ekranında (0031) delil olarak sunabilirdi. Ters yön de aynı.
+--
+-- NEDEN TETİKLEYİCİ: bu bir güvenlik değişmezi, iş kuralı değil — veli,
+-- antrenör, yönetici, service_role ve postgres dahil herkese işlemeli. RLS'e
+-- konsaydı service_role yolu açık kalırdı.
+--
+-- YANLIŞ BEYAN SESSİZCE DÜZELTİLİR, EXCEPTION ATILMAZ: meşru istemci zaten
+-- doğru değeri gönderiyor; exception, kolonu göndermeyen bir istemci sürümünde
+-- mesajlaşmayı tamamen kırardı (0037 dersi).
+--
+-- veli_id = antrenor_id olan konuşmalarda (aynı hesap iki şapka — kolonun var
+-- olma sebebi) türetme ayrım yapamaz, beyan KORUNUR.
+create or replace function public.mesaj_gonderen_rol_turet()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_veli     uuid;
+  v_antrenor uuid;
+begin
+  select k.veli_id, k.antrenor_id
+    into v_veli, v_antrenor
+    from public.konusma k
+   where k.id = new.konusma_id;
+
+  if v_veli is null then
+    return new;                      -- konuşma yok: FK zaten reddedecek
+  end if;
+
+  if v_veli = v_antrenor then
+    return new;                      -- belirsiz: beyan korunur
+  end if;
+
+  if new.gonderen_id = v_antrenor then
+    new.gonderen_rol := 'antrenor';
+  elsif new.gonderen_id = v_veli then
+    new.gonderen_rol := 'veli';
+  else
+    raise exception 'mesajı yazan kişi bu konuşmanın tarafı değil'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger on_mesaj_gonderen_rol
+  before insert or update on public.mesaj
+  for each row execute procedure public.mesaj_gonderen_rol_turet();
 
 -- ---------------------------------------------------------------------------
 -- 13.7 protect_bireysel_rezervasyon — durum değiştirirken tutar/sporcu/paket de
@@ -3342,6 +3496,19 @@ declare
   v_kilitli   boolean;
   v_olusturan app_role;
 begin
+  -- 0040: ROL DEĞİŞMEYEN UPDATE'LER ERKEN ÇIKAR.
+  -- Tetikleyici `before insert or update` olduğu için davet satırının HER
+  -- UPDATE'inde çalışıyordu — kaydın tüketildiği andaki mühür UPDATE'i dahil
+  -- (handle_new_user içindeki `update davet set kullanildi_at`). O anda kural
+  -- sıfırdan değerlendiriliyor ve davet oluşturulduğunda geçerli olan durum
+  -- artık geçerli değilse KAYIT TAMAMEN DÜŞÜYOR; auth.users INSERT'iyle aynı
+  -- transaction'da olduğu için hesap hiç açılmıyordu.
+  -- Baypas açmıyor: rolü 'yonetici'ye ÇEVİREN UPDATE rol değiştiği için hâlâ
+  -- yakalanıyor, RLS WITH CHECK katmanı da INSERT+UPDATE'te yerinde duruyor.
+  if TG_OP = 'UPDATE' and new.rol is not distinct from old.rol then
+    return new;
+  end if;
+
   if new.rol <> 'yonetici' then
     return new;
   end if;
@@ -3453,9 +3620,17 @@ begin
 end;
 $$;
 
+-- AFTER INSERT (0044) — BEFORE DEĞİL. BEFORE INSERT tetikleyicileri, satır
+-- ÇATIŞMA NEDENİYLE HİÇ YAZILMASA BİLE çalışır: `insert ... on conflict do
+-- nothing` (PostgREST'in "Prefer: resolution=ignore-duplicates" başlığı bunu
+-- üretir) gönderildiğinde paket düşüyor ama rezervasyon oluşmuyordu.
+-- ÖLÇÜLDÜ: kalan 4 -> 3, yeni satır YOK. Velinin ödediği ders sessizce yanıyordu.
+-- AFTER'da tetikleyici yalnızca gerçekten yazılan satır için çalışır; `for
+-- update` kilidi aynı transaction içinde alındığı için eşzamanlılık garantisi
+-- değişmiyor ve fonksiyon NEW'i değiştirmediği için BEFORE olması gerekmiyordu.
 drop trigger if exists on_rezervasyon_paket_dus on public.bireysel_rezervasyon;
 create trigger on_rezervasyon_paket_dus
-  before insert on public.bireysel_rezervasyon
+  after insert on public.bireysel_rezervasyon
   for each row execute procedure public.paket_dus();
 
 -- İADE: ders verilmediyse hak geri gelmeli.
@@ -3474,7 +3649,38 @@ begin
   end if;
 
   if new.durum in ('reddedildi', 'iptal')
-     and old.durum not in ('reddedildi', 'iptal') then
+     and old.durum not in ('reddedildi', 'iptal')
+     -- ===================================================================
+     -- İADE KAPISI (0040 → 0041)
+     -- ===================================================================
+     -- 0040 buraya düz `new.tarih > current_date` koymuştu. Gerekçe doğruydu
+     -- (verilmiş ders iade edilmemeli: veli derse gider, antrenör
+     -- 'tamamlandi' işaretlemeden iptal eder, hak geri gelirdi — ölçüldü
+     -- 5 → 4 → 5), ama koşul BLOĞUN TAMAMINA uygulandığı için ANTRENÖRÜN
+     -- "Reddet" düğmesini de vuruyordu:
+     --   veli bugüne rezervasyon açar (kalan 5→4) → antrenör reddeder
+     --   (ders hiç onaylanmadı, hiç verilmedi) → kalan 4'te kalır.
+     -- Hata dönmüyordu. Veli hakkını sessizce kaybediyor, rezervasyon
+     -- 'reddedildi' olduğu için kulüp de tahsil etmiyordu — para tek taraflı
+     -- kayboluyordu. 0040'ın kapattığı sömürünün tam aynadaki hâli.
+     --
+     -- 0041 koşulu TARİHE DEĞİL "DERS TÜKETİLDİ Mİ"YE bağlıyor:
+     --   · old.durum = 'onay_bekliyor' → hiç onaylanmadı = hiç verilmedi.
+     --     Tarihi ne olursa olsun iade edilir; antrenörün reddi bu dala düşer.
+     --   · aksi hâlde onaylanmış ders yalnızca GELECEKTEYSE iade edilir.
+     --
+     -- least(old.tarih, new.tarih) ŞART: 0040 yalnız new.tarih'e bakıyordu ve
+     -- tek UPDATE'te `set tarih = current_date + 5, durum = 'iptal'` yazarak
+     -- geçmiş dersin iadesi koparılabiliyordu (yönetici yolu; veli ve antrenör
+     -- tarihi zaten protect_bireysel_rezervasyon yüzünden değiştiremiyor).
+     --
+     -- Yalnızca `new.durum = 'reddedildi'` muafiyeti DAHA ZAYIF olurdu:
+     -- antrenör verdiği geçmiş dersi 'reddedildi' işaretleyip veliyle
+     -- anlaşarak iade üretebilirdi. old.durum şartı bunu kesiyor.
+     and (
+       old.durum = 'onay_bekliyor'
+       or least(old.tarih, new.tarih) > current_date
+     ) then
     -- kalan, toplam'ı aşmasın: bozuk bir veri düzeltmesi paketi şişirmesin.
     update public.bireysel_paket
        set kalan = least(kalan + 1, toplam)
@@ -3489,6 +3695,222 @@ drop trigger if exists on_rezervasyon_paket_iade on public.bireysel_rezervasyon;
 create trigger on_rezervasyon_paket_iade
   after update on public.bireysel_rezervasyon
   for each row execute procedure public.paket_iade();
+
+
+-- ---------------------------------------------------------------------------
+-- DİRİLTME DÜŞÜMÜ  (0041)
+-- ---------------------------------------------------------------------------
+-- `paket_dus` yalnızca BEFORE INSERT'te çalışıyor. Bir rezervasyon iptal edilip
+-- (iade +1) sonra tekrar aktif duruma çekilirse YENİDEN DÜŞÜM OLMUYORDU, ama her
+-- yeni iptal `paket_iade`'yi tekrar ateşliyordu.
+-- ÖLÇÜLDÜ: iptal→onaylandi→iptal döngüsü kalan'ı 5→6→7→8→9→10 yaptı; sonuçta
+-- toplam=10, kalan=10 ve 5 aktif rezervasyon → fiilen 15 derslik hak.
+-- Yapabilen: yönetici (veli ve antrenör diriltemiyor — RLS engelliyor).
+create or replace function public.paket_dirilt()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_kalan int;
+begin
+  if new.odeme_tipi <> 'paket' or new.paket_id is null then
+    return new;
+  end if;
+
+  -- İADE SETİNDEN ÇIKIŞ = hak yeniden tüketiliyor. Koşul `paket_iade`'nin
+  -- AYNASI olmak zorunda: iade, iade setine GİRİŞTE +1 yapıyor; düşüm de
+  -- setten ÇIKIŞTA -1 yapmalı.
+  -- ⚠ 0041 buraya `new.durum in ('onay_bekliyor','onaylandi')` yazmıştı ve
+  --   'tamamlandi'/'gelmedi' hedefleri düşümsüz geçiyordu. ÖLÇÜLDÜ (0044):
+  --   iptal→tamamlandi→iptal→gelmedi→iptal… her tur +1 üretiyordu (kalan
+  --   5→6→7→9, rezervasyon hâlâ ayakta). Hedef durumları tek tek saymak yerine
+  --   "iade setinde değil" demek, ileride yeni bir durum eklendiğinde deliği
+  --   kendiliğinden kapatır.
+  if old.durum in ('reddedildi', 'iptal')
+     and new.durum not in ('reddedildi', 'iptal') then
+
+    select kalan into v_kalan
+      from public.bireysel_paket
+     where id = new.paket_id
+       for update;                      -- paket_dus ile aynı kilit deseni
+
+    if coalesce(v_kalan, 0) <= 0 then
+      raise exception 'Pakette kalan ders hakkı yok; rezervasyon yeniden aktifleştirilemez.'
+        using errcode = 'check_violation';
+    end if;
+
+    update public.bireysel_paket
+       set kalan = kalan - 1
+     where id = new.paket_id;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_rezervasyon_paket_dirilt on public.bireysel_rezervasyon;
+create trigger on_rezervasyon_paket_dirilt
+  before update on public.bireysel_rezervasyon
+  for each row execute procedure public.paket_dirilt();
+
+
+-- ---------------------------------------------------------------------------
+-- BİREYSEL DERSTE KİRACI BÜTÜNLÜĞÜ  (0041)
+-- ---------------------------------------------------------------------------
+-- `antrenor_id` kolonları yalnızca `profiles(id)`'ye bakıyordu — "böyle bir kişi
+-- var mı" diye soruyor, "BENİM kulübümün antrenörü mü" diye sormuyordu. 0038'in
+-- `sube_id` için kurduğu bileşik FK deseni buraya uygulanmamıştı.
+--
+-- ÖLÇÜLDÜ (A kulübü velisinin gerçek JWT'siyle):
+--   · B kulübünün antrenörüne rezervasyon açıldı → başarılı.
+--   · FİYAT SIZDI: veli `bireysel_antrenor`'da 0 satır görüyor ama rezervasyona
+--     yazılan tutar B'nin gerçek tek_fiyat'ı — `rezervasyon_fiyatla` SECURITY
+--     DEFINER olduğu için kiracı duvarının arkasından kopyalıyor.
+--   · TAKVİM KİLİTLENDİ: slot benzersizliği kiracı kırılımsızdı; B'nin
+--     antrenörünün saati işgal ediliyor ve engelleyen satırı B tarafı ne
+--     görebiliyor ne silebiliyordu.
+--
+-- Gereken benzersizlik `profiles(id, kulup_id)` üzerinde zaten var.
+-- ⚠ `on delete set null (antrenor_id)` — kolon listeli biçim ŞART: kolonsuz
+--    SET NULL bileşik FK'nin TÜM kolonlarını (kulup_id dahil) NULL yapmaya
+--    çalışır ve NOT NULL kısıtına takılır (0038/0039'da yaşandı).
+alter table bireysel_rezervasyon drop constraint if exists bireysel_rezervasyon_antrenor_id_fkey;
+alter table bireysel_rezervasyon add  constraint bireysel_rezervasyon_antrenor_kulup_fkey
+  foreign key (antrenor_id, kulup_id) references profiles(id, kulup_id)
+  on delete set null (antrenor_id);
+
+alter table bireysel_paket drop constraint if exists bireysel_paket_antrenor_id_fkey;
+alter table bireysel_paket add  constraint bireysel_paket_antrenor_kulup_fkey
+  foreign key (antrenor_id, kulup_id) references profiles(id, kulup_id)
+  on delete set null (antrenor_id);
+
+-- bireysel_antrenor.antrenor_id NOT NULL: SET NULL kullanılamaz, CASCADE korunuyor
+-- (profil silinirse ücret satırı da anlamsızlaşır).
+alter table bireysel_antrenor drop constraint if exists bireysel_antrenor_antrenor_id_fkey;
+alter table bireysel_antrenor add  constraint bireysel_antrenor_antrenor_kulup_fkey
+  foreign key (antrenor_id, kulup_id) references profiles(id, kulup_id)
+  on delete cascade;
+
+-- SLOT BENZERSİZLİĞİ KİRACIYA GÖRE. Bileşik FK yabancı antrenöre rezervasyonu
+-- zaten reddediyor; bu indeks ikinci katman ve doğru olanı ifade ediyor:
+-- bir saat, BİR KULÜBÜN antrenörü için tekildir.
+drop index if exists public.bireysel_rezervasyon_slot_uniq;
+create unique index if not exists bireysel_rezervasyon_slot_uniq
+  on bireysel_rezervasyon (kulup_id, antrenor_id, tarih, saat)
+  where durum <> all (array['reddedildi'::text, 'iptal'::text]);
+
+
+-- ---------------------------------------------------------------------------
+-- service_role, private.current_profile_role() ÇALIŞTIRABİLMELİ  (0041)
+-- ---------------------------------------------------------------------------
+-- ÖLÇÜLDÜ: izin yoktu ve bu fonksiyonu çağıran her tetikleyici
+-- (protect_antrenor_ucret, protect_bireysel_rezervasyon…) service_role isteğini
+-- `permission denied for function current_profile_role` ile düşürüyordu. Yani
+-- service_role bu tablolarda HİÇ UPDATE yapamıyordu. Panel service_role
+-- istemcisi kullanıyor; bu tablolara yazan bir ekran eklendiği gün sessizce
+-- patlardı.
+-- GÜVENLİK ETKİSİ YOK: fonksiyon yalnızca ÇAĞIRANIN kendi rolünü döndürüyor,
+-- parametre almıyor; service_role zaten RLS'i baypas ediyor.
+grant execute on function private.current_profile_role() to service_role;
+
+
+-- ---------------------------------------------------------------------------
+-- paket_id / sporcu_id KİRACI BÜTÜNLÜĞÜ + PAKET BAĞLILIĞI  (0044)
+-- ---------------------------------------------------------------------------
+-- 0041 antrenor_id için bileşik FK kurdu, paket_id'yi atladı. paket_id düz FK
+-- olduğu ve `paket_iade`/`paket_dirilt` SECURITY DEFINER (RLS baypas) olduğu
+-- için bir kulübün yöneticisi BAŞKA KULÜBÜN paketine yazabiliyordu.
+-- ÖLÇÜLDÜ (A yöneticisinin gerçek JWT'si, B'nin paketi kalan=8):
+--   select ... from bireysel_paket where id = <B paketi>  -> 0 satır (RLS sağlam)
+--   update bireysel_rezervasyon set paket_id = <B paketi> -> UPDATE 1 (duvar yok)
+--   tarih geçmişe çekilip iptal↔onaylandi döngüsü          -> B'nin kalanı 8 -> 6
+-- Kurbanın tarafında hiçbir iz yok: rezervasyon satırı A kulübünde.
+--
+-- KATMAN: kiracı bütünlüğü güvenlik değişmezi -> FK (herkesi bağlar:
+-- veli, yönetici, service_role, postgres). RLS seçilseydi service_role yolu ve
+-- tetikleyicilerin DEFINER gövdesi muaf kalırdı.
+-- ⚠ SIRA: FK önce düşürülür — benzersizlik indeksine bağlı bir FK varken
+--   `drop constraint` "other objects depend on it" hatası verir (ölçüldü).
+alter table bireysel_rezervasyon drop constraint if exists bireysel_rezervasyon_paket_id_fkey;
+alter table bireysel_rezervasyon drop constraint if exists bireysel_rezervasyon_paket_kulup_fkey;
+
+alter table bireysel_paket drop constraint if exists bireysel_paket_id_kulup_uniq;
+alter table bireysel_paket add  constraint bireysel_paket_id_kulup_uniq unique (id, kulup_id);
+
+-- ON DELETE bilinçli olarak NO ACTION (düz FK ile aynı davranış): paketi silmek
+-- rezervasyonu sessizce koparmamalı.
+alter table bireysel_rezervasyon add  constraint bireysel_rezervasyon_paket_kulup_fkey
+  foreign key (paket_id, kulup_id) references bireysel_paket(id, kulup_id);
+
+-- sporcu_id: şemadaki diğer TÜM sporcu bağları (veli_sporcu, sporcu_antrenor,
+-- servis_sporcu, etkinlik_katilim, mac_kadro_sporcu) bileşik; bu iki tablo
+-- istisna kalmıştı.
+alter table bireysel_rezervasyon drop constraint if exists bireysel_rezervasyon_sporcu_id_fkey;
+alter table bireysel_rezervasyon add  constraint bireysel_rezervasyon_sporcu_kulup_fkey
+  foreign key (sporcu_id, kulup_id) references sporcular(id, kulup_id) on delete cascade;
+
+alter table bireysel_paket drop constraint if exists bireysel_paket_sporcu_id_fkey;
+alter table bireysel_paket add  constraint bireysel_paket_sporcu_kulup_fkey
+  foreign key (sporcu_id, kulup_id) references sporcular(id, kulup_id) on delete cascade;
+
+-- KULÜP İÇİ BAĞLILIK — FK ile ifade edilemez (iki tablo arasında değer
+-- eşitliği). `paket_dus` bu üç bağı yalnızca INSERT'te doğruluyordu; yönetici
+-- `protect_bireysel_rezervasyon`'dan muaf olduğu için UPDATE ile paket_id /
+-- sporcu_id / antrenor_id'yi serbestçe değiştirip X çocuğunun paketinden Y
+-- çocuğunun dersini düşürebiliyordu.
+-- ⚠ new.antrenor_id is not null ŞART: antrenör profili silindiğinde FK
+--   "on delete set null (antrenor_id)" bir UPDATE üretir; koşul olmasaydı bu
+--   tetikleyici hesap silmeyi kırardı (0038/0039'da yaşanan sınıf).
+create or replace function public.protect_rezervasyon_paket_baglilik()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sporcu uuid;
+  v_ant    uuid;
+begin
+  if new.paket_id is null then
+    return new;
+  end if;
+
+  if new.paket_id     is not distinct from old.paket_id
+     and new.sporcu_id   is not distinct from old.sporcu_id
+     and new.antrenor_id is not distinct from old.antrenor_id then
+    return new;
+  end if;
+
+  select bp.sporcu_id, bp.antrenor_id into v_sporcu, v_ant
+    from public.bireysel_paket bp where bp.id = new.paket_id;
+
+  if v_sporcu is null then
+    raise exception 'Paket bulunamadı.';
+  end if;
+
+  if v_sporcu is distinct from new.sporcu_id then
+    raise exception 'Bu paket bu sporcuya ait değil.';
+  end if;
+
+  if v_ant is not null and new.antrenor_id is not null
+     and v_ant is distinct from new.antrenor_id then
+    raise exception 'Bu paket başka bir antrenör için alınmış.';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- AD SIRASI ÖNEMLİ: aynı zamanlamadaki tetikleyiciler ada göre çalışır.
+-- "...paket_baglilik" < "...paket_dirilt" olduğu için doğrulama düşümden önce
+-- çalışır; geçersiz bir paket_id ile kalan azaltılmaz.
+drop trigger if exists on_rezervasyon_paket_baglilik on public.bireysel_rezervasyon;
+create trigger on_rezervasyon_paket_baglilik
+  before update on public.bireysel_rezervasyon
+  for each row execute procedure public.protect_rezervasyon_paket_baglilik();
+
 
 -- İSTEMCİNİN PAKET YAZMA YETKİSİ KALDIRILIYOR.
 -- Bu politika yalnızca istemci tarafındaki düşümü ayakta tutmak için vardı;
@@ -3604,11 +4026,21 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  if current_user = 'authenticated' and private.current_profile_role() <> 'yonetici' then
+  -- 0040: coalesce ŞART. Çıplak  ifadesi, profil satırı
+  -- okunamayan bir authenticated kullanıcı için NULL üretiyor; NULL da koşulu
+  -- yanlış yapıp kontrolü TAMAMEN ATLATIYORDU. Aynı desen protect_bireysel_rezervasyon'da.
+  if current_user = 'authenticated'
+     and coalesce(private.current_profile_role()::text, '') <> 'yonetici' then
     if new.tek_fiyat is distinct from old.tek_fiyat
        or new.paket_fiyat is distinct from old.paket_fiyat
-       or new.paket_ders_sayisi is distinct from old.paket_ders_sayisi then
-      raise exception 'Ders ücretlerini yalnızca kulüp yöneticisi değiştirebilir.';
+       or new.paket_ders_sayisi is distinct from old.paket_ders_sayisi
+       -- 0040: VİTRİN ALANLARI DA YÖNETİCİNİN TEKELİNDE. puan, veliye antrenör
+       -- seçtirilen ekranda gösteriliyor ve hiçbir yerde sunucu tarafında
+       -- türetilmiyor; antrenörün kendi yazdığı değer "kulübün verdiği puan"
+       -- gibi görünüyordu. Ölçüldü: puan=5.0, deneyim_yil=30 geçiyordu.
+       or new.puan is distinct from old.puan
+       or new.deneyim_yil is distinct from old.deneyim_yil then
+      raise exception 'Ücret, puan ve deneyim bilgisini yalnızca kulüp yöneticisi değiştirebilir.';
     end if;
   end if;
   return new;
@@ -3769,5 +4201,1312 @@ reset check_function_bodies;
 --    where schemaname='public' and permissive = 'RESTRICTIVE' and roles <> '{public}';
 --    → boş dönmeli
 --
+-- ===========================================================================
+-- WHATSAPP ENTEGRASYONU  (kaynak: 0042 + 0043 + 0044)
+-- ===========================================================================
+-- Üç migration BİRLİKTE işleniyor ve SIRASI ÖNEMLİ:
+--   0043 tabloları ve motoru kurar; 0044 o motorun iç fonksiyonlarının EXECUTE
+--   iznini geri alır. 0044 atlanırsa YENİ kurulan her kulüpte, giriş yapmış
+--   herhangi bir velinin kulübün doğrulanmış WhatsApp numarasından mesaj
+--   gönderebildiği KRİTİK açık açık kalır (0044 başlığında ölçümüyle yazılı).
+--
+-- 0042 (pg_net kilidi) burada da deneniyor ama Supabase'de izinleri
+-- supabase_admin verdiği için etkisiz kalabilir — dosya bunu ölçüp uyarıyor.
+--
+-- ⚠ BU BLOK, dosya sonundaki TRUNCATE revoke bloğundan ÖNCE durmalı: kendi
+--   grant satırlarını içeriyor ve revoke en sonda kalmazsa TRUNCATE geri gelir.
+-- ===========================================================================
+
+-- ===========================================================================
+-- 0042 — pg_net açığı: giriş yapmış her kullanıcı sunucudan HTTP isteği atabiliyor
+-- ===========================================================================
+-- WhatsApp entegrasyonunun (0043) hazırlığı sırasında ölçüldü. WhatsApp'la
+-- SEBEP olarak ilgisi yok — bu açık ŞU AN mevcut ve bağımsız bir sorun.
+--
+-- BULGU
+--   `pg_net` uzantısı kurulu (Supabase varsayılanı). `net` şeması ve
+--   `net.http_post / http_get / http_delete` fonksiyonları `anon` ve
+--   `authenticated` rollerine AÇIKÇA verilmiş durumda. Yani en düşük yetkili
+--   gerçek kullanıcı — bir VELİ — kendi JWT'siyle veritabanına istediği adrese
+--   HTTP isteği attırabiliyor.
+--
+-- ÖLÇÜLDÜ (veli JWT'si, yerel Docker):
+--   select net.http_post('http://127.0.0.1:54321/rest/v1/', '{"deneme":1}');  → 17
+--   select net.http_get('http://169.254.169.254/latest/meta-data/');          → 18
+--   select count(*) from net._http_response;   → 1 satır GÖRÜNÜYOR
+--   Yani yanıt gövdesi de okunabiliyor: körlemesine değil, TAM SSRF.
+--
+-- NEDEN CİDDİ
+--   · İstek VERİTABANI SUNUCUSUNDAN çıkıyor — ağın içinden. Dışarıya kapalı iç
+--     servisler ve bulut metadata uçları bu yolla erişilebilir hâle geliyor.
+--   · Kullanıcı okuyabildiği her veriyi kendi sunucusuna POST edebilir. RLS
+--     okumayı sınırlar, okunanı dışarı taşımayı sınırlamaz.
+--   · `net._http_response` PAYLAŞILAN bir tablo. 0043 ile WhatsApp trafiği de
+--     buradan geçecek; kapatılmazsa bir veli kulübün WhatsApp API yanıtlarını
+--     (mesaj kimlikleri, başka velilerin numaraları) okuyabilir.
+--
+--   Supabase'in barındırdığı ortamda metadata ucunun GERÇEKTEN erişilebilir olup
+--   olmadığı ağ yapılandırmasına bağlı ve DOĞRULANMADI. Ama yetenek nettir;
+--   erişilemezliğe bel bağlamak savunma değildir.
+--
+--
+-- ⚠⚠ BU MIGRATION TEK BAŞINA YETMEYEBİLİR — OKU ⚠⚠
+--
+--   İzinleri `supabase_admin` verdi. PostgreSQL'de bir izni yalnızca onu VEREN
+--   (ya da nesnenin sahibi / bir superuser) geri alabilir.
+--
+--   YERELDE ÖLÇÜLDÜ:
+--     select rolname, rolsuper from pg_roles where rolname='postgres';
+--       → postgres | f            (superuser DEĞİL)
+--     set role supabase_admin;
+--       → ERROR: permission denied to set role "supabase_admin"
+--     revoke usage on schema net from authenticated;
+--       → WARNING: no privileges could be revoked for "net"
+--
+--   Supabase SQL Editor `postgres` olarak çalışır. Dolayısıyla yerel kurulumda
+--   bu revoke ETKİSİZ kalıyor. Barındırılan projede `postgres` rolüne farklı
+--   üyelikler verilmiş olabilir — orada çalışabilir. Migration bunu DENER,
+--   sonucu ÖLÇER ve gerçeği söyler; başarısız olursa hata fırlatıp zinciri
+--   durdurmaz (bu bir platform izni sorunu, şema hatası değil).
+--
+--   CANLIDA DURUMU GÖRMEK İÇİN (SQL Editor'da çalıştır):
+--     select has_schema_privilege('authenticated','net','USAGE')      as sema,
+--            has_table_privilege('authenticated','net._http_response','SELECT') as yanit_tablosu;
+--     -- ikisi de false ise sorun yok; true varsa aşağıdaki nota bak.
+--
+--   REVOKE ÇALIŞMAZSA NE YAPILMALI
+--     1. Supabase destek talebi aç: "pg_net'in anon/authenticated rollerine
+--        verilen erişimini kaldırmak istiyoruz" de. Bu, projeye özel bir
+--        yapılandırma talebi ve destek tarafından yapılabiliyor.
+--     2. Bu arada 0043'ün gönderim motoru zaten GÜVENLİ: pg_net'i yalnızca
+--        SECURITY DEFINER fonksiyonlar içinden, sahibinin (postgres) yetkisiyle
+--        çağırıyor. İstemci hiçbir zaman doğrudan `net.*` çağırmıyor. Yani
+--        WhatsApp entegrasyonu bu açığı BÜYÜTMÜYOR — ama açık kapanana kadar
+--        pg_net kaynaklı SSRF riski (0043'ten bağımsız olarak) devam ediyor.
+--
+-- ÇALIŞTIRMA: 0041'den sonra, 0043'ten önce. Tekrar çalıştırılabilir.
+-- ===========================================================================
+
+do $$
+declare
+  v_sema  boolean;
+  v_fonk  boolean;
+  v_tablo boolean;
+begin
+  if not exists (select 1 from pg_namespace where nspname = 'net') then
+    raise notice '0042: pg_net kurulu değil, yapılacak bir şey yok.';
+    return;
+  end if;
+
+  -- DENEME. Her biri ayrı ayrı sarmalanıyor: biri yetki hatası verirse
+  -- diğerleri yine de denensin.
+  begin execute 'revoke all on schema net from public, anon, authenticated';                exception when others then null; end;
+  begin execute 'revoke all on all functions in schema net from public, anon, authenticated'; exception when others then null; end;
+  begin execute 'revoke all on all tables    in schema net from public, anon, authenticated'; exception when others then null; end;
+  begin execute 'alter default privileges in schema net revoke all on functions from public, anon, authenticated'; exception when others then null; end;
+  begin execute 'alter default privileges in schema net revoke all on tables    from public, anon, authenticated'; exception when others then null; end;
+
+  -- ÖLÇÜM — "denedim" demek yetmez, sonucu görmek gerekir.
+  v_sema  := has_schema_privilege('authenticated', 'net', 'USAGE');
+  v_fonk  := has_function_privilege('authenticated',
+               'net.http_post(text,jsonb,jsonb,jsonb,integer)', 'EXECUTE');
+  v_tablo := has_table_privilege('authenticated', 'net._http_response', 'SELECT');
+
+  if v_sema or v_fonk or v_tablo then
+    raise warning E'\n'
+      '========================================================================\n'
+      '0042 — pg_net ERİŞİMİ KAPATILAMADI (şema=%, fonksiyon=%, tablo=%)\n'
+      '------------------------------------------------------------------------\n'
+      'Sebep: izinleri supabase_admin verdi; bu oturumun rolü (%) onları geri\n'
+      'alamıyor. Bu bir ŞEMA HATASI DEĞİL, platform izni sınırı — migration\n'
+      'zinciri durdurulmuyor.\n'
+      'Yapılacak: Supabase destek talebiyle pg_net erişiminin anon/authenticated\n'
+      'rollerinden kaldırılmasını iste. Ayrıntı için bu dosyanın başlığına bak.\n'
+      '========================================================================',
+      v_sema, v_fonk, v_tablo, current_user;
+  else
+    raise notice '0042 tamam: net şeması anon/authenticated''a kapatıldı.';
+  end if;
+
+  -- service_role sunucu tarafı bir bakım yolu için açık kalsın (zaten RLS'i
+  -- baypas eden platform rolü). Yetki yoksa sessizce geçiliyor.
+  begin execute 'grant usage on schema net to service_role';                exception when others then null; end;
+  begin execute 'grant execute on all functions in schema net to service_role'; exception when others then null; end;
+end $$;
+
+
+-- ===========================================================================
+-- 0043 — WhatsApp Cloud API entegrasyonu (şema + gönderim motoru)
+-- ===========================================================================
+-- KARAR: her kulüp KENDİ WhatsApp Business numarasını bağlar. Veli mesajı
+-- "Karşıyaka Spor Okulu"ndan görür, "Spor Coach"tan değil. Bu, tek platform
+-- numarasına göre daha zahmetli ama doğru olan: kulübün markası korunur ve bir
+-- kulübün kötü kullanımı diğerlerinin teslim kalitesini düşürmez.
+--
+-- ===========================================================================
+-- MİMARİNİN ÜÇ TAŞIYICI KARARI
+-- ===========================================================================
+--
+-- 1) JETON HİÇBİR UYGULAMA KODUNA UĞRAMAZ.
+--    Erişim jetonu Supabase Vault'ta şifreli durur; isteği Postgres'in kendisi
+--    pg_net ile atar. Ne mobil uygulama, ne panel, ne de kulüp yöneticisi jetonu
+--    görebilir. Alternatif (jetonu bir tabloda tutup Next.js'ten göndermek)
+--    jetonu her dağıtım ortamına ve her log satırına yayardı.
+--    ÖLÇÜLDÜ: `set local role authenticated; select * from vault.decrypted_secrets;`
+--      → ERROR: permission denied for schema vault
+--
+-- 2) pg_net ASENKRON VE TRANSACTION'LIDIR.
+--    `net.http_post` bir `bigint` request_id döner; yanıt SONRA
+--    `net._http_response` tablosuna düşer (TTL 6 saat). Ayrıca istek ancak
+--    COMMIT olursa gider — ROLLBACK'te hiç gitmez.
+--    Bu yüzden gönderim TEK ADIMDA OLAMAZ. Zincir:
+--      kuyruğa al → gönder (request_id sakla) → yanıtı eşleştir → webhook ile teslim
+--    "Gönderdim" demek "ulaştı" demek değildir; durum alanı bu ikisini ayırır.
+--
+-- 3) TEKİLLEŞTİRME ZORUNLU.
+--    ÖLÇÜLDÜ (demo veri): 22 aktif sporcu → 13 tekil veli numarası. Veliler
+--    birden fazla çocukla kayıtlı. Tekilleştirilmezse aynı duyuru aynı veliye
+--    2-3 kez gider: Meta her birini ayrı ücretlendirir VE tekrar eden gönderim
+--    numaranın kalite derecesini düşürür. Kalite düşünce kulübün günlük mesaj
+--    limiti kısılır — yani spam, kulübün kendi ulaşabilirliğini yakar.
+--
+-- ÇALIŞTIRMA: 0042'den sonra. Tekrar çalıştırılabilir.
+-- ===========================================================================
+
+-- pg_cron ZORUNLU DEĞİL: yalnızca `postgres` veritabanında kurulabiliyor ve
+-- bazı ortamlarda hiç bulunmuyor. Sarmalanmasaydı tek bir hata KURULUM
+-- PAKETİNİN TAMAMINI durdururdu — WhatsApp tabloları ve (daha kötüsü) 0044'ün
+-- izin revoke'ları hiç çalışmaz, yeni kulüp açık şemayla kalırdı.
+-- Cron yoksa şema yine kurulur; kuyruk boşaltma o zaman dışarıdan tetiklenir.
+do $cronblok$
+begin
+  begin
+    execute 'create extension if not exists pg_cron';
+  exception when others then
+    raise warning 'pg_cron kurulamadı (%). Şema kuruldu ama kuyruk otomatik boşaltılmayacak; private.wa_gonder() ve private.wa_yanit_isle() dışarıdan çağrılmalı.', sqlerrm;
+  end;
+end $cronblok$;
+
+
+-- ===========================================================================
+-- 1) TELEFON NORMALLEŞTİRME
+-- ===========================================================================
+-- ÖLÇÜLDÜ: telefon YALNIZCA `sporcular.veli_telefon`'da var (22/22 dolu);
+-- `profiles.telefon` tamamen boş (0/4). Format yerel ve serbest:
+-- "0536 802 93 15". Meta ise ülke kodlu, işaretsiz istiyor: "905368029315".
+--
+-- GEÇERSİZ NUMARA GÖNDERMEK ZARARLIDIR: Meta başarısız gönderimi numaranın
+-- KALİTE DERECESİNE yazar. Bu yüzden fonksiyon "temizle ve yolla" değil,
+-- "emin değilsen NULL dön" diyor — göndermemek, yanlış göndermekten iyidir.
+create or replace function private.telefon_e164(p_ham text)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare v text;
+begin
+  if p_ham is null then return null; end if;
+
+  v := regexp_replace(p_ham, '[^0-9]', '', 'g');   -- boşluk, (), -, +, . atılır
+
+  if v like '00%' then v := substring(v from 3); end if;              -- 0090… → 90…
+  if length(v) = 11 and v like '0%' then v := substring(v from 2); end if;  -- 0536… → 536…
+
+  -- Türkiye cep numarası ülke kodsuz 10 hanedir ve HER ZAMAN 5 ile başlar.
+  -- 5 ile başlamıyorsa sabit hattır; WhatsApp göndermenin anlamı yok.
+  if length(v) = 10 and v like '5%' then v := '90' || v; end if;
+
+  if length(v) = 12 and v like '905%' then return v; end if;
+
+  return null;   -- eksik hane, yabancı numara, sabit hat, bozuk kayıt
+end;
+$$;
+
+
+-- ===========================================================================
+-- 2) KİRACI BAŞINA HESAP — JETON HARİÇ
+-- ===========================================================================
+create table if not exists public.wa_hesap (
+  kulup_id            uuid primary key references public.kulup(id) on delete cascade,
+  waba_id             text not null,
+  telefon_numarasi_id text not null,          -- Meta'nın PHONE_NUMBER_ID'si
+  gorunen_numara      text not null,          -- panelde gösterim için, E.164
+  isletme_adi         text,
+  aktif               boolean not null default false,
+  -- Meta'nın verdiği kalite derecesi ve günlük benzersiz alıcı limiti.
+  -- Sağlık kontrolü günde bir kez tazeliyor; panelde gösterilerek kulüp
+  -- kendi limitini görebiliyor.
+  kalite_derecesi     text,
+  gunluk_limit        int,
+  son_kontrol         timestamptz,
+  -- Jeton geçersizleşince (Meta hata 190/200) buraya sebep yazılıp aktif=false
+  -- yapılıyor: o kulübün kuyruğu durur, DİĞER kulüplerinki akmaya devam eder.
+  devre_disi_sebep    text,
+  created_at          timestamptz not null default now()
+);
+
+comment on table public.wa_hesap is
+  'Kulübün WhatsApp Business bağlantısı. Erişim jetonu BURADA DEĞİL — private.wa_gizli + Vault.';
+
+-- Jeton ayrı şemada. `private` PostgREST'e açık değil, yani hiçbir API isteği
+-- bu tabloya ulaşamaz; kulüp yöneticisi de göremez.
+create table if not exists private.wa_gizli (
+  kulup_id  uuid primary key references public.kulup(id) on delete cascade,
+  -- Vault'taki sırrın kimliği. Jetonun kendisi burada da DURMUYOR.
+  secret_id uuid not null
+);
+
+
+-- ===========================================================================
+-- 3) ŞABLONLAR
+-- ===========================================================================
+-- Meta, işletmenin başlattığı her mesajın ÖNCEDEN ONAYLI bir şablon olmasını
+-- şart koşuyor. Serbest metin yalnızca kullanıcının son mesajından sonraki 24
+-- saat içinde mümkün.
+--
+-- KATEGORİ KİLİTLİ TUTULUYOR: utility şablonu pazarlama amaçlı kullanmak hem
+-- Meta cezası hem 6563 sayılı kanun açısından sorun. Kategoriyi panelden
+-- serbest bırakmak, kulübün farkında olmadan ihlale düşmesine yol açardı.
+create table if not exists public.wa_sablon (
+  id              uuid primary key default gen_random_uuid(),
+  kulup_id        uuid not null default private.current_kulup_id() references public.kulup(id) on delete cascade,
+  ad              text not null,              -- Meta'daki şablon adı (snake_case)
+  kategori        text not null check (kategori in ('utility', 'marketing', 'authentication')),
+  dil             text not null default 'tr',
+  degisken_sayisi int  not null default 0,
+  durum           text not null default 'beklemede'
+                    check (durum in ('beklemede', 'onaylandi', 'reddedildi', 'duraklatildi')),
+  -- Meta bir şablonu kalite düşüklüğü nedeniyle geçici durdurabiliyor (132015/132016).
+  -- O sırada SADECE o şablonun kuyruğu donuyor, diğerleri akıyor.
+  duraklatma_bitis timestamptz,
+  created_at      timestamptz not null default now(),
+  constraint wa_sablon_kulup_ad_uniq unique (kulup_id, ad, dil)
+);
+
+
+-- ===========================================================================
+-- 4) ONAY (OPT-IN) — KVKK + Meta politikası
+-- ===========================================================================
+-- Meta'nın kendi kuralı, Türkiye mevzuatından BAĞIMSIZ olarak, alıcının
+-- onayının belgelenmiş olmasını istiyor. KVKK tarafında ise aydınlatma
+-- yükümlülüğü var. İkisi de "kim, ne zaman, neyi kabul etti" kaydını gerektiriyor.
+--
+-- ⚠ HUKUKİ NİTELENDİRME BU DOSYANIN İŞİ DEĞİL. "Aidatınız gecikti" gibi
+--   hizmetin ifasına ilişkin mesajlarla "yaz kampı kayıtları başladı" gibi
+--   tanıtım mesajları farklı rejimlere tabi olabilir (6563 sayılı kanun,
+--   İYS). Şema bu ayrımı TAŞIYOR (`tur` + şablon kategorisi) ki kulüp doğru
+--   kararı verebilsin; kararı vermiyor.
+create table if not exists public.wa_onay (
+  id           uuid primary key default gen_random_uuid(),
+  kulup_id     uuid not null default private.current_kulup_id() references public.kulup(id) on delete cascade,
+  telefon      text not null,               -- E.164, private.telefon_e164 çıktısı
+  durum        text not null default 'onayli'
+                 check (durum in ('onayli', 'reddedildi', 'whatsapp_yok')),
+  kaynak       text,                        -- onayın nereden alındığı (kayıt formu, sözleşme…)
+  guncelleme   timestamptz not null default now(),
+  constraint wa_onay_kulup_telefon_uniq unique (kulup_id, telefon)
+);
+
+comment on column public.wa_onay.durum is
+  'whatsapp_yok: Meta 131026 döndü — numara WhatsApp kullanmıyor. Tekrar denemek kalite derecesini boşuna düşürür.';
+
+
+-- ===========================================================================
+-- 5) GİDEN KUTUSU
+-- ===========================================================================
+-- Neden kuyruk: pg_net asenkron ve transaction'lı. Mobil uygulama duyuru
+-- gönderirken HTTP isteğini bekleyemez; ayrıca istek COMMIT'e bağlı olduğu için
+-- "kuyruğa yaz, cron gönderir" deseni hem doğru hem dayanıklı.
+create table if not exists public.wa_giden (
+  id              uuid primary key default gen_random_uuid(),
+  kulup_id        uuid not null default private.current_kulup_id() references public.kulup(id) on delete cascade,
+  tur             text not null check (tur in ('duyuru', 'aidat', 'antrenman', 'davet')),
+  kaynak_tablo    text,
+  kaynak_id       uuid,
+  sablon_ad       text not null,
+  parametreler    jsonb not null default '[]'::jsonb,   -- {{1}}, {{2}} sırayla
+  alici_telefon   text not null,
+  alici_sporcu_id uuid,
+
+  durum           text not null default 'bekliyor'
+                    check (durum in ('bekliyor', 'gonderildi', 'kabul_edildi', 'basarisiz', 'iptal')),
+  istek_id        bigint,                    -- net.http_post'un döndürdüğü id
+  wamid           text,                      -- Meta'nın mesaj kimliği
+  gonderim_zamani timestamptz,
+  deneme          int not null default 0,
+  sonraki_deneme  timestamptz,
+  hata_kodu       int,
+  hata_metni      text,
+
+  -- Webhook'tan gelen teslim bilgisi. 'gonderildi' Meta'nın isteği KABUL
+  -- ettiği andır; teslim edildiği an DEĞİL. İkisini ayırmak, "gönderdim ama
+  -- ulaşmadı" durumunu görünür kılıyor.
+  teslim_durumu   text check (teslim_durumu in ('sent', 'delivered', 'read', 'failed')),
+  teslim_zamani   timestamptz,
+
+  created_at      timestamptz not null default now()
+);
+
+create unique index if not exists wa_giden_istek_uniq on public.wa_giden (istek_id) where istek_id is not null;
+create unique index if not exists wa_giden_wamid_uniq on public.wa_giden (wamid)    where wamid    is not null;
+create index if not exists wa_giden_kuyruk_idx on public.wa_giden (durum, coalesce(sonraki_deneme, created_at))
+  where durum = 'bekliyor';
+create index if not exists wa_giden_kulup_idx on public.wa_giden (kulup_id, created_at desc);
+
+
+-- ===========================================================================
+-- 6) GÜNLÜK BENZERSİZ ALICI SAYACI
+-- ===========================================================================
+-- Meta'nın limiti "günde kaç mesaj" değil, "24 saatte kaç BENZERSİZ ALICI".
+-- Yeni bir numara 250 ile başlıyor. 22 sporculu kulüpte sorun değil; 250+
+-- velili bir kulüpte ilk toplu duyuruda duvara toslanır ve kalan mesajlar
+-- sessizce başarısız olur. Sayaç bunu önceden görünür kılıyor.
+create table if not exists public.wa_gunluk_sayac (
+  kulup_id uuid not null references public.kulup(id) on delete cascade,
+  gun      date not null default current_date,
+  telefon  text not null,
+  primary key (kulup_id, gun, telefon)
+);
+
+
+-- ===========================================================================
+-- 7) WEBHOOK OLAYLARI
+-- ===========================================================================
+-- Meta aynı olayı 7 gün boyunca tekrar gönderebilir ve SIRA GARANTİSİ YOKTUR
+-- ('read' önce, 'delivered' sonra gelebilir). Bu yüzden hem tekrar koruması
+-- (unique) hem de durum derecesi (sent<delivered<read) gerekiyor.
+create table if not exists public.wa_olay (
+  id         uuid primary key default gen_random_uuid(),
+  wamid      text not null,
+  durum      text not null,
+  hata_kodu  int,
+  ham        jsonb,
+  created_at timestamptz not null default now(),
+  constraint wa_olay_wamid_durum_uniq unique (wamid, durum)
+);
+
+
+-- ===========================================================================
+-- 8) DUYURUYA WHATSAPP BAYRAĞI
+-- ===========================================================================
+-- ⚠ `sms_ile` YENİDEN KULLANILMIYOR. O kolon "SMS" anlamına geliyor ve üç ayrı
+--   panel yüzeyi metnini ona göre yazmış durumda. Anlamını değiştirmek, ekranda
+--   "SMS gönderildi" yazarken WhatsApp gönderilmesine yol açardı — bu projenin
+--   tam olarak temizlediği yanıltıcı yüzey sınıfı.
+alter table public.duyuru add column if not exists whatsapp_ile boolean not null default false;
+
+
+-- ===========================================================================
+-- 9) İZİNLER VE RLS
+-- ===========================================================================
+-- ⚠ YENİ TABLO = YENİ GRANT. 01_sema.sql'in toplu grant'ı yalnızca o an var
+--   olan tablolara uygulanır; bu migration kendi iznini vermek zorunda.
+--   (Aynı hata daha önce `engelleme` tablosunda yaşandı: politikalar doğruydu
+--   ama "permission denied for table" alınıyordu.)
+grant select, insert, update, delete on public.wa_hesap, public.wa_sablon, public.wa_onay,
+  public.wa_giden, public.wa_gunluk_sayac, public.wa_olay to anon, authenticated, service_role;
+
+-- 0042'nin gerekçesiyle aynı: grant all TRUNCATE'i de verirdi, RLS TRUNCATE'i
+-- kapsamaz. Burada zaten dar bir liste verildi, yine de açıkça alınıyor.
+revoke truncate on public.wa_hesap, public.wa_sablon, public.wa_onay,
+  public.wa_giden, public.wa_gunluk_sayac, public.wa_olay from anon, authenticated;
+
+alter table public.wa_hesap        enable row level security;
+alter table public.wa_sablon       enable row level security;
+alter table public.wa_onay         enable row level security;
+alter table public.wa_giden        enable row level security;
+alter table public.wa_gunluk_sayac enable row level security;
+alter table public.wa_olay         enable row level security;
+
+-- KİRACI DUVARI (restrictive). `to authenticated` BİLİNÇLİ OLARAK YOK:
+-- restrictive politika yalnızca adlandırdığı rollere uygulanır ve `anon`
+-- rolünde duvar hiç devreye girmezdi.
+drop policy if exists "kulup izolasyonu" on public.wa_hesap;
+create policy "kulup izolasyonu" on public.wa_hesap        as restrictive for all using (kulup_id = private.current_kulup_id()) with check (kulup_id = private.current_kulup_id());
+drop policy if exists "kulup izolasyonu" on public.wa_sablon;
+create policy "kulup izolasyonu" on public.wa_sablon       as restrictive for all using (kulup_id = private.current_kulup_id()) with check (kulup_id = private.current_kulup_id());
+drop policy if exists "kulup izolasyonu" on public.wa_onay;
+create policy "kulup izolasyonu" on public.wa_onay         as restrictive for all using (kulup_id = private.current_kulup_id()) with check (kulup_id = private.current_kulup_id());
+drop policy if exists "kulup izolasyonu" on public.wa_giden;
+create policy "kulup izolasyonu" on public.wa_giden        as restrictive for all using (kulup_id = private.current_kulup_id()) with check (kulup_id = private.current_kulup_id());
+drop policy if exists "kulup izolasyonu" on public.wa_gunluk_sayac;
+create policy "kulup izolasyonu" on public.wa_gunluk_sayac as restrictive for all using (kulup_id = private.current_kulup_id()) with check (kulup_id = private.current_kulup_id());
+
+-- Rol politikaları: yalnızca yönetici. Veli ve antrenörün WhatsApp yapılandırması
+-- ya da giden kutusuyla hiçbir işi yok.
+drop policy if exists "wa_hesap: yönetici okur" on public.wa_hesap;
+create policy "wa_hesap: yönetici okur"    on public.wa_hesap  for select using (private.current_profile_role() = 'yonetici');
+drop policy if exists "wa_sablon: yönetici okur" on public.wa_sablon;
+create policy "wa_sablon: yönetici okur"   on public.wa_sablon for select using (private.current_profile_role() = 'yonetici');
+drop policy if exists "wa_giden: yönetici okur" on public.wa_giden;
+create policy "wa_giden: yönetici okur"    on public.wa_giden  for select using (private.current_profile_role() = 'yonetici');
+drop policy if exists "wa_onay: yönetici yönetir" on public.wa_onay;
+create policy "wa_onay: yönetici yönetir"  on public.wa_onay   for all
+  using (private.current_profile_role() = 'yonetici') with check (private.current_profile_role() = 'yonetici');
+
+-- ⚠ wa_hesap'a YAZMA POLİTİKASI YOK. Bağlantı kurulumu (waba_id,
+--   telefon_numarasi_id ve Vault'a jeton yazma) yalnızca sunucu tarafından,
+--   aşağıdaki SECURITY DEFINER fonksiyonla yapılıyor. Yönetici tabloyu doğrudan
+--   düzenleyebilseydi başka bir kulübün numarasını kendi kaydına yazabilir ya da
+--   aktif bayrağını zorlayabilirdi.
+
+-- wa_olay kiracıya bağlı değil (webhook wamid ile geliyor, kulüp bilinmiyor);
+-- bu yüzden istemciye TAMAMEN kapalı. Yalnızca SECURITY DEFINER fonksiyon yazar.
+drop policy if exists "wa_olay: istemciye kapalı" on public.wa_olay;
+create policy "wa_olay: istemciye kapalı" on public.wa_olay as restrictive for all using (false) with check (false);
+
+
+-- ===========================================================================
+-- 10) BAĞLANTI KURULUMU — jetonu Vault'a yazan TEK yol
+-- ===========================================================================
+-- Yönetici jetonu panele girer; jeton buradan Vault'a gider ve BİR DAHA
+-- OKUNAMAZ. Fonksiyon jetonu ne döndürür ne loglar.
+--
+-- SECURITY DEFINER + sahibi postgres: çağıran yöneticinin Vault'a erişimi yok,
+-- fonksiyonun var. `wa_hesap`'a yazma politikası da bilinçli olarak yok — tek
+-- yazma yolu burası, böylece kulüp kendi kaydının `aktif` bayrağını ya da
+-- başka bir kulübün numarasını zorlayamıyor.
+create or replace function public.wa_baglanti_kur(
+  p_waba_id             text,
+  p_telefon_numarasi_id text,
+  p_gorunen_numara      text,
+  p_jeton               text
+) returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_kulup  uuid := private.current_kulup_id();
+  v_secret uuid;
+  v_eski   uuid;
+begin
+  if private.current_profile_role() <> 'yonetici' then
+    raise exception 'WhatsApp bağlantısını yalnızca kulüp yöneticisi kurabilir.'
+      using errcode = 'insufficient_privilege';
+  end if;
+  if v_kulup is null then
+    raise exception 'Kulüp bulunamadı.';
+  end if;
+  if coalesce(btrim(p_jeton), '') = '' then
+    raise exception 'Erişim jetonu boş olamaz.';
+  end if;
+
+  -- Jeton her kulüp için ayrı bir Vault sırrı. Ad kulüp kimliğini taşıyor ki
+  -- Vault içinde hangi sırrın kime ait olduğu belli olsun.
+  select secret_id into v_eski from private.wa_gizli where kulup_id = v_kulup;
+
+  if v_eski is not null then
+    perform vault.update_secret(v_eski, p_jeton);
+    v_secret := v_eski;
+  else
+    v_secret := vault.create_secret(p_jeton, 'wa_jeton_' || v_kulup::text,
+                                    'WhatsApp Cloud API erişim jetonu');
+    insert into private.wa_gizli (kulup_id, secret_id) values (v_kulup, v_secret);
+  end if;
+
+  insert into public.wa_hesap (kulup_id, waba_id, telefon_numarasi_id, gorunen_numara, aktif, devre_disi_sebep)
+  values (v_kulup, p_waba_id, p_telefon_numarasi_id,
+          coalesce(private.telefon_e164(p_gorunen_numara), p_gorunen_numara), true, null)
+  on conflict (kulup_id) do update
+    set waba_id             = excluded.waba_id,
+        telefon_numarasi_id = excluded.telefon_numarasi_id,
+        gorunen_numara      = excluded.gorunen_numara,
+        aktif               = true,
+        devre_disi_sebep    = null;
+end;
+$$;
+
+revoke execute on function public.wa_baglanti_kur(text, text, text, text) from public, anon;
+grant  execute on function public.wa_baglanti_kur(text, text, text, text) to authenticated;
+
+
+-- ===========================================================================
+-- 11) KUYRUĞA ALMA — tekilleştirme, onay ve limit burada
+-- ===========================================================================
+-- `p_alicilar`: [{"telefon":"...", "sporcu_id":"...", "parametreler":[...]}, ...]
+-- HTTP çağırmaz; yalnızca satır yazar. Böylece çağıran (mobil uygulama ya da
+-- panel) hızlı döner ve gönderim cron'a kalır.
+create or replace function private.wa_kuyruga_al(
+  p_kulup_id     uuid,
+  p_tur          text,
+  p_sablon_ad    text,
+  p_alicilar     jsonb,
+  p_kaynak_tablo text default null,
+  p_kaynak_id    uuid default null
+) returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_eklenen int := 0;
+  v_aktif   boolean;
+begin
+  select aktif into v_aktif from public.wa_hesap where kulup_id = p_kulup_id;
+  if coalesce(v_aktif, false) = false then
+    return 0;   -- bağlantı yok ya da askıda: sessizce atlanır, çağıran akış bozulmaz
+  end if;
+
+  with ham as (
+    select private.telefon_e164(a->>'telefon')            as tel,
+           nullif(a->>'sporcu_id', '')::uuid              as sporcu_id,
+           coalesce(a->'parametreler', '[]'::jsonb)       as parametreler
+      from jsonb_array_elements(p_alicilar) a
+  ),
+  -- TEKİLLEŞTİRME: aynı numaraya bir kez. Ölçüldü — 22 sporcu, 13 tekil veli.
+  -- distinct on ile ilk satır seçiliyor; parametreler o satırdan geliyor.
+  tekil as (
+    select distinct on (tel) tel, sporcu_id, parametreler
+      from ham
+     where tel is not null
+     order by tel, sporcu_id
+  ),
+  -- ONAY SÜZGECİ: kaydı olmayan numara varsayılan olarak GÖNDERİLEBİLİR sayılır
+  -- (kulüp velisiyle zaten sözleşmeli); açıkça 'reddedildi' ya da 'whatsapp_yok'
+  -- işaretliyse atlanır.
+  izinli as (
+    select t.* from tekil t
+      left join public.wa_onay o
+        on o.kulup_id = p_kulup_id and o.telefon = t.tel
+     where coalesce(o.durum, 'onayli') = 'onayli'
+  )
+  insert into public.wa_giden (kulup_id, tur, sablon_ad, parametreler,
+                               alici_telefon, alici_sporcu_id, kaynak_tablo, kaynak_id)
+  select p_kulup_id, p_tur, p_sablon_ad, i.parametreler, i.tel, i.sporcu_id,
+         p_kaynak_tablo, p_kaynak_id
+    from izinli i;
+
+  get diagnostics v_eklenen = row_count;
+  return v_eklenen;
+end;
+$$;
+
+
+-- ===========================================================================
+-- 12) GÖNDERİM — jetonun Vault'tan çıkıp Meta'ya gittiği tek yer
+-- ===========================================================================
+-- `for update ... skip locked`: aynı anda iki cron çalışması aynı satırı iki kez
+-- göndermesin. Bu olmadan bir yavaşlama anında mesajlar ÇİFT giderdi — hem
+-- ücretlendirilir hem veliyi rahatsız eder.
+create or replace function private.wa_gonder(p_azami int default 200)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  r          record;
+  v_jeton    text;
+  v_govde    jsonb;
+  v_istek    bigint;
+  v_gonderim int := 0;
+begin
+  for r in
+    select g.id, g.kulup_id, g.sablon_ad, g.parametreler, g.alici_telefon,
+           h.telefon_numarasi_id, s.secret_id, t.dil
+      from public.wa_giden g
+      join public.wa_hesap  h on h.kulup_id = g.kulup_id and h.aktif
+      join private.wa_gizli s on s.kulup_id = g.kulup_id
+      left join public.wa_sablon t on t.kulup_id = g.kulup_id and t.ad = g.sablon_ad
+     where g.durum = 'bekliyor'
+       and coalesce(g.sonraki_deneme, g.created_at) <= now()
+       -- Meta'nın duraklattığı şablonun kuyruğu donar, diğerleri akmaya devam eder.
+       and coalesce(t.duraklatma_bitis, '-infinity'::timestamptz) < now()
+     order by g.created_at
+     limit p_azami
+     for update of g skip locked
+  loop
+    -- Jeton BU DÖNGÜNÜN İÇİNDE, tek satırlık ömürle okunuyor: hiçbir yere
+    -- yazılmıyor, döndürülmüyor, hata mesajına konmuyor.
+    select decrypted_secret into v_jeton
+      from vault.decrypted_secrets where id = r.secret_id;
+
+    if v_jeton is null then
+      update public.wa_giden
+         set durum = 'basarisiz', hata_metni = 'Vault sırrı bulunamadı', deneme = deneme + 1
+       where id = r.id;
+      continue;
+    end if;
+
+    v_govde := jsonb_build_object(
+      'messaging_product', 'whatsapp',
+      'to',   r.alici_telefon,
+      'type', 'template',
+      'template', jsonb_build_object(
+        'name', r.sablon_ad,
+        'language', jsonb_build_object('code', coalesce(r.dil, 'tr')),
+        'components', case
+          when jsonb_array_length(r.parametreler) = 0 then '[]'::jsonb
+          else jsonb_build_array(jsonb_build_object(
+                 'type', 'body',
+                 'parameters', (select jsonb_agg(jsonb_build_object('type', 'text', 'text', p))
+                                  from jsonb_array_elements_text(r.parametreler) p)))
+        end
+      )
+    );
+
+    v_istek := net.http_post(
+      url     := 'https://graph.facebook.com/v23.0/' || r.telefon_numarasi_id || '/messages',
+      body    := v_govde,
+      headers := jsonb_build_object('Content-Type', 'application/json',
+                                    'Authorization', 'Bearer ' || v_jeton),
+      timeout_milliseconds := 15000
+    );
+
+    update public.wa_giden
+       set durum = 'gonderildi', istek_id = v_istek,
+           gonderim_zamani = now(), deneme = deneme + 1
+     where id = r.id;
+
+    -- Günlük BENZERSİZ ALICI sayacı (Meta limiti mesaj değil alıcı sayıyor).
+    insert into public.wa_gunluk_sayac (kulup_id, gun, telefon)
+    values (r.kulup_id, current_date, r.alici_telefon)
+    on conflict do nothing;
+
+    v_gonderim := v_gonderim + 1;
+  end loop;
+
+  return v_gonderim;
+end;
+$$;
+
+
+-- ===========================================================================
+-- 13) YANIT EŞLEŞTİRME — "gönderdim" ile "kabul edildi" farkı
+-- ===========================================================================
+-- pg_net asenkron olduğu için yanıt sonra düşüyor. Burada eşleştirilip hata
+-- SINIFLANDIRILIYOR. Ayrım olmadan iki kötü sonuçtan biri kaçınılmaz olurdu:
+-- ya kalıcı hatalar sonsuza kadar tekrar denenir (kota ve kalite yanar), ya da
+-- geçici bir ağ hatasında mesaj sessizce kaybolur.
+create or replace function private.wa_yanit_isle()
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  r       record;
+  v_kod   int;
+  v_islem int := 0;
+begin
+  for r in
+    select g.id, g.kulup_id, g.deneme, g.alici_telefon,
+           y.status_code, y.content, y.error_msg, y.timed_out
+      from public.wa_giden g
+      join net._http_response y on y.id = g.istek_id
+     where g.durum = 'gonderildi'
+     limit 500
+  loop
+    v_islem := v_islem + 1;
+
+    -- Ağ katmanı hatası: her zaman GEÇİCİ sayılır.
+    if r.timed_out or r.error_msg is not null then
+      update public.wa_giden
+         set durum = case when r.deneme >= 3 then 'basarisiz' else 'bekliyor' end,
+             sonraki_deneme = now() + (interval '2 minutes' * r.deneme),
+             hata_metni = coalesce(r.error_msg, 'zaman aşımı')
+       where id = r.id;
+      continue;
+    end if;
+
+    if r.status_code between 200 and 299 then
+      update public.wa_giden
+         set durum = 'kabul_edildi',
+             wamid = r.content::jsonb #>> '{messages,0,id}',
+             hata_kodu = null, hata_metni = null
+       where id = r.id;
+      continue;
+    end if;
+
+    v_kod := nullif(r.content::jsonb #>> '{error,code}', '')::int;
+
+    -- JETON GEÇERSİZ (190/200): tekrar denemek anlamsız. O KULÜBÜN bağlantısı
+    -- kapatılıyor; diğer kulüpler etkilenmiyor (tek numara modelinde hepsi dururdu).
+    if v_kod in (190, 200) then
+      update public.wa_hesap
+         set aktif = false,
+             devre_disi_sebep = 'Erişim jetonu geçersiz (Meta hata ' || v_kod || '). Panelden yeniden bağlanın.'
+       where kulup_id = r.kulup_id;
+      update public.wa_giden
+         set durum = 'basarisiz', hata_kodu = v_kod, hata_metni = 'Erişim jetonu geçersiz'
+       where id = r.id;
+      continue;
+    end if;
+
+    -- NUMARA WHATSAPP KULLANMIYOR (131026): kalıcı. Onay kaydına işleniyor ki
+    -- bu numara bir daha hiç denenmesin — her deneme kalite derecesini boşuna düşürür.
+    if v_kod = 131026 then
+      insert into public.wa_onay (kulup_id, telefon, durum, kaynak)
+      values (r.kulup_id, r.alici_telefon, 'whatsapp_yok', 'Meta 131026')
+      on conflict (kulup_id, telefon) do update set durum = 'whatsapp_yok', guncelleme = now();
+
+      update public.wa_giden
+         set durum = 'basarisiz', hata_kodu = v_kod, hata_metni = 'Numara WhatsApp kullanmıyor'
+       where id = r.id;
+      continue;
+    end if;
+
+    -- ORAN SINIRI ve geçici sunucu hataları: üstel geri çekilerek tekrar dene.
+    if v_kod in (4, 80007, 130429, 131000, 131016, 131056, 131057) or r.status_code >= 500 then
+      update public.wa_giden
+         set durum = case when r.deneme >= 5 then 'basarisiz' else 'bekliyor' end,
+             sonraki_deneme = now() + (interval '5 minutes' * r.deneme),
+             hata_kodu = v_kod, hata_metni = left(r.content, 300)
+       where id = r.id;
+      continue;
+    end if;
+
+    -- Geri kalan her şey KALICI sayılıyor (şablon yok/onaysız, biçim hatası…).
+    update public.wa_giden
+       set durum = 'basarisiz', hata_kodu = v_kod, hata_metni = left(r.content, 300)
+     where id = r.id;
+  end loop;
+
+  return v_islem;
+end;
+$$;
+
+
+-- ===========================================================================
+-- 14) YETİM TOPLAMA — yanıtı hiç düşmeyen istekler
+-- ===========================================================================
+-- `net._http_response` 6 saat sonra temizleniyor. Bir yanıt kaçırılırsa satır
+-- sonsuza kadar 'gonderildi'de asılı kalır ve kimse fark etmez — bu projenin
+-- tekrar tekrar karşılaştığı SESSİZ KAYIP sınıfı.
+create or replace function private.wa_yetim_topla(p_yas interval default '15 minutes')
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare v_sayi int;
+begin
+  update public.wa_giden g
+     set durum = case when g.deneme >= 3 then 'basarisiz' else 'bekliyor' end,
+         sonraki_deneme = now() + interval '2 minutes',
+         hata_metni = 'Yanıt alınamadı (yetim istek)'
+   where g.durum = 'gonderildi'
+     and g.gonderim_zamani < now() - p_yas
+     and not exists (select 1 from net._http_response y where y.id = g.istek_id);
+  get diagnostics v_sayi = row_count;
+  return v_sayi;
+end;
+$$;
+
+
+-- ===========================================================================
+-- 15) ZAMANLANMIŞ İŞLER
+-- ===========================================================================
+-- Kuyruk dakikada bir boşaltılıyor. Daha sık gerekmiyor: duyuru anlık bir
+-- işlem değil ve pg_net zaten asenkron.
+-- Cron kurulumu da sarmalanıyor: pg_cron yoksa `cron` şeması hiç olmaz ve
+-- sarmalanmamış bir çağrı kurulum paketini bu noktada durdururdu.
+do $cronis$
+begin
+  if not exists (select 1 from pg_namespace where nspname = 'cron') then
+    raise warning 'pg_cron yok — WhatsApp kuyruğu otomatik boşaltılmayacak. private.wa_gonder() ve private.wa_yanit_isle() dışarıdan (ör. Edge Function + zamanlayıcı) çağrılmalı.';
+    return;
+  end if;
+
+  perform cron.unschedule(jobname)
+    from cron.job where jobname in ('wa_gonder', 'wa_yanit_isle', 'wa_yetim_topla');
+
+  perform cron.schedule('wa_gonder',      '* * * * *',   'select private.wa_gonder(200)');
+  perform cron.schedule('wa_yanit_isle',  '* * * * *',   'select private.wa_yanit_isle()');
+  perform cron.schedule('wa_yetim_topla', '*/5 * * * *', 'select private.wa_yetim_topla()');
+end $cronis$;
+
+
+-- ===========================================================================
+-- DOĞRULAMA
+-- ===========================================================================
+do $$
+begin
+  if has_table_privilege('authenticated', 'private.wa_gizli', 'SELECT') then
+    raise exception '0043: authenticated jeton tablosunu okuyabiliyor.';
+  end if;
+  if has_schema_privilege('authenticated', 'vault', 'USAGE') then
+    raise exception '0043: authenticated Vault şemasına erişebiliyor.';
+  end if;
+  -- Cron kontrolü yalnızca pg_cron varsa anlamlı.
+  -- ⚠ İÇ İÇE IF ŞART: tek satırda `if A and (select ... from cron.job)` yazılırsa PL/pgSQL
+  -- ifadenin TAMAMINI tek SQL olarak planlar ve cron şeması yokken "relation
+  -- cron.job does not exist" ile patlar — A false olsa bile. İç içe if'te
+  -- iç ifade ancak oraya ulaşılınca planlanıyor.
+  if exists (select 1 from pg_namespace where nspname = 'cron') then
+    if (select count(*) from cron.job where jobname in ('wa_gonder','wa_yanit_isle','wa_yetim_topla')) <> 3 then
+      raise exception '0043: cron işleri eksik.';
+    end if;
+  end if;
+  raise notice '0043 tamam: şema, gönderim motoru ve cron kuruldu. Jeton istemciye kapalı.';
+end $$;
+
+
+-- ===========================================================================
+-- 0044 — KRİTİK: WhatsApp motorunun iç fonksiyonları herkese açıktı
+-- ===========================================================================
+-- NASIL OLDU
+--   PostgreSQL `create function` ile oluşturulan her fonksiyona EXECUTE iznini
+--   VARSAYILAN OLARAK PUBLIC'e verir. 0043'te dört iç fonksiyon yazıldı ve
+--   hiçbirinden bu varsayılan geri alınmadı. `authenticated` rolünün `private`
+--   şeması üzerinde USAGE yetkisi var (kiracı duvarı `private.current_kulup_id()`
+--   çağırdığı için OLMAK ZORUNDA), dolayısıyla fonksiyonlar doğrudan
+--   çağrılabilir hâle geldi.
+--
+--   0043'te `public.wa_baglanti_kur` için revoke YAZILDI ama `private`
+--   şemasındaki dördü unutuldu. Aynı dosyada bir yerde doğru yapılıp başka
+--   yerde atlanması, bu hatanın neden kolayca gözden kaçtığını da açıklıyor.
+--
+-- NASIL YAKALANDI
+--   Periyodik güvenlik denetimi turu. Önce izinler ölçüldü:
+--     select proname, has_function_privilege('authenticated', oid, 'EXECUTE')
+--       from pg_proc ... where nspname='private' and proname like 'wa\_%';
+--       → wa_gonder | t,  wa_kuyruga_al | t,  wa_yanit_isle | t,  wa_yetim_topla | t
+--   Sonra SÖMÜRÜLDÜ (veli JWT'si, transaction + rollback):
+--     1. VELİ  private.wa_kuyruga_al(<kulup_id>, 'duyuru', ...)  → 1 satır eklendi
+--     2. VELİ  private.wa_gonder(10)                              → 1 mesaj gönderildi
+--     3. VELİ  private.wa_yetim_topla('0 seconds')                → çağırdı
+--   Karşı-test: `wa_baglanti_kur` reddetti (rol kontrolü tutuyor), `anon`
+--   reddedildi (private şemasında USAGE yok). Yani açık tam olarak dört
+--   fonksiyonda.
+--
+-- ETKİSİ — KRİTİK
+--   Bir VELİ, kulübün DOĞRULANMIŞ WhatsApp Business numarasından, istediği
+--   telefon numarasına, istediği şablon parametreleriyle mesaj gönderebiliyordu.
+--   Sonuçları:
+--     · Kimliğe bürünme: mesaj kulübün adıyla gidiyor.
+--     · Para: her mesaj kulübün faturasına yazılıyor.
+--     · KALICI HASAR: Meta kalite derecesini numara bazında tutuyor. Spam
+--       gönderimi dereceyi düşürür, düşen derece günlük mesaj limitini kısar ve
+--       en kötü hâlde numara tamamen bloke olur. Yani veli, kulübün veli
+--       iletişim kanalını kalıcı olarak yakabilirdi.
+--   `wa_kuyruga_al` kulüp kimliğini PARAMETRE olarak aldığı için hedef kendi
+--   kulübüyle de sınırlı değildi — başka bir kulübün id'si bilinirse o kulübün
+--   numarasından da gönderilebilirdi.
+--
+-- NEDEN BU ÇÖZÜM
+--   İki katman:
+--
+--   (1) EXECUTE İZNİNİ GERİ AL. Bu fonksiyonlar İÇ fonksiyonlar; yalnızca cron
+--       (postgres olarak) ve aşağıdaki public sarmalayıcı çağırmalı. Şema
+--       düzeyindeki USAGE geri alınamaz — kiracı duvarı `private`'a bağlı —
+--       o yüzden fonksiyon düzeyinde alınıyor. `private.davet_coz` zaten böyle
+--       yapılmış; bu, o dosyada kurulan doğru deseni geri kalanına uygulamak.
+--
+--   (2) FONKSİYONUN KENDİSİ DE KULÜBÜ DOĞRULASIN. İzin geri alınsa bile,
+--       ileride biri yanlışlıkla yeniden grant verirse ya da başka bir definer
+--       fonksiyon bunu çağırırsa savunma sürsün. `wa_kuyruga_al` artık çağıranın
+--       oturumunda bir kulüp varsa onunla parametrenin EŞLEŞMESİNİ şart koşuyor.
+--       Oturumda kulüp yoksa (cron/postgres bağlamı, auth.uid() NULL) kontrol
+--       atlanıyor — arka plan işi çalışmaya devam etsin diye.
+--
+--   (3) UYGULAMANIN ÇAĞIRACAĞI YOL: `public.wa_duyuru_kuyruga_al`.
+--       Kulüp kimliğini PARAMETRE OLARAK ALMIYOR — oturumdan türetiyor. Bir
+--       fonksiyonun kiracı kimliğini dışarıdan alması, bu şemadaki en tehlikeli
+--       desen; sarmalayıcı o parametreyi tamamen ortadan kaldırıyor.
+--
+-- ÇALIŞTIRMA: 0043'ten sonra. Tekrar çalıştırılabilir.
+-- ===========================================================================
+
+
+-- ===========================================================================
+-- 1) İÇ FONKSİYONLARIN EXECUTE İZNİ GERİ ALINIYOR
+-- ===========================================================================
+revoke all on function private.wa_kuyruga_al(uuid, text, text, jsonb, text, uuid) from public, anon, authenticated;
+revoke all on function private.wa_gonder(int)                                     from public, anon, authenticated;
+revoke all on function private.wa_yanit_isle()                                    from public, anon, authenticated;
+revoke all on function private.wa_yetim_topla(interval)                           from public, anon, authenticated;
+
+-- service_role sunucu tarafı bir bakım yolu için çağırabilsin (RLS'i zaten
+-- baypas eden platform rolü; buradan bir yetki KAZANMIYOR).
+grant execute on function private.wa_gonder(int)      to service_role;
+grant execute on function private.wa_yanit_isle()     to service_role;
+grant execute on function private.wa_yetim_topla(interval) to service_role;
+
+
+-- ===========================================================================
+-- 2) DERİNLEMESİNE SAVUNMA — fonksiyon kendi kiracı sınırını da koysun
+-- ===========================================================================
+-- Gövde 0043'teki ile aynı; başına kulüp doğrulaması eklendi.
+create or replace function private.wa_kuyruga_al(
+  p_kulup_id     uuid,
+  p_tur          text,
+  p_sablon_ad    text,
+  p_alicilar     jsonb,
+  p_kaynak_tablo text default null,
+  p_kaynak_id    uuid default null
+) returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_eklenen int := 0;
+  v_aktif   boolean;
+  v_oturum  uuid;
+begin
+  -- 0044: KİRACI DOĞRULAMASI.
+  -- Oturumda bir kulüp varsa (gerçek kullanıcı), parametreyle eşleşmek ZORUNDA.
+  -- Oturumda kulüp yoksa (cron / postgres bağlamı, auth.uid() NULL) kontrol
+  -- atlanır — arka plan işleri çalışmaya devam etsin.
+  v_oturum := private.current_kulup_id();
+  if v_oturum is not null and v_oturum <> p_kulup_id then
+    raise exception 'Başka bir kulübün WhatsApp kuyruğuna yazılamaz.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select aktif into v_aktif from public.wa_hesap where kulup_id = p_kulup_id;
+  if coalesce(v_aktif, false) = false then
+    return 0;   -- bağlantı yok ya da askıda: sessizce atlanır, çağıran akış bozulmaz
+  end if;
+
+  with ham as (
+    select private.telefon_e164(a->>'telefon')      as tel,
+           nullif(a->>'sporcu_id', '')::uuid        as sporcu_id,
+           coalesce(a->'parametreler', '[]'::jsonb) as parametreler
+      from jsonb_array_elements(p_alicilar) a
+  ),
+  -- TEKİLLEŞTİRME: aynı numaraya bir kez (ölçüldü: 22 sporcu → 13 tekil veli).
+  tekil as (
+    select distinct on (tel) tel, sporcu_id, parametreler
+      from ham where tel is not null order by tel, sporcu_id
+  ),
+  -- ONAY SÜZGECİ: kaydı olmayan numara gönderilebilir sayılır; açıkça
+  -- 'reddedildi' ya da 'whatsapp_yok' işaretliyse atlanır.
+  izinli as (
+    select t.* from tekil t
+      left join public.wa_onay o on o.kulup_id = p_kulup_id and o.telefon = t.tel
+     where coalesce(o.durum, 'onayli') = 'onayli'
+  )
+  insert into public.wa_giden (kulup_id, tur, sablon_ad, parametreler,
+                               alici_telefon, alici_sporcu_id, kaynak_tablo, kaynak_id)
+  select p_kulup_id, p_tur, p_sablon_ad, i.parametreler, i.tel, i.sporcu_id,
+         p_kaynak_tablo, p_kaynak_id
+    from izinli i;
+
+  get diagnostics v_eklenen = row_count;
+  return v_eklenen;
+end;
+$$;
+
+revoke all on function private.wa_kuyruga_al(uuid, text, text, jsonb, text, uuid) from public, anon, authenticated;
+
+
+-- ===========================================================================
+-- 3) UYGULAMANIN ÇAĞIRACAĞI GÜVENLİ YOL
+-- ===========================================================================
+-- Kulüp kimliğini PARAMETRE ALMIYOR — oturumdan türetiyor. Sömürülen açığın
+-- kökü tam olarak "kiracı kimliğini dışarıdan almak"tı; sarmalayıcı o
+-- parametreyi ortadan kaldırıyor.
+create or replace function public.wa_duyuru_kuyruga_al(
+  p_tur       text,
+  p_sablon_ad text,
+  p_alicilar  jsonb,
+  p_kaynak_id uuid default null
+) returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare v_kulup uuid;
+begin
+  if private.current_profile_role() <> 'yonetici' then
+    raise exception 'WhatsApp mesajı yalnızca kulüp yöneticisi gönderebilir.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  v_kulup := private.current_kulup_id();
+  if v_kulup is null then
+    raise exception 'Kulüp bulunamadı.';
+  end if;
+
+  -- Kötüye kullanım freni: toplu gönderim ucu, hız sınırının en çok gerektiği
+  -- yerlerden biri (0032). Yönetici hesabı ele geçirilirse tek istekte binlerce
+  -- mesaj kuyruğa girmesin.
+  perform private.hiz_kontrol('wa_gonderim', 20, interval '1 hour',
+    'Çok fazla WhatsApp gönderimi denendi. Bir saat içinde en fazla 20 gönderim yapılabilir.');
+
+  return private.wa_kuyruga_al(v_kulup, p_tur, p_sablon_ad, p_alicilar, 'duyuru', p_kaynak_id);
+end;
+$$;
+
+revoke all     on function public.wa_duyuru_kuyruga_al(text, text, jsonb, uuid) from public, anon;
+grant  execute on function public.wa_duyuru_kuyruga_al(text, text, jsonb, uuid) to authenticated;
+
+
+-- ===========================================================================
+-- DOĞRULAMA
+-- ===========================================================================
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid, p.proname
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'private' and p.proname like 'wa\_%'
+  loop
+    if has_function_privilege('authenticated', r.oid, 'EXECUTE') then
+      raise exception '0044: private.%() hâlâ authenticated tarafından çağrılabiliyor.', r.proname;
+    end if;
+    if has_function_privilege('anon', r.oid, 'EXECUTE') then
+      raise exception '0044: private.%() hâlâ anon tarafından çağrılabiliyor.', r.proname;
+    end if;
+  end loop;
+
+  if not has_function_privilege('authenticated',
+       'public.wa_duyuru_kuyruga_al(text,text,jsonb,uuid)', 'EXECUTE') then
+    raise exception '0044: güvenli sarmalayıcı authenticated tarafından çağrılamıyor — fazla kısıldı.';
+  end if;
+
+  raise notice '0044 tamam: iç WhatsApp fonksiyonları kapatıldı, güvenli sarmalayıcı açık.';
+end $$;
+
+
+-- ===========================================================================
+-- WHATSAPP GÖNDERİM TAVANI  (kaynak: 0045)
+-- ===========================================================================
+-- 0044'ün hız sınırı ÇAĞRI sayıyordu, MESAJ değil. Yerelde ölçüldü: yönetici
+-- JWT'siyle tek çağrıda 5000 mesaj kuyruğa girdi (20 çağrı/saat ile 100.000/saat)
+-- ve alıcıların hiçbiri kulübe ait değildi. Kırılan değişmez PARA ve İTİBAR
+-- olduğu için tavan RLS'e değil TETİKLEYİCİYE konuyor: service_role de dahil
+-- herkese işlesin. Ayrıntılı gerekçe: migrations/0045_whatsapp_gonderim_tavani.sql
+-- ===========================================================================
+
+
+-- ===========================================================================
+-- 1) PARA DEĞİŞMEZİ — TETİKLEYİCİ (herkese işler, service_role dahil)
+-- ===========================================================================
+create or replace function private.wa_giden_tavan()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  r       record;
+  v_tavan int;
+  v_var   int;
+begin
+  for r in select kulup_id, count(*)::int as adet from yeni group by kulup_id loop
+    -- Tavan sunucu tarafından belirlenir; istemci wa_hesap'a yazamaz.
+    select greatest(coalesce(h.gunluk_limit, 0), 2000) into v_tavan
+      from public.wa_hesap h where h.kulup_id = r.kulup_id;
+    v_tavan := coalesce(v_tavan, 2000);
+
+    -- AFTER tetikleyici: yeni satırlar bu sayıma ZATEN dahil.
+    select count(*)::int into v_var
+      from public.wa_giden g
+     where g.kulup_id = r.kulup_id
+       and g.created_at > now() - interval '24 hours';
+
+    if v_var > v_tavan then
+      raise exception
+        'WhatsApp gönderim tavanı aşıldı: son 24 saatte % mesaj, tavan %. Toplu gönderimi bölün ya da limitin yükseltilmesi için destek ile görüşün.',
+        v_var, v_tavan
+        using errcode = 'check_violation';
+    end if;
+  end loop;
+  return null;
+end;
+$$;
+
+-- YENİ FONKSİYON = YENİ REVOKE. PostgreSQL her yeni fonksiyona EXECUTE'u
+-- varsayılan olarak PUBLIC'e verir; 0044'ün doğrulama bloğu private.wa_* deseni
+-- altındaki her fonksiyonu tarıyor ve bu satır olmadan 0044 bir daha
+-- çalıştırılamaz hâle geliyor (ölçüldü: "0044: private.wa_giden_tavan() hâlâ
+-- authenticated tarafından çağrılabiliyor"). Tetikleyici gövdesi doğrudan
+-- çağrılınca zaten hata verir, ama kural kuraldır.
+revoke all on function private.wa_giden_tavan() from public, anon, authenticated;
+
+drop trigger if exists wa_giden_tavan on public.wa_giden;
+create trigger wa_giden_tavan
+  after insert on public.wa_giden
+  referencing new table as yeni
+  for each statement execute function private.wa_giden_tavan();
+
+
+-- ===========================================================================
+-- 2) SARMALAYICI — tek çağrıda alıcı sayısı sınırı
+-- ===========================================================================
+-- Tetikleyici zaten kapıyı tutuyor; buradaki sınır (a) 10 milyon elemanlı bir
+-- jsonb'nin belleği şişirmesini iş YAPILMADAN önce durduruyor, (b) istemciye
+-- anlaşılır bir hata veriyor. Gövde 0044'teki ile aynı; yalnızca bu kontroller
+-- eklendi.
+create or replace function public.wa_duyuru_kuyruga_al(
+  p_tur       text,
+  p_sablon_ad text,
+  p_alicilar  jsonb,
+  p_kaynak_id uuid default null
+) returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_kulup uuid;
+  v_adet  int;
+begin
+  if private.current_profile_role() <> 'yonetici' then
+    raise exception 'WhatsApp mesajı yalnızca kulüp yöneticisi gönderebilir.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  v_kulup := private.current_kulup_id();
+  if v_kulup is null then
+    raise exception 'Kulüp bulunamadı.';
+  end if;
+
+  if p_alicilar is null or jsonb_typeof(p_alicilar) <> 'array' then
+    raise exception 'Alıcı listesi bir dizi olmalı.'
+      using errcode = 'invalid_parameter_value';
+  end if;
+
+  -- 0045: hız sınırı ÇAĞRI sayıyor, mesaj değil. Alıcı tavanı olmadan tek
+  -- istekte 5000 mesaj kuyruğa girebiliyordu (ölçüldü).
+  v_adet := jsonb_array_length(p_alicilar);
+  if v_adet > 1000 then
+    raise exception 'Tek gönderimde en fazla 1000 alıcı olabilir (% gönderildi). Listeyi bölün.', v_adet
+      using errcode = 'check_violation';
+  end if;
+
+  perform private.hiz_kontrol('wa_gonderim', 20, interval '1 hour',
+    'Çok fazla WhatsApp gönderimi denendi. Bir saat içinde en fazla 20 gönderim yapılabilir.');
+
+  return private.wa_kuyruga_al(v_kulup, p_tur, p_sablon_ad, p_alicilar, 'duyuru', p_kaynak_id);
+end;
+$$;
+
+revoke all     on function public.wa_duyuru_kuyruga_al(text, text, jsonb, uuid) from public, anon;
+grant  execute on function public.wa_duyuru_kuyruga_al(text, text, jsonb, uuid) to authenticated;
+
+
+-- ===========================================================================
+-- 3) net._http_response — işlenen yanıt satırını sil (pencere 6 saat → ~1 dk)
+-- ===========================================================================
+-- Gövde 0043'teki ile aynı; tek fark: her daldan sonra yanıt satırı siliniyor.
+create or replace function private.wa_yanit_isle()
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  r       record;
+  v_kod   int;
+  v_islem int := 0;
+begin
+  for r in
+    select g.id, g.kulup_id, g.deneme, g.alici_telefon, g.istek_id,
+           y.status_code, y.content, y.error_msg, y.timed_out
+      from public.wa_giden g
+      join net._http_response y on y.id = g.istek_id
+     where g.durum = 'gonderildi'
+     limit 500
+  loop
+    v_islem := v_islem + 1;
+
+    if r.timed_out or r.error_msg is not null then
+      update public.wa_giden
+         set durum = case when r.deneme >= 3 then 'basarisiz' else 'bekliyor' end,
+             sonraki_deneme = now() + (interval '2 minutes' * r.deneme),
+             hata_metni = coalesce(r.error_msg, 'zaman aşımı')
+       where id = r.id;
+
+    elsif r.status_code between 200 and 299 then
+      update public.wa_giden
+         set durum = 'kabul_edildi',
+             wamid = r.content::jsonb #>> '{messages,0,id}',
+             hata_kodu = null, hata_metni = null
+       where id = r.id;
+
+    else
+      v_kod := nullif(r.content::jsonb #>> '{error,code}', '')::int;
+
+      if v_kod in (190, 200) then
+        update public.wa_hesap
+           set aktif = false,
+               devre_disi_sebep = 'Erişim jetonu geçersiz (Meta hata ' || v_kod || '). Panelden yeniden bağlanın.'
+         where kulup_id = r.kulup_id;
+        update public.wa_giden
+           set durum = 'basarisiz', hata_kodu = v_kod, hata_metni = 'Erişim jetonu geçersiz'
+         where id = r.id;
+
+      elsif v_kod = 131026 then
+        insert into public.wa_onay (kulup_id, telefon, durum, kaynak)
+        values (r.kulup_id, r.alici_telefon, 'whatsapp_yok', 'Meta 131026')
+        on conflict (kulup_id, telefon) do update set durum = 'whatsapp_yok', guncelleme = now();
+        update public.wa_giden
+           set durum = 'basarisiz', hata_kodu = v_kod, hata_metni = 'Numara WhatsApp kullanmıyor'
+         where id = r.id;
+
+      elsif v_kod in (4, 80007, 130429, 131000, 131016, 131056, 131057) or r.status_code >= 500 then
+        update public.wa_giden
+           set durum = case when r.deneme >= 5 then 'basarisiz' else 'bekliyor' end,
+               sonraki_deneme = now() + (interval '5 minutes' * r.deneme),
+               hata_kodu = v_kod, hata_metni = left(r.content, 300)
+         where id = r.id;
+
+      else
+        update public.wa_giden
+           set durum = 'basarisiz', hata_kodu = v_kod, hata_metni = left(r.content, 300)
+         where id = r.id;
+      end if;
+    end if;
+
+    -- 0045: yanıt işlendi; PUBLIC'e açık tabloda 6 saat daha durmasın.
+    delete from net._http_response where id = r.istek_id;
+  end loop;
+
+  return v_islem;
+end;
+$$;
+
+revoke all     on function private.wa_yanit_isle() from public, anon, authenticated;
+grant  execute on function private.wa_yanit_isle() to service_role;
+
+
+-- ===========================================================================
+-- DOĞRULAMA
+-- ===========================================================================
+do $$
+begin
+  if not exists (select 1 from pg_trigger where tgname = 'wa_giden_tavan'
+                   and tgrelid = 'public.wa_giden'::regclass) then
+    raise exception '0045: wa_giden_tavan tetikleyicisi kurulmadı.';
+  end if;
+  if has_function_privilege('authenticated', 'private.wa_yanit_isle()', 'EXECUTE') then
+    raise exception '0045: wa_yanit_isle yeniden authenticated rolüne açıldı.';
+  end if;
+  if not has_function_privilege('authenticated',
+       'public.wa_duyuru_kuyruga_al(text,text,jsonb,uuid)', 'EXECUTE') then
+    raise exception '0045: sarmalayıcı authenticated tarafından çağrılamıyor — fazla kısıldı.';
+  end if;
+  raise notice '0045 tamam: gönderim tavanı tetikleyicide, alıcı sınırı sarmalayıcıda, yanıt satırları temizleniyor.';
+end $$;
+
+
+-- ===========================================================================
+-- SON ADIM — anon/authenticated TRUNCATE YETKİSİNİN GERİ ALINMASI  (0040)
+-- ===========================================================================
+-- ⚠ BU BLOK DOSYANIN EN SONUNDA KALMALI. Sebebi ÖLÇÜLDÜ: revoke ilk denemede
+-- toplu grant'ın hemen altına yazılmıştı ve ondan SONRA gelen üç satır
+--     grant all on public.engelleme       to anon, authenticated, service_role;
+--     grant all on public.sikayet         to anon, authenticated, service_role;
+--     grant all on public.kulup_basvurusu to anon, authenticated, service_role;
+-- TRUNCATE'i sessizce geri veriyordu. Sıfırdan kurulan şemada üç tablo açık
+-- kalmıştı ve bunu ancak information_schema sorgusu gösterdi.
+-- Yeni bir tablo + grant eklendiğinde bu blok YİNE en sonda olmalı.
+--
+-- NEDEN GEREKLİ: `grant all` TRUNCATE'i de içerir ve RLS TRUNCATE'i KAPSAMAZ.
+-- Yerelde ölçüldü: `set role anon; truncate public.sporcular cascade;` çalıştı
+-- ve 16 tabloya yayıldı. Bugün API'den erişilemiyor (PostgREST hiçbir zaman
+-- TRUNCATE üretmez), ama "izinlerin gerçek daraltıcısı GRANT değil RLS'tir"
+-- gerekçesi TAM OLARAK BU FİİL için geçerli değil: doğrudan bağlantı açan bir
+-- entegrasyon tek komutla veritabanını boşaltabilirdi.
+revoke truncate on all tables in schema public from anon, authenticated;
+
+
 -- Sıradaki adım: kurulum/02_katalog.sql (platform kataloğu).
 -- ===========================================================================

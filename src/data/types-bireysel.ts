@@ -26,6 +26,11 @@ export interface BireyselGunSlotlari {
   gunAdi: string;
   gunNo: string;
   slotlar: BireyselSlot[];
+  // 0041: hafta Pazartesi–Pazar döndüğü için haftanın GEÇMİŞ günleri de listede.
+  // Geçmişe rezervasyon veritabanı düzeyinde reddediliyor (veli INSERT
+  // politikası `tarih >= current_date`); ekran da o günleri seçtirmemeli, yoksa
+  // kullanıcı slot seçip "rezervasyon oluşturulamadı" duvarına çarpıyor.
+  gecmis: boolean;
 }
 
 export interface BireyselPaketDurumu {

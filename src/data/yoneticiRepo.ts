@@ -23,6 +23,18 @@ function ayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Şube filtresi "seçim varsa uygula" demek; seçim yoksa sorgu olduğu gibi geçer
+// ("Tüm Şubeler"). Sekiz sorguda aynı if'i tekrarlamak, birinde unutmaya açık
+// olurdu ve unutulan yerde KPI sessizce kurum geneline dönerdi.
+//
+// ⚠ `select()` DİZGİSİ SABİT KALMALI. supabase-js, select metnini DERLEME
+// ZAMANINDA ayrıştırıp dönüş tipini üretiyor. Şablon dizgiyle (`id${gomme}`)
+// yazılınca ayrıştırıcı metni çözemiyor ve tip `ParserError<...>`'a düşüyor;
+// TS2589 ("excessively deep") ve satır tipi kayıpları oradan geliyordu. Bu
+// yüzden her sorgu, gömmeli ve gömmesiz iki AYRI sabit dizgiyle kuruluyor.
+type SayimSorgusu = PromiseLike<{ count: number | null; error: unknown }>;
+type SatirSorgusu<T> = PromiseLike<{ data: T[] | null; error: unknown }>;
+
 // Şubeler artık gerçek `sube` tablosundan geliyor.
 export async function getSubeler(): Promise<Sube[]> {
   const { data, error } = await supabase.from('sube').select('id, ad, alt_bilgi').order('ad');
@@ -35,12 +47,92 @@ export async function getSubeler(): Promise<Sube[]> {
 }
 
 // Özet KPI'ları gerçek tablolardan hesaplanır.
-// NOT (şube filtresi): odeme/yoklama/antrenman tablolarında şube bağı olmadığından
-// KPI'lar TÜM KURUM için hesaplanır — subeId yalnızca başlıkta gösterilen şube
-// adını seçer (null/eşleşme yoksa ilk şube). Şube bazlı kırılım ileri faz konusu.
+//
+// ŞUBE FİLTRESİ GERÇEKTİR (0038/0039).
+//   Eskiden `subeId` yalnızca BAŞLIKTAKİ ETİKETİ değiştiriyordu; rakamlar her
+//   zaman tüm kurumu kapsıyordu. Ekranda "Rakamlar tüm kurumu kapsar" notu
+//   olduğu için yalan değildi, ama seçicinin tek işlevi yanıltıcı bir başlık
+//   yazmaktı: "Bostanlı" seçilince Bostanlı yazıyor, Merkez'in rakamları
+//   duruyordu.
+//
+//   Artık `subeId` verildiğinde HER KPI o şubeye daraltılıyor:
+//     · sporcular  → doğrudan sube_id
+//     · odeme      → sporcular!inner(sube_id) (ödeme sporcuya, sporcu şubeye ait)
+//     · yoklama    → sporcular!inner(sube_id)
+//     · antrenman  → grup!inner(sube_id) (antrenman gruba, grup şubeye ait)
+//
+//   `subeId === null` "TÜM ŞUBELER" demektir — eskisi gibi "listedeki ilk şube"
+//   değil. Bu ayrım önemli: null'da ilk şubenin adını yazıp kurum rakamını
+//   göstermek, tam olarak düzeltilen yanılgının kendisiydi.
+//
+// ⚠ ŞUBESİZ KAYITLAR: `!inner` gömmesi, şubesi atanmamış (sube_id NULL) bir
+//   sporcunun ödemesini/yoklamasını şube filtresinin DIŞINDA bırakır. Bu doğru
+//   davranış ("Bostanlı'nın rakamı" sorusunun cevabı değiller), ama şubelerin
+//   toplamı kurum toplamını tutmayabilir. Panel bunu Ayarlar > Şubeler
+//   ekranındaki "Şubesi atanmamış kayıtlar var" uyarısıyla görünür kılıyor.
 export async function getOzet(subeId: string | null): Promise<YoneticiOzet> {
   const bugun = new Date();
   const altiAyOnce = ayBasiStr(new Date(bugun.getFullYear(), bugun.getMonth() - 5, 1));
+
+  const ayBasiUtc = new Date(bugun.getFullYear(), bugun.getMonth(), 1).toISOString();
+
+  // Şube seçiliyken sporcu/grup üzerinden gömülü filtre; seçili değilken gömme
+  // HİÇ eklenmiyor (gereksiz join maliyeti olmasın).
+  const sporcuSayimi: SayimSorgusu = subeId
+    ? supabase.from('sporcular').select('id', { count: 'exact', head: true }).eq('sube_id', subeId)
+    : supabase.from('sporcular').select('id', { count: 'exact', head: true });
+
+  // created_at timestamptz — düz 'YYYY-MM-01' string'i UTC gece yarısı sayılır; yerel
+  // ay başının gerçek UTC anını (toISOString) göndererek 00:00-03:00 sınır kaçağı önlenir.
+  const yeniSporcuSayimi: SayimSorgusu = subeId
+    ? supabase
+        .from('sporcular')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', ayBasiUtc)
+        .eq('sube_id', subeId)
+    : supabase.from('sporcular').select('id', { count: 'exact', head: true }).gte('created_at', ayBasiUtc);
+
+  const tahsilatSorgusu: SatirSorgusu<{ tutar: number; odendi_tarihi: string | null }> = subeId
+    ? supabase
+        .from('odeme')
+        .select('tutar, odendi_tarihi, sporcular!inner(sube_id)')
+        .eq('durum', 'odendi')
+        .gte('odendi_tarihi', altiAyOnce)
+        .eq('sporcular.sube_id', subeId)
+    : supabase.from('odeme').select('tutar, odendi_tarihi').eq('durum', 'odendi').gte('odendi_tarihi', altiAyOnce);
+
+  const gecikenSorgusu: SatirSorgusu<{ tutar: number }> = subeId
+    ? supabase
+        .from('odeme_gorunum') // 0033
+        .select('tutar, sporcular!inner(sube_id)')
+        .eq('efektif_durum', 'gecikti')
+        .eq('sporcular.sube_id', subeId)
+    : supabase.from('odeme_gorunum').select('tutar').eq('efektif_durum', 'gecikti');
+
+  const katilanSayimi: SayimSorgusu = subeId
+    ? supabase
+        .from('yoklama')
+        .select('id, sporcular!inner(sube_id)', { count: 'exact', head: true })
+        .eq('durum', 'katildi')
+        .eq('sporcular.sube_id', subeId)
+    : supabase.from('yoklama').select('id', { count: 'exact', head: true }).eq('durum', 'katildi');
+
+  const yoklamaSayimi: SayimSorgusu = subeId
+    ? supabase
+        .from('yoklama')
+        .select('id, sporcular!inner(sube_id)', { count: 'exact', head: true })
+        .not('durum', 'is', null)
+        .eq('sporcular.sube_id', subeId)
+    : supabase.from('yoklama').select('id', { count: 'exact', head: true }).not('durum', 'is', null);
+
+  // Antrenman sporcuya değil GRUBA bağlı; şube bağı grup üzerinden kuruluyor.
+  const antrenmanSayimi: SayimSorgusu = subeId
+    ? supabase
+        .from('antrenman')
+        .select('id, grup!inner(sube_id)', { count: 'exact', head: true })
+        .eq('tarih', todayStr())
+        .eq('grup.sube_id', subeId)
+    : supabase.from('antrenman').select('id', { count: 'exact', head: true }).eq('tarih', todayStr());
 
   const [
     { data: subeRows, error: eSube },
@@ -53,24 +145,22 @@ export async function getOzet(subeId: string | null): Promise<YoneticiOzet> {
     { count: bugunAntrenman, error: eAntrenman },
   ] = await Promise.all([
     supabase.from('sube').select('id, ad').order('ad'),
-    supabase.from('sporcular').select('id', { count: 'exact', head: true }),
-    // created_at timestamptz — düz 'YYYY-MM-01' string'i UTC gece yarısı sayılır; yerel
-    // ay başının gerçek UTC anını (toISOString) göndererek 00:00-03:00 sınır kaçağı önlenir.
-    supabase
-      .from('sporcular')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', new Date(bugun.getFullYear(), bugun.getMonth(), 1).toISOString()),
-    supabase.from('odeme').select('tutar, odendi_tarihi').eq('durum', 'odendi').gte('odendi_tarihi', altiAyOnce),
-    supabase.from('odeme_gorunum').select('tutar').eq('efektif_durum', 'gecikti'),   // 0033
-    supabase.from('yoklama').select('id', { count: 'exact', head: true }).eq('durum', 'katildi'),
-    supabase.from('yoklama').select('id', { count: 'exact', head: true }).not('durum', 'is', null),
-    supabase.from('antrenman').select('id', { count: 'exact', head: true }).eq('tarih', todayStr()),
+    sporcuSayimi,
+    yeniSporcuSayimi,
+    tahsilatSorgusu,
+    gecikenSorgusu,
+    katilanSayimi,
+    yoklamaSayimi,
+    antrenmanSayimi,
   ]);
   const hata = eSube || eSporcu || eYeni || eOdeme || eGeciken || eKatilan || eYoklama || eAntrenman;
   if (hata) throw hata;
 
   const subeler = (subeRows ?? []) as { id: string; ad: string }[];
-  const sube = subeler.find((s) => s.id === subeId) ?? subeler[0];
+  // subeId null ise "Tüm Şubeler". Bulunamayan bir id de (silinmiş şube)
+  // buraya düşer — sessizce başka bir şubenin adını yazmaktansa kapsamı
+  // doğru söylemek yeğdir.
+  const sube = subeId ? subeler.find((s) => s.id === subeId) : null;
 
   // Son 6 ayın tahsilat serisi — odendi_tarihi'nin YYYY-MM anahtarına göre gruplanır.
   const aylikTahsilat = new Map<string, number>();
@@ -97,7 +187,9 @@ export async function getOzet(subeId: string | null): Promise<YoneticiOzet> {
   const gunAy = bugun.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
 
   return {
-    subeAd: sube?.ad ?? '—',
+    // Şube seçilmemişse etiket "Tüm Şubeler" — ve rakamlar da gerçekten öyle.
+    // Tek şubeli kulüpte ekran seçiciyi hiç çizmiyor, orada bu etiket görünmez.
+    subeAd: sube?.ad ?? 'Tüm Şubeler',
     tarihEtiketi: `${gunAdi}, ${gunAy} · Yönetim Paneli`,
     kpiSporcu: sporcuSayisi ?? 0,
     kpiSporcuArtis: `+${yeniSporcu ?? 0} bu ay`,

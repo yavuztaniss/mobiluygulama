@@ -29,7 +29,13 @@ export default function BireyselDersDetay() {
   const [antrenor, setAntrenor] = useState<BireyselAntrenor | null>(null);
   const [paket, setPaket] = useState<BireyselPaketDurumu | null>(null);
   const [hafta, setHafta] = useState<BireyselGunSlotlari[]>([]);
-  const [gunIndex, setGunIndex] = useState(1);
+  // 0041: VARSAYILAN GUN BUGUN. Eskiden sabit 1 (Sali) idi; hafta Pazartesi
+  // basladigi icin ekran hafta ortasinda GECMIS bir gun secili aciliyordu ve
+  // veli oradan rezervasyon denemesi yapiyordu. Pazar = 0 -> 6.
+  const [gunIndex, setGunIndex] = useState(() => {
+    const g = new Date().getDay();
+    return g === 0 ? 6 : g - 1;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toastMessage, showToast } = useToast();
@@ -164,7 +170,12 @@ export default function BireyselDersDetay() {
               {hafta.map((g, i) => {
                 const on = i === gunIndex;
                 return (
-                  <Pressable key={g.gunNo} style={[styles.gunChip, on && styles.gunChipActive]} onPress={() => { setGunIndex(i); setSeciliSlot(null); }}>
+                  <Pressable
+                    key={g.gunNo}
+                    disabled={g.gecmis}
+                    style={[styles.gunChip, on && styles.gunChipActive, g.gecmis && styles.gunChipGecmis]}
+                    onPress={() => { setGunIndex(i); setSeciliSlot(null); }}
+                  >
                     <Text style={[styles.gunAd, on && styles.gunAdActive]}>{g.gunAdi}</Text>
                     <Text style={[styles.gunNo, on && styles.gunNoActive]}>{g.gunNo}</Text>
                   </Pressable>
@@ -250,8 +261,15 @@ export default function BireyselDersDetay() {
               </Pressable>
             )}
 
+            {/* METİN GERÇEĞE ÇEKİLDİ (0040).
+                Eskiden "24 saatten geç iptalde seans yanar" yazıyordu. Bu cümle
+                velinin uygulamadan iptal EDEBİLDİĞİNİ varsayıyor — oysa uygulamada
+                iptal düğmesi HİÇ YOK; hiçbir kod yolu durum='iptal' yazmıyor.
+                Ekran, olmayan bir özelliğin kuralını anlatıyordu.
+                Ayrıca 0040'tan sonra sunucu tarafındaki kural net: ders gününde
+                ya da sonrasında yapılan bir iptal paket hakkını GERİ VERMEZ. */}
             <View style={styles.warnBox}>
-              <Text style={styles.warnText}>24 saatten geç iptalde seans yanar</Text>
+              <Text style={styles.warnText}>İptal için kulübünüzle iletişime geçin</Text>
             </View>
 
             <Pressable style={styles.confirmBtn} onPress={onOnayla} disabled={onaylaniyor}>
@@ -279,7 +297,8 @@ export default function BireyselDersDetay() {
             <Text style={styles.onayInfoText}>Rezervasyon {antrenor?.ad ?? 'antrenör'} onayına iletildi</Text>
           </View>
           <View style={[styles.onayInfoBox, styles.onayWarnBox]}>
-            <Text style={styles.onayWarnText}>24 saatten geç iptalde seans yanar</Text>
+            {/* Yukarıdaki kutuyla aynı gerekçe (0040): uygulamada iptal yolu yok. */}
+            <Text style={styles.onayWarnText}>İptal için kulübünüzle iletişime geçin</Text>
           </View>
           <Pressable style={styles.onayKapatBtn} onPress={onOnayKapat}>
             <Text style={styles.onayKapatBtnText}>Tamam</Text>
@@ -326,6 +345,8 @@ function createStyles(colors: AppColors) {
   slotRange: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.sm, color: colors.textDim },
   gunRow: { flexDirection: 'row', gap: 6 },
   gunChip: { flex: 1, borderRadius: 14, paddingVertical: 9, alignItems: 'center', backgroundColor: colors.panel, borderWidth: 1.5, borderColor: colors.border },
+  // 0041: gecmis gunler secilemez — soluk gosteriliyor.
+  gunChipGecmis: { opacity: 0.35 },
   gunChipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
   gunAd: { fontFamily: fontFamily.manropeExtra, fontSize: fontSize.sm, color: colors.textDim },
   gunAdActive: { color: colors.accent },

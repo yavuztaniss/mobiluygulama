@@ -15,8 +15,9 @@ export default function OzetScreen() {
   const styles = createStyles(colors);
   const { kulupAdi } = useKurum();
   const [subeler, setSubeler] = useState<Sube[]>([]);
-  // Şube id'leri artık gerçek `sube` tablosundan (uuid) — başlangıçta null,
-  // repo null'da ilk şubeyi seçer. KPI'lar şube-bağımsız hesaplanır (bkz. yoneticiRepo.getOzet).
+  // null = TÜM ŞUBELER (varsayılan). Eskiden null "ilk şube" demekti ve KPI'lar
+  // yine kurum geneliydi — seçici yalnızca başlığı değiştiriyordu. Artık seçim
+  // gerçekten filtreliyor (bkz. yoneticiRepo.getOzet).
   const [subeId, setSubeId] = useState<string | null>(null);
   const [ozet, setOzet] = useState<YoneticiOzet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,8 +46,14 @@ export default function OzetScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subeId]);
 
-  // Sheet'teki seçili işareti — henüz seçim yapılmadıysa listedeki ilk şube aktiftir.
-  const aktifSubeId = subeId ?? subeler[0]?.id ?? null;
+  // Sheet'teki seçili işareti. null da geçerli bir seçim ("Tüm Şubeler"),
+  // o yüzden ilk şubeye düşürülmüyor.
+  const aktifSubeId = subeId;
+
+  // ŞUBE SEÇİCİ YALNIZCA ÇOK ŞUBELİ KULÜPTE. Tek şubeli kulüpte "Merkez" ile
+  // "Tüm Şubeler" aynı kümedir; seçenek sunmak, olmayan bir ayrım varmış
+  // izlenimi verirdi. Panel de aynı kuralı uyguluyor.
+  const cokSube = subeler.length > 1;
 
   // Hiç tahsilat yoksa 0'a bölme/NaN yükseklik olmasın diye alt sınır 1.
   const maxTutar = ozet ? Math.max(1, ...ozet.tahsilatSonAltiAy.map((t) => t.tutar)) : 1;
@@ -61,10 +68,14 @@ export default function OzetScreen() {
                 <View style={styles.dot} />
                 <Text style={styles.brand}>{kulupAdi.toLocaleUpperCase('tr-TR')}</Text>
               </View>
-              <Pressable style={styles.subeBtn} onPress={() => setSubeOpen(true)}>
-                <Text style={styles.subeText}>{ozet?.subeAd ?? '—'}</Text>
-                <Text style={styles.chevron}>⌄</Text>
-              </Pressable>
+              {cokSube ? (
+                <Pressable style={styles.subeBtn} onPress={() => setSubeOpen(true)}>
+                  <Text style={styles.subeText}>{ozet?.subeAd ?? '—'}</Text>
+                  <Text style={styles.chevron}>⌄</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.subeText}>{subeler[0]?.ad ?? ''}</Text>
+              )}
               <Text style={styles.dateText}>{ozet?.tarihEtiketi ?? ''}</Text>
             </View>
             <View style={styles.headerRight}>
@@ -81,9 +92,16 @@ export default function OzetScreen() {
 
           {!loading && !error && ozet && (
             <>
-              {/* Şube bazlı kırılım henüz yok — rakamlar seçili şubeye değil tüm kuruma ait,
-                  bunu açıkça söylemek gerekiyor (şube seçici yalnızca başlık etiketi). */}
-              <Text style={styles.kurumNotu}>Rakamlar tüm kurumu kapsar</Text>
+              {/* KAPSAM HER ZAMAN YAZILI. Rakamların neyi saydığı, rakamın kendisi
+                  kadar önemli: "12 aktif sporcu" tek başına hangi şubeninki
+                  olduğunu söylemiyor. Şubesi atanmamış kayıtlar şube filtresine
+                  girmediği için şubelerin toplamı kurum toplamını tutmayabilir —
+                  bunu paneldeki "Şubesi atanmamış kayıtlar var" uyarısı gösteriyor. */}
+              {cokSube && (
+                <Text style={styles.kurumNotu}>
+                  {subeId ? `Rakamlar yalnızca ${ozet.subeAd} şubesini kapsar` : 'Rakamlar tüm şubeleri kapsar'}
+                </Text>
+              )}
               <View style={styles.kpiGrid}>
                 <Card style={styles.kpiCard}>
                   <Text style={styles.kpiLabel}>AKTİF SPORCU</Text>
@@ -144,6 +162,20 @@ export default function OzetScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setSubeOpen(false)}>
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>ŞUBE SEÇ</Text>
+            {/* "Tüm Şubeler" gerçek bir seçenek: kulüp geneline bakmak, tek tek
+                şubeleri gezmek kadar meşru bir soru. */}
+            <Pressable
+              style={[styles.sheetRow, aktifSubeId === null && styles.sheetRowActive]}
+              onPress={() => {
+                setSubeId(null);
+                setSubeOpen(false);
+              }}
+            >
+              <View style={styles.sheetRowText}>
+                <Text style={styles.sheetRowTitle} numberOfLines={1}>Tüm Şubeler</Text>
+              </View>
+              {aktifSubeId === null && <Text style={styles.sheetCheck}>✓</Text>}
+            </Pressable>
             {subeler.map((s) => (
               <Pressable
                 key={s.id}
@@ -155,8 +187,13 @@ export default function OzetScreen() {
               >
                 <View style={styles.sheetRowText}>
                   <Text style={styles.sheetRowTitle} numberOfLines={1}>{s.ad}</Text>
-                  {/* alt_bilgi seed'deki eski tanıtım metni ("184 sporcu · 6 branş" gibi) —
-                      gerçek sayılarla eşleşmediği için gösterilmiyor. */}
+                  {/* alt_bilgi artık semt/konum notu taşıyor (eskiden "184 sporcu ·
+                      6 branş" gibi gerçekle eşleşmeyen vitrin metniydi; hem demo
+                      verisi hem panel formu konum bilgisine çevrildi). Aynı adlı
+                      iki tesisi ayırt etmeye yarıyor. */}
+                  {!!s.altBilgi && (
+                    <Text style={styles.sheetRowAlt} numberOfLines={1}>{s.altBilgi}</Text>
+                  )}
                 </View>
                 {s.id === aktifSubeId && <Text style={styles.sheetCheck}>✓</Text>}
               </Pressable>
@@ -230,6 +267,7 @@ function createStyles(colors: AppColors) {
   },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.sm },
   sheetRowActive: { backgroundColor: colors.chip },
+  sheetRowAlt: { fontFamily: fontFamily.manropeRegular, fontSize: fontSize.xs, lineHeight: lineHeightFor(fontSize.xs), color: colors.textDim, marginTop: 1 },
   sheetRowText: { flex: 1, minWidth: 0 },
   sheetRowTitle: { fontFamily: fontFamily.manropeBold, fontSize: fontSize.md, color: colors.textBright },
   sheetRowSubtitle: { fontFamily: fontFamily.manropeSemi, fontSize: fontSize.sm, lineHeight: lineHeightFor(fontSize.sm), color: colors.textDim },
