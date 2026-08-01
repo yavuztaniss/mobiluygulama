@@ -5657,5 +5657,49 @@ begin
 end $$;
 
 
+-- ---------------------------------------------------------------------------
+-- TETİKLEYİCİ FONKSİYONLARINDAN EXECUTE GERİ ALINIYOR  (0049)
+-- ---------------------------------------------------------------------------
+-- Supabase'in kendi güvenlik danışmanı, yukarıdaki toplu grant yüzünden 15+
+-- tetikleyici fonksiyonu için "anon /rest/v1/rpc/X ile çağırabilir" uyarısı
+-- veriyordu (paket_dus, paket_iade, rezervasyon_fiyatla, hiz_*, siparis_*…).
+--
+-- ⚠ UYARININ İDDİASI ÖLÇÜLDÜ VE DOĞRU DEĞİL — bu bir açık kapatmıyor:
+--     POST /rest/v1/rpc/paket_iade (anon)  → PGRST202
+--       (tetikleyici fonksiyonlar RPC olarak hiç yayınlanmıyor)
+--     set local role anon; select public.paket_iade();
+--       → ERROR: trigger functions can only be called as triggers
+--
+-- Yine de geri alınıyor, üç sebeple:
+--   1) İzin ZATEN GEREKSİZ: PostgreSQL tetikleyici ateşlerken EXECUTE aramaz.
+--      KARŞI-TEST ile kanıtlandı — izin alındıktan sonra paket düşümü,
+--      fiyatlama, iade, diriltme, davet koruması, hız sınırı ve rezervasyon
+--      koruması 7/7 çalışmaya devam etti.
+--   2) 15+ kalıcı uyarı danışman listesini okunamaz yapıyor; gerçek bir uyarı
+--      çıktığında aralarında kaybolur.
+--   3) Bir gün bu fonksiyonlardan biri `returns trigger` olmaktan çıkarılırsa
+--      üzerindeki izin O ANDA anlamlı hale gelir ve kimse fark etmez.
+--
+-- Katalogdan sürülüyor, sabit listeden değil: yeni eklenen her tetikleyici
+-- fonksiyon kendiliğinden kapsanıyor (0029'da sabit liste tam bu yüzden bozuldu).
+--
+-- ⚠ `public.hesabimi_sil` BİLEREK AÇIK BIRAKILIYOR — danışman onu da işaretliyor.
+--   Apple App Store Guideline 5.1.1(v) uygulama içi hesap silmeyi ZORUNLU
+--   tutuyor; kapatılırsa mağaza reddi gelir. Güvenli olduğu ölçüldü: parametre
+--   almıyor, kullanıcıyı `auth.uid()`'den türetiyor, oturum yoksa hata veriyor.
+--   Veli çağırdığında yalnızca KENDİ hesabı siliniyor (7 kullanıcı → 6).
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure as imza
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prorettype = 'pg_catalog.trigger'::regtype
+  loop
+    execute format('revoke all on function %s from public, anon, authenticated', r.imza);
+  end loop;
+end $$;
+
+
 -- Sıradaki adım: kurulum/02_katalog.sql (platform kataloğu).
 -- ===========================================================================
