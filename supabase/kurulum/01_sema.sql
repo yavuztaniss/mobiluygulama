@@ -2431,15 +2431,54 @@ create trigger on_etkinlik_sonuc_protect
 -- 13.9 push_token_devral — cihaz devri. Aynı telefonda A çıkıp B girdiğinde token
 -- hâlâ A'nın satırındadır; B'nin insert'i PK çakışmasına, upsert'i RLS reddine
 -- takılırdı. Token cihazı temsil eder: INSERT'ten önce aynı token'ın eski satırı
--- (sahibi kim olursa olsun) SECURITY DEFINER ile silinir.
+-- SECURITY DEFINER ile silinir.
+--
+-- ⚠ 0050: SİLME KULÜPLE SINIRLI — eskiden `where token = new.token` idi ve bu
+--   SÖMÜRÜLEBİLİR bir açıktı. Fonksiyon SECURITY DEFINER ve sahibi postgres,
+--   yani RLS'i ve kiracı duvarını baypas ediyor; silme koşulu ise yalnızca
+--   istemcinin gönderdiği token metniydi. Ölçüldü: A kulübünün velisi, B
+--   kulübünde kayıtlı bir token metnini kullanarak B'nin satırını sildi
+--   (B kulübünde token satırı 1 -> 0). Gerçekçi senaryo: aile A'dan ayrılıp
+--   B'ye geçiyor, A'nın yöneticisi ayrılırken gördüğü token'ı saklıyor ve
+--   B'deki kaydı istediği sıklıkta siliyor; B'nin velisi antrenman iptali ve
+--   maç saati bildirimlerini hiç almıyor.
+--
+--   Kural TETİKLEYİCİYE yazıldı çünkü bir güvenlik değişmezi: RLS'e konamaz
+--   (silmeyi yapan gövde RLS'i baypas ediyor), GRANT'e konamaz (tetikleyici
+--   EXECUTE aramıyor).
+--
+--   BEDELİ: kulüpler arası cihaz devri artık açık bir hatayla reddediliyor.
+--   Bugün kırılan bir akış yok (EAS projectId olmadığı için push hiçbir
+--   derlemede çalışmıyor); push açılmadan önce cihaz sahipliğini kanıtlayan
+--   bir el sıkışma gerekiyor.
 create or replace function public.push_token_devral()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_yabanci_kulup uuid;
 begin
-  delete from public.push_token where token = new.token;
+  -- Aynı kiracı içinde cihaz devri — 0020'nin asıl amacı, korunuyor.
+  delete from public.push_token
+   where token = new.token
+     and kulup_id = new.kulup_id;
+
+  -- Başka kiracıda duruyorsa SİLMİYORUZ; sessiz PK çarpışması da bırakmıyoruz.
+  select kulup_id into v_yabanci_kulup
+    from public.push_token
+   where token = new.token
+   limit 1;
+
+  if v_yabanci_kulup is not null then
+    raise exception
+      'Bu cihaz başka bir kulüpte kayıtlı. Kayıt için önce diğer kulüpteki oturumdan çıkış yapılmalı.'
+      using errcode = 'unique_violation',
+            hint = 'push_token.token birincil anahtardır ve kulüpler arasında tekildir; '
+                   'çapraz kiracı devri 0050 ile bilerek engellenmiştir.';
+  end if;
+
   return new;
 end;
 $$;
