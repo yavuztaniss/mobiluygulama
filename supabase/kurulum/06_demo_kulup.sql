@@ -254,10 +254,18 @@ begin
   for i in 1 .. 12 loop
     declare v_ant uuid := gen_random_uuid();
     begin
+      -- ⚠ (i-1)*2 — i*2 DEĞİL. İlki BUGÜNE düşsün diye.
+      --   Yoklama raporu varsayılan olarak İÇİNDE BULUNULAN AYI gösteriyor.
+      --   Eskiden `i * 2` ile en yeni antrenman `current_date - 2` oluyordu;
+      --   ayın 1'inde bu, ÜRETİLEN 12 ANTRENMANIN HEPSİNİN geçen aya düşmesi
+      --   ve raporun "Toplam Oturum: 0" göstermesi demekti. Ölçüldü — demo
+      --   panelinde rapor ekranı bomboş açılıyordu.
+      --   (i-1)*2 ile ilk antrenman bugüne denk geliyor, yani içinde
+      --   bulunulan ay hangi gün olursa olsun hiçbir zaman boş kalmıyor.
       insert into public.antrenman (id, grup_id, tarih, saat1, tesis,
                                     yoklama_kaydedildi, kulup_id)
       values (v_ant, v_gruplar[1 + (i % array_length(v_gruplar, 1))],
-              current_date - (i * 2), '18:00', 'Merkez Salon', true, v_kulup);
+              current_date - ((i - 1) * 2), '18:00', 'Merkez Salon', true, v_kulup);
 
       insert into public.yoklama (antrenman_id, sporcu_id, durum, kulup_id)
       select v_ant, s.id,
