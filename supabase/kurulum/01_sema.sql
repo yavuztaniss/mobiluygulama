@@ -2149,19 +2149,37 @@ begin
     return new;
   end if;
 
-  -- --- (b)/(c) DAVETSİZ KAYIT -------------------------------------------
+  -- --- (b) DAVETSİZ KAYIT — KULÜBE BAĞLANMIYOR (0052) -------------------
+  -- ⚠ BURASI ESKİDEN "tek kulüp varsa ona bağla" DİYORDU VE AÇIKTI.
+  --   Uygulama herkese açık bir adreste; o hâliyle adrese giren HERKES
+  --   "Kayıt Ol" deyip kulübün velisi olabiliyordu. Ölçüldü — böyle bir
+  --   hesapla okunabilenler:
+  --     kurum_ayarlari 1 → IBAN AÇIK · duyuru 1 · etkinlik 1 · grup 7 · urun 6
+  --   (sporcular/odeme/yoklama 0 idi, yani çocuk verisi sızmıyordu; ama
+  --   kulübün IBAN'ının internete açık olması dolandırıcılık riski.)
+  --
+  --   Artık kulup_id NULL yazılıyor. private.current_kulup_id() NULL döndüğü
+  --   için restrictive kiracı duvarı bu kullanıcı için TÜMÜYLE kapanıyor —
+  --   düzeltmeden sonra aynı ölçüm 10 tablonun 10'unda da 0 verdi.
+  --
+  --   Yan fayda: davranış artık kulüp SAYISINDAN BAĞIMSIZ. Eskiden sistem tek
+  --   kulüpken açık, iki kulüpken kapalıydı; güvenliğin müşteri sayısına göre
+  --   değişmesi er geç yanlış tarafa düşer.
+  --
+  --   Sıfır kulüp exception'ı da KALDIRILDI: platform sahibinin hesabı henüz
+  --   hiç kulüp yokken açılabilmeli, aksi halde sistem kurulamaz.
+  --
+  --   Panelde bu kişi doğru mesajı alıyor (dal.ts → 'hesapsiz'):
+  --   "Bu hesabın kulüp kaydı bulunamadı… davet bağlantısı isteyin."
   select count(*) into v_adet from public.kulup;
 
-  if v_adet = 1 then
-    select id into v_kulup from public.kulup;
-  elsif v_adet = 0 then
-    raise exception 'Kulüp tanımlı değil: yeni kullanıcı oluşturulamaz. Önce kurulum/03_kulup_olustur.sql çalıştırılmalı.';
-  else
-    raise exception 'Kayıt için davet linki gerekli: sistemde birden fazla kulüp var ve davet token''ı sunulmadı.';
+  insert into public.profiles (id, role, ad, kulup_id)
+  values (new.id, 'veli', v_ad, null);
+
+  if v_adet > 0 then
+    raise notice 'Davetsiz kayıt: % kulübe bağlanmadı (kulup_id NULL). Erişim için davet gerekli.', new.email;
   end if;
 
-  insert into public.profiles (id, role, ad, kulup_id)
-  values (new.id, 'veli', v_ad, v_kulup);
   return new;
 end;
 $$;
