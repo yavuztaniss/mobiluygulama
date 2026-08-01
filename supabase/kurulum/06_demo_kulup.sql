@@ -40,6 +40,13 @@
 --   Koruma bir kapıdan değil, izin sisteminin kendisinden geliyor; unutulacak
 --   ya da oturum durumuna takılacak bir şey kalmıyor.
 --
+-- ⚠ search_path'e `extensions` EKLİ — ŞART.
+--   Supabase pgcrypto'yu `public'e değil `extensions` şemasına kuruyor
+--   (ölçüldü: crypt, gen_salt, gen_random_bytes üçü de orada). search_path
+--   yalnızca `public` olsaydı fonksiyon ilk çağrıda
+--   "function gen_random_bytes(integer) does not exist" ile düşerdi — ve bu
+--   yalnızca GERÇEK bir Supabase projesinde ortaya çıkardı, çünkü elle
+--   kurulan test veritabanında uzantı public'e gidiyor.
 -- ÖNKOŞUL: demo projesinde 01_sema.sql ve 02_katalog.sql çalıştırılmış olmalı.
 --
 -- KULLANIM (demo projesinin SQL Editor'ında):
@@ -56,7 +63,7 @@ create or replace function public.demo_kulup_olustur(
 ) returns table (yeni_kulup_id uuid, giris_eposta text, giris_sifre text, sporcu_sayisi int)
 language plpgsql
 security invoker   -- ŞART — bkz. başlıktaki "NEDEN SECURITY DEFINER DEĞİL"
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_kulup   uuid := gen_random_uuid();
@@ -118,13 +125,26 @@ begin
   values (v_token, v_kulup, 'yonetici', 'Demo Yönetici', lower(btrim(p_eposta)),
           now() + interval '1 hour', 'Demo kulübü otomatik kurulumu');
 
+  -- ⚠ BOŞ STRING'LER ŞART, NULL BIRAKILAMAZ.
+  --   confirmation_token / recovery_token / email_change* / phone_change* /
+  --   reauthentication_token alanları NULL kalırsa GoTrue giriş isteğinde
+  --   "Database error querying schema" veriyor ve hesap HİÇ kullanılamıyor.
+  --   Sebep: GoTrue Go ile yazılı ve bu kolonları string'e tarıyor; NULL'ı
+  --   çeviremiyor. Şemada hepsi nullable olduğu için veritabanı uyarmıyor.
+  --   ÖLÇÜLDÜ: ilk sürüm bu alanları yazmıyordu, demo hesabıyla giriş
+  --   denendiğinde tam bu hata alındı. Elle kurulan test veritabanında GoTrue
+  --   olmadığı için testler bunu göremiyordu — ancak gerçek Supabase'de çıktı.
   insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
                           email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+                          confirmation_token, recovery_token, email_change_token_new,
+                          email_change, email_change_token_current, phone_change,
+                          phone_change_token, reauthentication_token,
                           created_at, updated_at)
   values ('00000000-0000-0000-0000-000000000000', v_yon, 'authenticated', 'authenticated',
           lower(btrim(p_eposta)), crypt(p_sifre, gen_salt('bf')), now(),
           '{"provider":"email","providers":["email"]}'::jsonb,
           jsonb_build_object('ad', 'Demo Yönetici', 'davet_token', v_token),
+          '', '', '', '', '', '', '', '',
           now(), now());
 
   -- identities satırı ŞART: yoksa GoTrue e-posta/şifre girişini kabul etmiyor
@@ -164,14 +184,27 @@ begin
           'antrenor+' || substr(v_kulup::text,1,8) || '@demo.local',
           now() + interval '1 hour', 'Demo kulübü otomatik kurulumu');
 
+  -- ⚠ BOŞ STRING'LER ŞART, NULL BIRAKILAMAZ.
+  --   confirmation_token / recovery_token / email_change* / phone_change* /
+  --   reauthentication_token alanları NULL kalırsa GoTrue giriş isteğinde
+  --   "Database error querying schema" veriyor ve hesap HİÇ kullanılamıyor.
+  --   Sebep: GoTrue Go ile yazılı ve bu kolonları string'e tarıyor; NULL'ı
+  --   çeviremiyor. Şemada hepsi nullable olduğu için veritabanı uyarmıyor.
+  --   ÖLÇÜLDÜ: ilk sürüm bu alanları yazmıyordu, demo hesabıyla giriş
+  --   denendiğinde tam bu hata alındı. Elle kurulan test veritabanında GoTrue
+  --   olmadığı için testler bunu göremiyordu — ancak gerçek Supabase'de çıktı.
   insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
                           email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+                          confirmation_token, recovery_token, email_change_token_new,
+                          email_change, email_change_token_current, phone_change,
+                          phone_change_token, reauthentication_token,
                           created_at, updated_at)
   values ('00000000-0000-0000-0000-000000000000', v_antren, 'authenticated', 'authenticated',
           'antrenor+' || substr(v_kulup::text,1,8) || '@demo.local',
           crypt(gen_random_uuid()::text, gen_salt('bf')), now(),
           '{"provider":"email","providers":["email"]}'::jsonb,
           jsonb_build_object('ad', 'Mehmet Antrenör', 'davet_token', v_token),
+          '', '', '', '', '', '', '', '',
           now(), now());
 
   -- --- Gruplar -------------------------------------------------------------
@@ -264,7 +297,7 @@ create or replace function public.demo_kulup_sil(p_kulup_id uuid)
 returns void
 language plpgsql
 security invoker   -- ŞART — bkz. başlıktaki "NEDEN SECURITY DEFINER DEĞİL"
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_kullanicilar uuid[];
