@@ -5658,6 +5658,34 @@ end $$;
 
 
 -- ---------------------------------------------------------------------------
+-- private ŞEMASINDAKİ TABLOLARDA RLS AÇIK, POLİTİKA YOK — BİLEREK
+-- ---------------------------------------------------------------------------
+-- "RLS açık ama politika yok" = HER ŞEY REDDEDİLİR. Mümkün olan en kısıtlayıcı
+-- hâl ve bu tablolar için doğru olan bu: `private.istek_sayaci` (hız sınırı
+-- sayaçları) ve `private.wa_gizli` (WhatsApp jetonunun Vault kimliği) hiçbir
+-- istemcinin işi değil.
+--
+-- Supabase danışmanı bunu "suggestion" olarak işaretliyor çünkü genelde kaza
+-- olur: biri RLS'i açar, politika yazmayı unutur ve uygulamasını kilitler.
+-- Burada kasıt. Bir aksiyon gerekmiyor.
+--
+-- NEDEN AÇIKÇA YAZILIYOR: bu satırlar olmadan yerel geliştirme veritabanında
+-- RLS KAPALI, Supabase projesinde ise AÇIK oluyordu (ölçüldü). İki ortamın
+-- farklı yapılandırmada olması, denetimlerin üretimde olmayan bir dünyayı
+-- sınaması demek — bu oturumda GoTrue jeton kolonları hatası tam olarak bu
+-- yüzden geç yakalandı. Açıkça yazmak ikisini eşitliyor.
+--
+-- MEŞRU YOLU KİLİTLEMİYOR (ölçüldü, RLS açıkken):
+--   private.hiz_kontrol istek_sayaci'ya yazmaya devam etti (5 → 6)
+--   wa_gizli sahibi tarafından okunabildi
+--   yönetici ikisine de erişemedi
+-- Sebep: bu tablolara yalnızca SECURITY DEFINER fonksiyonlar dokunuyor ve
+-- sahibi (postgres) tablo sahibi olarak RLS'i baypas ediyor.
+alter table private.istek_sayaci enable row level security;
+alter table private.wa_gizli     enable row level security;
+
+
+-- ---------------------------------------------------------------------------
 -- TETİKLEYİCİ FONKSİYONLARINDAN EXECUTE GERİ ALINIYOR  (0049)
 -- ---------------------------------------------------------------------------
 -- Supabase'in kendi güvenlik danışmanı, yukarıdaki toplu grant yüzünden 15+
