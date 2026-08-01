@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!--
+      viewport-fit=cover ŞART: uygulama ana ekrandan (standalone) açıldığında
+      tarayıcı çubuğu kalkıyor ve içerik çentiğin/ev düğmesi çubuğunun altına
+      giriyor. react-native-safe-area-context güvenli alanı web'de
+      `env(safe-area-inset-*)` üzerinden okuyor; bu değerler ise YALNIZCA
+      viewport-fit=cover verildiğinde dolduruluyor. Onsuz iOS'ta üst başlık
+      çentiğin altında kalır.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <title>%WEB_TITLE%</title>
+
+    <!-- ============================== PWA ============================== -->
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Tarayıcı/durum çubuğu rengi: uygulamanın koyu tema kabuğu (#061923). -->
+    <meta name="theme-color" content="#061923" />
+
+    <!--
+      iOS ana ekrana eklemede manifest'i TAM OLARAK OKUMUYOR; aşağıdaki apple-*
+      etiketleri olmadan uygulama Safari çubuğuyla açılır ve "uygulama gibi"
+      durmaz. `mobile-web-app-capable` standart karşılığı, apple-* olanı eski
+      iOS sürümleri için hâlâ gerekli — ikisi birlikte veriliyor.
+    -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Spor Coach" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta
+      name="description"
+      content="Spor okulu yönetim uygulaması — yoklama, aidat, gelişim takibi ve kulüp iletişimi."
+    />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /*
+        JavaScript paketi inerken beyaz ekran yerine uygulamanın kendi koyu
+        zemini görünsün. Ana ekrandan açılan bir uygulamada beyaz parlama
+        "bozuldu mu?" hissi veriyor.
+      */
+      html,
+      body {
+        background-color: #061923;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      Bu uygulamayı kullanmak için JavaScript'i etkinleştirmeniz gerekiyor.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+
+    <script>
+      // SERVICE WORKER KAYDI
+      // Android/Chrome'un "Uygulamayı yükle" istemi manifest'e EK OLARAK fetch
+      // olayını dinleyen bir service worker istiyor; yoksa istem hiç çıkmıyor.
+      // (iOS'ta "Ana Ekrana Ekle" service worker olmadan da çalışıyor.)
+      //
+      // `load` beklenmesi bilinçli: kayıt ilk boyamayla yarışmasın.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function (hata) {
+            // Kayıt başarısızlığı uygulamayı ETKİLEMEMELİ; kaybedilen tek şey
+            // çevrimdışı desteği. Sessizce yutmak yerine konsola yazılıyor.
+            console.warn('Service worker kaydedilemedi:', hata);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

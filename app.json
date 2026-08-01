@@ -20,7 +20,16 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "Spor Coach",
+      "shortName": "Spor Coach",
+      "lang": "tr",
+      "description": "Spor okulu yönetim uygulaması — yoklama, aidat, gelişim takibi ve kulüp iletişimi.",
+      "display": "standalone",
+      "orientation": "portrait",
+      "themeColor": "#061923",
+      "backgroundColor": "#061923"
     },
     "plugins": [
       "expo-router",
