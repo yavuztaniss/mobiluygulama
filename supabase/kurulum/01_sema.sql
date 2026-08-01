@@ -5768,5 +5768,78 @@ begin
 end $$;
 
 
+-- ===========================================================================
+-- 0051 — site_ayarlari: tanıtım sitesinin metinleri
+-- ===========================================================================
+-- ⚠ BU BLOK DOSYANIN SONUNDA, `grant all on all tables` (satır ~2518) SATIRINDAN
+--   SONRA OLMAK ZORUNDA. Yukarı taşınırsa toplu grant buradaki kısıtlı izinleri
+--   genişletir ve anon satırı SİLEBİLİR hale gelir. Aynı tuzak 0040'ta
+--   (TRUNCATE) ve 0049'da (tetikleyici fonksiyonlar) yaşandı.
+--
+-- ⚠ KİRACIYA AİT DEĞİL — kulup_id YOK, BİLEREK. Buradaki bilgi SATILAN ÜRÜNÜN
+--   markası; kulüp markası kurum_ayarlari'nda ve o kiracı duvarıyla korunuyor.
+--   Bu tabloya restrictive kiracı politikası EKLENMEMELİ: tanıtım sitesi
+--   ziyaretçisinin oturumu yok, current_kulup_id() NULL döner, karşılaştırma
+--   hiçbir zaman tutmaz ve site markasız açılırdı.
+--
+-- Tek satır garantisi veritabanında: `tek boolean primary key check (tek)`
+-- yalnızca `true` kabul ediyor, ikinci satır fiziksel olarak eklenemiyor.
+create table if not exists public.site_ayarlari (
+  tek              boolean primary key default true check (tek),
+  urun_adi         text not null default 'Spor Coach',
+  slogan           text not null default 'Spor okulunuzu tek panelden yönetin',
+  aciklama         text not null default '',
+  eposta           text not null default '',
+  telefon          text not null default '',
+  sirket           text not null default '',
+  uygulama_adresi  text not null default '',
+  guncelleyen      uuid references public.profiles(id) on delete set null,
+  updated_at       timestamptz not null default now()
+);
+
+alter table public.site_ayarlari enable row level security;
+
+insert into public.site_ayarlari (tek) values (true) on conflict (tek) do nothing;
+
+drop policy if exists "site_ayarlari: herkes okur" on public.site_ayarlari;
+create policy "site_ayarlari: herkes okur"
+  on public.site_ayarlari for select using (true);
+
+drop policy if exists "site_ayarlari: yalnızca platform sahibi yazar" on public.site_ayarlari;
+create policy "site_ayarlari: yalnızca platform sahibi yazar"
+  on public.site_ayarlari for update
+  using (private.current_profile_role() = 'platform_admin')
+  with check (private.current_profile_role() = 'platform_admin');
+
+-- Önce her şeyi geri al, sonra yalnızca gerekeni ver: tek bir politikanın
+-- yanlış yazılması tabloyu açmasın.
+revoke all on table public.site_ayarlari from public, anon, authenticated;
+grant select on table public.site_ayarlari to anon, authenticated;
+grant update on table public.site_ayarlari to authenticated;
+
+-- "Kim değiştirdi" ve zaman damgası sunucuda yazılıyor; istemciye bırakılırsa
+-- uydurulabilir. Değişmez olduğu için tetikleyici katmanı.
+create or replace function public.site_ayarlari_damga()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  new.tek         := true;
+  new.guncelleyen := auth.uid();
+  new.updated_at  := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists on_site_ayarlari_damga on public.site_ayarlari;
+create trigger on_site_ayarlari_damga
+  before update on public.site_ayarlari
+  for each row execute procedure public.site_ayarlari_damga();
+
+revoke all on function public.site_ayarlari_damga() from public, anon, authenticated;
+
+
 -- Sıradaki adım: kurulum/02_katalog.sql (platform kataloğu).
 -- ===========================================================================
