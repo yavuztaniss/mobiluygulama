@@ -5859,5 +5859,93 @@ create trigger on_site_ayarlari_damga
 revoke all on function public.site_ayarlari_damga() from public, anon, authenticated;
 
 
+-- ===========================================================================
+-- 0053 — davet.sube_id + davetsiz kayıt reddi
+-- ===========================================================================
+-- Dosyanın SONUNDA: handle_new_user'ı yeniden tanımlıyor ve davet tablosunu
+-- değiştiriyor; yukarıdaki tanımların hepsi oluştuktan sonra çalışmalı.
+--
+-- ⚠ `on delete set null (sube_id)` — KOLON LİSTESİ ŞART. Liste olmadan yazılan
+--   bileşik SET NULL kulup_id'yi de NULL yapar ve şube silme tümden patlar
+--   (0039'da ölçülerek yakalandı).
+alter table public.davet add column if not exists sube_id uuid;
+
+do $sube53$
+begin
+  if not exists (select 1 from pg_constraint
+                  where conname = 'davet_sube_kulup_fkey'
+                    and conrelid = 'public.davet'::regclass) then
+    alter table public.davet
+      add constraint davet_sube_kulup_fkey
+      foreign key (sube_id, kulup_id) references public.sube(id, kulup_id)
+      on delete set null (sube_id);
+  end if;
+end $sube53$;
+
+create index if not exists davet_sube_idx on public.davet (sube_id) where sube_id is not null;
+
+-- ⚠ DAVETSİZ KAYIT UYGULAMADAN REDDEDİLİYOR, KURULUMDAN GEÇİYOR.
+--   Ayrım `session_user` ile — `current_user` ile DEĞİL: bu fonksiyon SECURITY
+--   DEFINER ve içinde current_user ÇAĞIRANI DEĞİL SAHİBİNİ verir (0036 tuzağı).
+--     GoTrue (uygulama) → supabase_auth_admin → REDDET
+--     SQL Editor        → postgres/supabase_admin → kulüpsüz aç
+--   Koşulsuz reddedilseydi platform sahibinin ilk hesabı hiç açılamaz ve sistem
+--   kurulamaz hâle gelirdi.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $hnu53$
+declare
+  v_token  text; v_ad text; v_kulup uuid; v_rol app_role;
+  v_sporcu uuid; v_sube uuid; v_satir int;
+begin
+  v_ad    := coalesce(new.raw_user_meta_data ->> 'ad', '');
+  v_token := nullif(btrim(coalesce(new.raw_user_meta_data ->> 'davet_token', '')), '');
+
+  if v_token is not null then
+    select c.kulup_id, c.rol, c.sporcu_id into v_kulup, v_rol, v_sporcu
+      from private.davet_coz(v_token, new.email) c;
+
+    if v_kulup is null then
+      raise exception 'Davet linki geçersiz, süresi dolmuş, daha önce kullanılmış veya başka bir e-posta adresine düzenlenmiş.';
+    end if;
+
+    -- Şube token doğrulandıktan SONRA okunuyor: davet_coz oturumsuz
+    -- çağrılabiliyor ve döndürdüğü her alan token'ı ele geçirene sızar.
+    select d.sube_id into v_sube from public.davet d where d.token = v_token;
+
+    insert into public.profiles (id, role, ad, kulup_id, sube_id)
+    values (new.id, v_rol, v_ad, v_kulup, v_sube);
+
+    update public.davet set kullanildi_at = now(), kullanan_id = new.id
+     where token = v_token and kullanildi_at is null and son_kullanma > now();
+
+    get diagnostics v_satir = row_count;
+    if v_satir <> 1 then
+      raise exception 'Davet linki az önce başka bir kayıtta kullanıldı. Kulüp yöneticinizden yeni bir davet isteyin.';
+    end if;
+
+    if v_sporcu is not null then
+      insert into public.veli_sporcu (veli_id, sporcu_id, kulup_id)
+      values (new.id, v_sporcu, v_kulup) on conflict do nothing;
+    end if;
+
+    return new;
+  end if;
+
+  if session_user in ('postgres', 'supabase_admin') then
+    insert into public.profiles (id, role, ad, kulup_id)
+    values (new.id, 'veli', v_ad, null);
+    raise notice 'Kurulum kaydı: % kulüpsüz açıldı (04/05 ile yetkilendirilecek).', new.email;
+    return new;
+  end if;
+
+  raise exception 'Hesap oluşturmak için kulübünüzden aldığınız davet kodu gerekli. Kodunuz yoksa kulüp yöneticinizle görüşün.';
+end;
+$hnu53$;
+
+
 -- Sıradaki adım: kurulum/02_katalog.sql (platform kataloğu).
 -- ===========================================================================
