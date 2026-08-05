@@ -6322,10 +6322,24 @@ on conflict (id) do update
 -- ---------------------------------------------------------------------------
 -- storage.objects'te RLS zaten açık (Supabase varsayılanı).
 
+-- ⚠ 0057: BU POLİTİKA ESKİDEN `using (bucket_id = 'kulup-logo')` İDİ ve anon
+--   rolünün kovayı LİSTELEMESİNE izin veriyordu — klasör adları kulüp kimliği
+--   olduğu için sistemdeki tüm kulüplerin sayısı ve kimliği herkese açıktı.
+--   Ölçüldü: anon `POST /storage/v1/object/list/kulup-logo` ile kulüp
+--   kimliklerini görebiliyordu.
+--
+--   ⚠ TÜMDEN KALDIRMAK ÇÖZÜM DEĞİL (denendi, ölçüldü): Storage'ın upsert yolu
+--     var olan nesneyi GÖREBİLMEK zorunda; SELECT olmadan yükleme 403 "new row
+--     violates row-level security policy" ile kırılıyor. Doğrusu daraltmak.
 drop policy if exists "kulup-logo: herkes okur" on storage.objects;
-create policy "kulup-logo: herkes okur"
+drop policy if exists "kulup-logo: yönetici kendi klasörünü görür" on storage.objects;
+create policy "kulup-logo: yönetici kendi klasörünü görür"
   on storage.objects for select
-  using (bucket_id = 'kulup-logo');
+  using (
+    bucket_id = 'kulup-logo'
+    and (select private.current_profile_role()) = 'yonetici'
+    and (storage.foldername(name))[1] = (select private.current_kulup_id())::text
+  );
 
 -- Yazma/güncelleme/silme: yalnızca o kulübün yöneticisi, yalnızca kendi klasörü.
 --
