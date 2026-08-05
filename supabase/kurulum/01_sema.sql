@@ -6390,5 +6390,81 @@ begin
   raise notice '0055 doğrulandı: kova açık, 4 politika, logo_url kolonu yerinde.';
 end $$;
 
+-- ===========================================================================
+-- 0056 — public.kulup_marka(slug): oturumsuz okunabilen kulüp markası
+-- ===========================================================================
+-- PWA manifest'i kulüp adını ve logosunu OTURUM AÇILMADAN okumak zorunda; ama
+-- kulup ve kurum_ayarlari kiracı duvarının arkasında.
+--
+-- ⚠ TABLOYA "anon okur" POLİTİKASI EKLENMEDİ — o, sistemdeki TÜM kulüplerin
+--   listesini (ad, plan, abonelik durumu, sporcu limiti) herkese açardı.
+--   Bunun yerine tek slug'a bakan, yalnızca ad+logo+slug döndüren bir fonksiyon:
+--   listelemek imkânsız, dönen bilgi zaten kamuya açık.
+--   Ölçüldü: anon bu fonksiyonu çağırabiliyor ama kulup ve kurum_ayarlari
+--   tablolarında izin reddi alıyor (IBAN korunuyor).
+
+
+create or replace function public.kulup_marka(p_slug text)
+returns table (ad text, logo_url text, slug text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    -- Beyaz etiket adı kurum_ayarlari'nda; kulup.ad kurulum sırasındaki addır
+    -- ve kulüp sonradan panelden değiştirmiş olabilir. Sıra bu yüzden önemli.
+    coalesce(nullif(btrim(ka.kulup_adi), ''), k.ad) as ad,
+    ka.logo_url,
+    k.slug
+  from public.kulup k
+  left join public.kurum_ayarlari ka on ka.kulup_id = k.id
+  where k.slug = btrim(lower(p_slug))
+  limit 1
+$$;
+
+comment on function public.kulup_marka(text) is
+  '0056: PWA manifest''i için oturumsuz okunabilen kulüp markası. YALNIZCA ad, '
+  'logo ve slug döner — kulüp listesi sızdırmaz, slug bilinmeden çağrılamaz.';
+
+-- ⚠ anon''a AÇIKÇA veriliyor: manifest oturum açılmadan üretiliyor.
+--   01_sema.sql''in toplu `grant all on all routines` satırı bunu zaten verirdi
+--   ama ona güvenilmiyor — o satır bir gün daraltılırsa bu uç sessizce kapanır
+--   ve simgeler kırılır.
+revoke all on function public.kulup_marka(text) from public;
+grant execute on function public.kulup_marka(text) to anon, authenticated;
+
+
+-- ===========================================================================
+-- DOĞRULAMA
+-- ===========================================================================
+do $$
+declare
+  v_slug text;
+  v_ad   text;
+  v_kac  int;
+begin
+  select slug into v_slug from public.kulup where slug is not null limit 1;
+  if v_slug is null then
+    raise notice '0056: kulüp yok, işlevsel doğrulama atlandı.';
+    return;
+  end if;
+
+  -- anon çağırabiliyor mu ve doğru kulübü buluyor mu?
+  set local role anon;
+  select ad into v_ad from public.kulup_marka(v_slug);
+  select count(*) into v_kac from public.kulup_marka('olmayan-slug-' || gen_random_uuid()::text);
+  reset role;
+
+  if v_ad is null then
+    raise exception '0056: anon rolü kulüp markasını okuyamadı.';
+  end if;
+  if v_kac <> 0 then
+    raise exception '0056: olmayan slug için satır döndü.';
+  end if;
+
+  raise notice '0056 doğrulandı: anon markayı okuyor (%), olmayan slug boş dönüyor.', v_ad;
+end $$;
+
 -- Sıradaki adım: kurulum/02_katalog.sql (platform kataloğu).
 -- ===========================================================================

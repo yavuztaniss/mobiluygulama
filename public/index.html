@@ -77,6 +77,55 @@
     <div id="root"></div>
 
     <script>
+      // =====================================================================
+      // KULÜBE ÖZEL MARKA — /k/<slug>
+      // =====================================================================
+      // Adres /k/karsiyaka ise manifest ve simge O KULÜBÜN oluyor; veli
+      // uygulamayı ana ekranına eklediğinde kendi kulübünün logosunu ve adını
+      // görüyor. Kök adreste (/) ürünün kendi kimliği kalıyor.
+      //
+      // ⚠ BU BLOK REACT'TEN ÖNCE ÇALIŞIYOR VE ÖYLE KALMALI.
+      //   iOS "Ana Ekrana Ekle" anında sayfadaki etiketleri okuyor. Kullanıcı
+      //   uygulama daha yüklenirken paylaş menüsünü açarsa etiketler çoktan
+      //   doğru olmalı; React'in mount olmasını beklemek geç kalmak demek.
+      //
+      // ⚠ MANIFEST ETİKETİ ÖNCE, SİMGE SONRA.
+      //   Manifest adresi anında yazılıyor (ağ beklemeden), apple-touch-icon
+      //   ise manifest'ten okunan logoyla güncelleniyor. Sıra böyle çünkü
+      //   Android manifest'e, eski iOS ise apple-touch-icon'a bakıyor.
+      (function () {
+        var eslesme = location.pathname.match(/^\/k\/([a-z0-9-]{1,80})(?:\/|$)/i);
+        if (!eslesme) return;
+        var slug = eslesme[1].toLowerCase();
+
+        var manifestUcu = '/api/manifest?k=' + encodeURIComponent(slug);
+        var link = document.querySelector('link[rel="manifest"]');
+        if (link) link.setAttribute('href', manifestUcu);
+
+        // Ad ve simge için manifest'i bir kez okuyoruz. Başarısız olursa
+        // sayfa yine açılıyor — yalnızca ürünün kendi kimliğiyle.
+        fetch(manifestUcu)
+          .then(function (y) { return y.ok ? y.json() : null; })
+          .then(function (m) {
+            if (!m) return;
+
+            if (m.name) {
+              document.title = m.name;
+              var appleAd = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+              if (appleAd) appleAd.setAttribute('content', m.short_name || m.name);
+            }
+
+            var ikon = (m.icons || []).find(function (i) {
+              return (i.purpose || 'any').indexOf('any') !== -1;
+            });
+            if (ikon && ikon.src) {
+              var touch = document.querySelector('link[rel="apple-touch-icon"]');
+              if (touch) touch.setAttribute('href', ikon.src);
+            }
+          })
+          .catch(function () { /* sessiz: marka olmadan da uygulama çalışır */ });
+      })();
+
       // SERVICE WORKER KAYDI
       // Android/Chrome'un "Uygulamayı yükle" istemi manifest'e EK OLARAK fetch
       // olayını dinleyen bir service worker istiyor; yoksa istem hiç çıkmıyor.
